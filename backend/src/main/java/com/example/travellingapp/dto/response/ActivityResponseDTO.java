@@ -1,0 +1,24 @@
+package com.example.travellingapp.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@AllArgsConstructor
+public class ActivityResponseDTO {
+    private Long activityId;
+    private Long destinationId;
+    private Long tripId;
+    private String activityName;
+    private String location;
+    private String description;
+    private LocalDateTime startDateTime;
+    private LocalDateTime endDateTime;
+    private LocalDateTime createdDate;
+    private LocalDateTime modifiedDate;
+}
+
