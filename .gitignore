@@ -1,17 +1,123 @@
-# Node / Expo
-frontend/node_modules/
-frontend/.expo/
-frontend/dist/
-frontend/.env
+# =========================================================
+# WanderMate Fullstack - Root Git Ignore
+# Applies to both backend and frontend folders
+# =========================================================
 
-# Java / Spring Boot
-backend/target/
-backend/.env
-backend/.idea/
-backend/*.iml
 
-# General
+# =========================================================
+# General OS / logs
+# =========================================================
 .DS_Store
+Thumbs.db
+*.log
+HELP.md
+
+
+# =========================================================
+# Environment files
+# Never commit secrets, tokens, DB passwords, email credentials
+# =========================================================
+.env
+.env.*
+!.env.example
+
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+
+# =========================================================
+# IDE / Editor files
+# =========================================================
 .idea/
 .vscode/
-*.log
+*.iws
+*.iml
+*.ipr
+
+
+# =========================================================
+# Backend - Java / Spring Boot / Maven
+# =========================================================
+backend/target/
+backend/build/
+
+# Keep Maven wrapper jar if used
+!backend/.mvn/wrapper/maven-wrapper.jar
+
+# Rare nested build folders inside source folders should not be ignored
+!backend/**/src/main/**/target/
+!backend/**/src/test/**/target/
+!backend/**/src/main/**/build/
+!backend/**/src/test/**/build/
+
+
+# =========================================================
+# Backend - STS / Eclipse
+# =========================================================
+backend/.apt_generated/
+backend/.classpath
+backend/.factorypath
+backend/.project
+backend/.settings/
+backend/.springBeans
+backend/.sts4-cache/
+
+
+# =========================================================
+# Backend - Docker / DB generated or sensitive local files
+# =========================================================
+backend/docker/init/full-init.sql
+*.sql.gz
+*.dump
+*.bak
+
+
+# =========================================================
+# Frontend - Node / Expo / React Native
+# =========================================================
+frontend/node_modules/
+frontend/.expo/
+frontend/.expo-shared/
+frontend/dist/
+frontend/web-build/
+frontend/expo-env.d.ts
+
+# Metro / debug logs
+frontend/.metro-health-check*
+frontend/npm-debug.*
+frontend/yarn-debug.*
+frontend/yarn-error.*
+
+
+# =========================================================
+# Frontend - TypeScript
+# =========================================================
+frontend/*.tsbuildinfo
+frontend/**/*.tsbuildinfo
+
+
+# =========================================================
+# Frontend - generated native folders
+# Keep ignored if using Expo managed workflow.
+# Remove these lines later if you intentionally commit native projects.
+# =========================================================
+frontend/ios/
+frontend/android/
+
+
+# =========================================================
+# Frontend - Native signing / local credential files
+# =========================================================
+frontend/.kotlin/
+frontend/*.orig.*
+frontend/*.jks
+frontend/*.p8
+frontend/*.p12
+frontend/*.key
+frontend/*.mobileprovision
+frontend/*.pem
