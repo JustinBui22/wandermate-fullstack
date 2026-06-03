@@ -1,6 +1,6 @@
 # API Guide
 
-This document summarizes the main API areas in the Travelling App backend.
+This document summarizes the main API areas in the WanderMate / Travelling App backend.
 
 ---
 
@@ -12,17 +12,25 @@ Local IntelliJ run:
 http://localhost:8080/The-Project
 ```
 
-Docker run using host port `8081`:
+Docker run using host port `8082`:
 
 ```text
-http://localhost:8081/The-Project
+http://localhost:8082/The-Project
 ```
 
-Swagger UI:
+Swagger UI for local IntelliJ run:
 
 ```text
-http://localhost:8081/The-Project/swagger-ui/index.html
+http://localhost:8080/The-Project/swagger-ui/index.html
 ```
+
+Swagger UI for Docker run:
+
+```text
+http://localhost:8082/The-Project/swagger-ui/index.html
+```
+
+If the application context path changes later, remove or update `/The-Project`.
 
 ---
 
@@ -66,6 +74,7 @@ Session-Token: <sessionToken>
 Protected modules include:
 
 - Trip APIs
+- Destination APIs
 - Activity APIs
 - Logout API
 - Any user-specific resource API
@@ -137,11 +146,54 @@ Main responsibilities:
 - Update trip
 - Delete trip
 - Search/suggest cities, restaurants, and accommodations
+- Validate duplicate trip names per user
+- Warn about trip overlap
+- Block trip updates that exclude existing destinations
 
 Important rule:
 
 ```text
 Users can only access and modify their own trips.
+```
+
+Routes:
+
+```text
+GET    /api/v1/trips
+GET    /api/v1/trips/{tripId}
+POST   /api/v1/trips
+PUT    /api/v1/trips/{tripId}
+DELETE /api/v1/trips/{tripId}
+```
+
+---
+
+## Destination APIs
+
+Main responsibilities:
+
+- Create destination inside a trip
+- Get destinations for a trip
+- Get destination detail
+- Update destination
+- Delete destination
+- Validate destination date range inside trip date range
+- Warn about destination overlap inside the same trip
+
+Routes:
+
+```text
+GET    /api/v1/trips/{tripId}/destinations
+GET    /api/v1/trips/{tripId}/destinations/{destinationId}
+POST   /api/v1/trips/{tripId}/destinations
+PUT    /api/v1/trips/{tripId}/destinations/{destinationId}
+DELETE /api/v1/trips/{tripId}/destinations/{destinationId}
+```
+
+Important rule:
+
+```text
+Deleting a destination deletes all activities inside that destination.
 ```
 
 ---
@@ -150,12 +202,23 @@ Users can only access and modify their own trips.
 
 Main responsibilities:
 
-- Create activity inside a trip
-- Get activities for a trip
+- Create activity inside a destination
+- Get activities for a destination
 - Get activity detail
 - Update activity
 - Delete activity
-- Validate activity date range and time overlap
+- Validate activity date/time range inside destination date range
+- Block activity time overlap
+
+Routes:
+
+```text
+GET    /api/v1/trips/{tripId}/destinations/{destinationId}/activities
+GET    /api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}
+POST   /api/v1/trips/{tripId}/destinations/{destinationId}/activities
+PUT    /api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}
+DELETE /api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}
+```
 
 Activity overlap rule:
 
@@ -165,20 +228,65 @@ newStart < existingEnd AND newEnd > existingStart
 
 If both conditions are true, the new activity overlaps with an existing activity.
 
-```mermaid
-flowchart TD
-    A[Create or update activity] --> B[Validate required fields]
-    B --> C[Get authenticated username]
-    C --> D[Find trip/activity by ID + username]
-    D --> E{Resource belongs to user?}
-    E -- No --> F[Reject request]
-    E -- Yes --> G[Validate activity inside trip date range]
-    G --> H[Check overlap in same trip]
-    H --> I{Overlap exists?}
-    I -- Yes --> F
-    I -- No --> J[Save activity]
-    J --> K[Map entity to ActivityResponseDTO]
-    K --> L[Return response]
+Back-to-back activities are allowed:
+
+```text
+Existing activity: 10:00 - 12:00
+New activity:      12:00 - 13:00
+Result: allowed
+```
+
+Overlapping activities are blocked:
+
+```text
+Existing activity: 10:00 - 12:00
+New activity:      11:00 - 13:00
+Result: blocked
+```
+
+---
+
+## Soft Warning vs Hard Error
+
+### Soft Warnings
+
+Soft warnings allow the frontend to ask the user whether they want to continue.
+
+```text
+TRIP_OVERLAP_WARNING
+DESTINATION_OVERLAP_WARNING
+```
+
+Frontend flow:
+
+```text
+Request with allowOverlap = false
+  ↓
+Backend detects overlap
+  ↓
+Backend returns warning
+  ↓
+Frontend shows confirmation popup
+  ↓
+User confirms
+  ↓
+Frontend sends same request with allowOverlap = true
+  ↓
+Backend saves data
+```
+
+### Hard Errors
+
+Hard errors cannot be bypassed by the user.
+
+Examples:
+
+```text
+TRIP_NAME_ALREADY_EXISTS
+TRIP_DATE_CONFLICT_WITH_DESTINATION
+DESTINATION_DATE_OUTSIDE_TRIP_RANGE
+ACTIVITY_OUTSIDE_DESTINATION_RANGE
+ACTIVITY_OVERLAP_ERROR
 ```
 
 ---

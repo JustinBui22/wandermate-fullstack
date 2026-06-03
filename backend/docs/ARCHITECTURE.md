@@ -1,6 +1,6 @@
 # Backend Architecture
 
-This document explains the backend structure of the Travelling App backend.
+This document explains the backend structure of the WanderMate / Travelling App backend.
 
 ---
 
@@ -21,6 +21,21 @@ flowchart TD
     Response --> Controller
     Controller --> Client
 ```
+
+---
+
+## Core Domain Model
+
+```text
+User
+  └── Trip
+        └── Destination
+              └── Activity
+```
+
+The backend is structured around nested itinerary data.
+
+A user owns trips. Each trip can contain multiple destinations. Each destination can contain multiple activities.
 
 ---
 
@@ -64,7 +79,7 @@ Responsibilities:
 - Authentication flow
 - Token generation and validation
 - Refresh token rotation/revocation
-- Trip and activity business rules
+- Trip, destination, and activity business rules
 - OTP flow
 - Ownership checks
 - Calling validators, mappers, and repositories
@@ -82,7 +97,7 @@ Responsibilities:
 - Validate required fields
 - Validate date/time rules
 - Validate OTP request type
-- Validate trip/activity rules
+- Validate trip, destination, and activity rules
 - Validate business conditions before service actions continue
 
 ---
@@ -109,18 +124,98 @@ Responsibilities:
 - Save/update/delete records
 - Provide ownership-based lookup methods
 
-Example ownership-based query pattern:
+Example ownership-based query patterns:
 
 ```text
 findByTripIdAndUser_Username(...)
-findByActivityIdAndTrip_TripIdAndTrip_User_Username(...)
+findByDestinationIdAndTrip_TripIdAndTrip_User_Username(...)
+findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(...)
 ```
 
 This helps ensure a user can only access their own resources.
 
 ---
 
-## Activity Creation Flow Example
+## Trip Creation Flow
+
+```mermaid
+sequenceDiagram
+    actor Client
+    participant Security as TokenFilter
+    participant Controller
+    participant Service as TripService
+    participant Validator as TripValidator
+    participant Repo as Repository
+    participant DB as MariaDB
+    participant Mapper as TripMapper
+
+    Client->>Security: POST /api/v1/trips
+    Security->>Security: Validate access token + session token
+    Security->>Controller: Allow request
+    Controller->>Service: createTrip(dto)
+    Service->>Validator: validateCreateInput(dto)
+    Validator-->>Service: normalized trip name
+    Service->>Repo: find authenticated user
+    Repo->>DB: query user
+    DB-->>Repo: user entity
+    Repo-->>Service: user entity
+    Service->>Repo: check duplicate trip name for user
+    Service->>Repo: check trip overlap for user
+    alt Overlap exists and allowOverlap is false
+        Service-->>Controller: TRIP_OVERLAP_WARNING
+        Controller-->>Client: Warning response
+    else No overlap or allowOverlap is true
+        Service->>Repo: save trip
+        Repo->>DB: insert trip
+        DB-->>Repo: saved trip
+        Repo-->>Service: saved trip
+        Service->>Mapper: toResponseDTO(trip)
+        Mapper-->>Service: TripResponseDTO
+        Service-->>Controller: CompleteResponse
+        Controller-->>Client: API response
+    end
+```
+
+---
+
+## Destination Creation Flow
+
+```mermaid
+sequenceDiagram
+    actor Client
+    participant Security as TokenFilter
+    participant Controller
+    participant Service as DestinationService
+    participant Validator as DestinationValidator
+    participant Repo as Repository
+    participant DB as MariaDB
+    participant Mapper as DestinationMapper
+
+    Client->>Security: POST /api/v1/trips/{tripId}/destinations
+    Security->>Security: Validate access token + session token
+    Security->>Controller: Allow request
+    Controller->>Service: createDestination(tripId, dto)
+    Service->>Repo: find trip by tripId + authenticated username
+    Repo->>DB: query trip ownership
+    DB-->>Repo: trip entity
+    Repo-->>Service: trip entity
+    Service->>Validator: validate destination date inside trip date range
+    Service->>Repo: check destination overlap inside same trip
+    alt Overlap exists and allowOverlap is false
+        Service-->>Controller: DESTINATION_OVERLAP_WARNING
+        Controller-->>Client: Warning response
+    else No overlap or allowOverlap is true
+        Service->>Repo: save destination
+        Repo->>DB: insert destination
+        Service->>Mapper: toResponseDTO(destination)
+        Service-->>Controller: CompleteResponse
+        Controller-->>Client: API response
+    end
+```
+
+---
+
+## Activity Creation Flow
 
 ```mermaid
 sequenceDiagram
@@ -133,30 +228,60 @@ sequenceDiagram
     participant DB as MariaDB
     participant Mapper as ActivityMapper
 
-    Client->>Security: POST /api/v1/trips/{tripId}/activities
+    Client->>Security: POST /api/v1/trips/{tripId}/destinations/{destinationId}/activities
     Security->>Security: Validate access token + session token
     Security->>Controller: Allow request
-    Controller->>Service: createActivity(tripId, dto)
-    Service->>Validator: validateCreateInput(tripId, dto)
+    Controller->>Service: createActivity(tripId, destinationId, dto)
+    Service->>Validator: validateCreateInput(destinationId, dto)
     Validator-->>Service: normalized activity name
-    Service->>Repo: find trip by tripId + authenticated username
-    Repo->>DB: query trip ownership
-    DB-->>Repo: trip entity
-    Repo-->>Service: trip entity
-    Service->>Validator: validate activity inside trip date range
+    Service->>Repo: find destination by destinationId + tripId + authenticated username
+    Repo->>DB: query destination ownership
+    DB-->>Repo: destination entity
+    Repo-->>Service: destination entity
+    Service->>Validator: validate activity inside destination date range
     Service->>Repo: check overlapping activity in same trip
-    Repo->>DB: existsByTrip_TripIdAndStartDateTimeLessThanAndEndDateTimeGreaterThan
+    Repo->>DB: existsByDestination_Trip_TripIdAndStartDateTimeLessThanAndEndDateTimeGreaterThan
     DB-->>Repo: overlap true/false
     Repo-->>Service: overlap result
-    Service->>Repo: save activity
-    Repo->>DB: insert activity
-    DB-->>Repo: saved entity
-    Repo-->>Service: saved entity
-    Service->>Mapper: toResponseDTO(activity)
-    Mapper-->>Service: ActivityResponseDTO
-    Service-->>Controller: CompleteResponse
-    Controller-->>Client: API response
+    alt Overlap exists
+        Service-->>Controller: ACTIVITY_OVERLAP_ERROR
+        Controller-->>Client: Error response
+    else No overlap
+        Service->>Repo: save activity
+        Repo->>DB: insert activity
+        DB-->>Repo: saved entity
+        Repo-->>Service: saved entity
+        Service->>Mapper: toResponseDTO(activity)
+        Mapper-->>Service: ActivityResponseDTO
+        Service-->>Controller: CompleteResponse
+        Controller-->>Client: API response
+    end
 ```
+
+---
+
+## Important Validation Rules
+
+### Trip Rules
+
+- User cannot have duplicate trip names.
+- Trip overlap is a soft warning.
+- Trip update cannot shrink the trip date range so that existing destinations fall outside it.
+- Deleting a trip deletes related destinations and activities.
+
+### Destination Rules
+
+- Destination must belong to the authenticated user's trip.
+- Destination date range must stay inside the trip date range.
+- Destination overlap inside the same trip is a soft warning.
+- Deleting a destination deletes related activities.
+
+### Activity Rules
+
+- Activity must belong to a destination.
+- Activity time must stay inside the destination date range.
+- Activity overlap is a hard error.
+- Back-to-back activities are allowed.
 
 ---
 

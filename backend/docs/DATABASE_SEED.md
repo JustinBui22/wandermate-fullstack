@@ -63,6 +63,18 @@ The public GitHub seed can include:
 ✅ Demo-safe values
 ```
 
+Recommended error code rows include:
+
+```text
+TRIP_OVERLAP_WARNING
+DESTINATION_OVERLAP_WARNING
+TRIP_NAME_ALREADY_EXISTS
+TRIP_DATE_CONFLICT_WITH_DESTINATION
+DESTINATION_DATE_OUTSIDE_TRIP_RANGE
+ACTIVITY_OUTSIDE_DESTINATION_RANGE
+ACTIVITY_OVERLAP_ERROR
+```
+
 ---
 
 ## What the Safe Seed Must Not Include
@@ -98,6 +110,24 @@ EMAIL_ADDRESS_CONFIG = demo@example.com
 ```
 
 For private local testing, real values should come from `.env`, not from the public SQL seed.
+
+---
+
+## Docker Database Connection
+
+Inside Docker, the backend connects to MariaDB using the Docker service name:
+
+```env
+SPRING_DATASOURCE_URL=jdbc:mariadb://db:3306/traveling_app
+```
+
+From the host machine, MariaDB is exposed on:
+
+```text
+localhost:3307
+```
+
+Do not use `localhost:3307` inside the backend container.
 
 ---
 
