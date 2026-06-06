@@ -17,7 +17,6 @@ export const axiosClient = axios.create({
         "Content-Type": "application/json",
     },
 });
-
 let refreshPromise: Promise<string> | null = null;
 
 axiosClient.interceptors.request.use(async (config) => {
