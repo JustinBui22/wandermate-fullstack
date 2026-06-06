@@ -10,7 +10,7 @@ services:
       MARIADB_PASSWORD: ${DB_PASSWORD}
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     ports:
-      - "3307:3306"
+      - "3306:3305"
     volumes:
       - traveling-db-data:/var/lib/mysql
       - ./docker/init:/docker-entrypoint-initdb.d

@@ -20,7 +20,7 @@ HELP.md
 .env
 .env.*
 !.env.example
-
+backend/docker/init/full-init.sql
 backend/.env
 backend/.env.*
 !backend/.env.example
