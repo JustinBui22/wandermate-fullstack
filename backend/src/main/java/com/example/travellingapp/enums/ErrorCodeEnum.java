@@ -76,7 +76,10 @@ public enum ErrorCodeEnum {
     DESTINATION_DATE_OUTSIDE_TRIP_RANGE("E036", "Destination dates must stay inside the trip date range", DESTINATION, HttpStatusCodeEnum.BAD_REQUEST),
     ACTIVITY_OUTSIDE_DESTINATION_RANGE("E037", "Activity time must stay inside the destination date range", ACTIVITY, HttpStatusCodeEnum.BAD_REQUEST),
     ACTIVITY_OVERLAP_ERROR("E038", "Activity time overlaps with another activity in this trip", ACTIVITY, HttpStatusCodeEnum.CONFLICT),
-    TRIP_NAME_ALREADY_EXISTS("E039", "Trip name already exists for this user", TRIP, HttpStatusCodeEnum.CONFLICT);
+    TRIP_NAME_ALREADY_EXISTS("E039", "Trip name already exists for this user", TRIP, HttpStatusCodeEnum.CONFLICT),
+    INVALID_CONFIG("E040", "Invalid config value", COMMON, HttpStatusCodeEnum.INTERNAL_SERVER_ERROR),
+    PHONE_NUMBER_TAKEN("E041", "Phone number taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
+    ;
 
     private final String code;
     private final String message;

@@ -118,6 +118,7 @@ public class TokenServiceImpl implements TokenService {
         List<RefreshTokenEntity> tokenList = refreshTokenRepository.findAllBySessionIdAndIsRevokedFalse(sessionId);
         if (tokenList.isEmpty()) {
             log.warn("No active refresh tokens with sessionId {} to revoke", sessionId);
+            return;
         }
         for (RefreshTokenEntity token : tokenList) {
             token.setRevoked(true);
@@ -303,13 +304,46 @@ public class TokenServiceImpl implements TokenService {
         return true;
     }
 
-    public void checkMaxActiveSessions(String username) {
-        int maxSessionConfig = Integer.parseInt(getConfigValue(MAX_ALLOWED_SESSIONS.name(), configurationRepository, "3"));
-        List<SessionTokenEntity> activeSessionList = sessionTokenRepository.findAllByUserName(username);
-        // Check if the user has exceeded maxed number of active sessions
-        if (activeSessionList.size() >= maxSessionConfig) {
-            log.info("Exceeding max allowed number of active sessions for user {}", username);
-            throw new BusinessException(MAX_SESSIONS_REACHED, LOGIN.name());
+    // Two related DB operations, need to succeed or fail together, so use @Transactional to ensure data consistency
+    @Transactional
+    public void checkMaxActiveSessions(String username, boolean overrideMaxSession) {
+        try {
+            int maxSessionConfig = Integer.parseInt(getConfigValue(MAX_ALLOWED_SESSIONS.name(), configurationRepository, "3"));
+            if (maxSessionConfig <= 0) {
+                log.error("Invalid max allowed sessions config: {}", maxSessionConfig);
+                throw new BusinessException(INVALID_CONFIG, COMMON.name());
+            }
+            List<SessionTokenEntity> activeSessionList = sessionTokenRepository.findAllByUserNameOrderByCreatedDateAsc(username);
+
+            // Check if the user has exceeded maxed number of active sessions
+            if (activeSessionList.size() < maxSessionConfig) {
+                return;
+            }
+            if (!overrideMaxSession) {
+                log.info("Max allowed active sessions reached for user {}", username);
+                throw new BusinessException(MAX_SESSIONS_REACHED, LOGIN.name());
+            }
+
+            // If overrideMaxSession is true, revoke the oldest active session until the number of active sessions is less than max allowed sessions
+            while (activeSessionList.size() >= maxSessionConfig) {
+                //SessionTokenEntity oldestSession = activeSessionList.removeFirst();
+                SessionTokenEntity oldestSession = activeSessionList.remove(0);
+                log.info(
+                        "User {} chose to override max sessions. Revoking oldest sessionId {}.",
+                        username,
+                        oldestSession.getSessionId()
+                );
+                revokeActiveRefreshTokensBySessionId(oldestSession.getSessionId());
+                sessionTokenRepository.delete(oldestSession);
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (NumberFormatException e) {
+            log.error("Invalid max allowed sessions configuration value!", e);
+            throw new BusinessException(INPUT_FORMAT_INVALID, COMMON.name());
+        } catch (Exception e) {
+            log.error("Checking max active sessions failed for user {}!", username, e);
+            throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
         }
     }
 

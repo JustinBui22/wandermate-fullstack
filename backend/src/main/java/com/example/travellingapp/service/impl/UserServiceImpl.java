@@ -70,6 +70,9 @@ public class UserServiceImpl implements UserService {
             else if (userRepository.findByEmailAndActive(registerRequest.getEmail(), true).isPresent()) {
                 log.info("Email is not available!");
                 throw new BusinessException(EMAIL_TAKEN, REGISTER.name());
+            } else if (userRepository.findByPhoneNumberAndActive(registerRequest.getPhoneNumber(), true).isPresent()) {
+                log.info("Phone number is not available!");
+                throw new BusinessException(PHONE_NUMBER_TAKEN, REGISTER.name());
             }
             // Check if the OTP is empty
             else if (StringUtils.isEmpty(registerRequest.getOtp())) {
@@ -77,7 +80,11 @@ public class UserServiceImpl implements UserService {
                 throw new BusinessException(OTP_BLOCKED_OR_NOT_FOUND, REGISTER.name());
             }
             // Check if OTP code is verified
-            String verifyOtpErrorCode = otpServiceImpl.verifyOtp(new OtpDTO(registerRequest.getUsername(), registerRequest.getOtp())).getResponseBody().getCode();
+            OtpDTO verifyOtpDTO = new OtpDTO(registerRequest.getUsername(), registerRequest.getOtp());
+            verifyOtpDTO.setEmail(registerRequest.getEmail());
+            verifyOtpDTO.setPhoneNumber(registerRequest.getPhoneNumber());
+            String verifyOtpErrorCode = otpServiceImpl.verifyOtp(verifyOtpDTO).getResponseBody().getCode();
+
             if (verifyOtpErrorCode.equals(OTP_VERIFICATION_SUCCESS.getCode())) {
                 User newUser = new User(registerRequest.getUsername(), passwordEncoder.encode(registerRequest.getPassword()), registerRequest.getPhoneNumber(), toLocalDate(registerRequest.getDob()), LocalDateTime.now(), registerRequest.getEmail(), true);
                 userRepository.save(newUser);
@@ -102,13 +109,16 @@ public class UserServiceImpl implements UserService {
             // Validate the format of username, email, password and phone number
             userValidator.validateRegisterInput(registerRequest);
             // Check if username is taken
-           if (userOptional.isPresent()) {
+            if (userOptional.isPresent()) {
                 log.info("Username {} is already taken!", userOptional.get().getUsername());
                 throw new BusinessException(USERNAME_TAKEN, REGISTER.name());
-            }
-           else if (userRepository.findByEmailAndActive(registerRequest.getEmail(), true).isPresent()) {
+            } else if (userRepository.findByEmailAndActive(registerRequest.getEmail(), true).isPresent()) {
                 log.info("Email is already taken!");
                 throw new BusinessException(EMAIL_TAKEN, REGISTER.name());
+            }
+            else if (userRepository.findByPhoneNumberAndActive(registerRequest.getPhoneNumber(), true).isPresent()) {
+                log.info("Phone number is already taken!");
+                throw new BusinessException(PHONE_NUMBER_TAKEN, REGISTER.name());
             }
             return getCompleteResponse(errorCodeRepository, USER_DETAILS_VERIFIED, REGISTER.name(), null);
         } catch (BusinessException e) {
@@ -129,15 +139,21 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(USER_NOT_FOUND, FORGOT_PASSWORD.name());
         }
         User user = userOptional.get();
+        // If user entered email/phone, convert it back to real username.
+        username = user.getUsername();
         //Verify otp
-        String verifyOtpErrorCode = otpServiceImpl.verifyOtp(new OtpDTO(username, forgotPasswordDTO.getOtp())).getResponseBody().getCode();
+        OtpDTO verifyOtpDTO = new OtpDTO(username, forgotPasswordDTO.getOtp());
+        verifyOtpDTO.setEmail(forgotPasswordDTO.getEmail());
+        verifyOtpDTO.setPhoneNumber(forgotPasswordDTO.getPhoneNumber());
+        String verifyOtpErrorCode = otpServiceImpl.verifyOtp(verifyOtpDTO).getResponseBody().getCode();
+
         if (verifyOtpErrorCode.equals(OTP_VERIFICATION_SUCCESS.getCode())) {
             user.setPassword(passwordEncoder.encode(forgotPasswordDTO.getNewPassword()));
             userRepository.save(user);
             log.info("User password has been updated!");
         } else {
             log.error("Update new password failed for user {}!", username);
-            throw new BusinessException(OTP_VERIFICATION_FAIL, REGISTER.name());
+            throw new BusinessException(OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
         }
         return getCompleteResponse(errorCodeRepository, PASSWORD_UPDATED_SUCCESS, FORGOT_PASSWORD.name(), null);
     }
@@ -172,7 +188,7 @@ public class UserServiceImpl implements UserService {
             log.info(isPasswordCorrect ? "User {} logged in successfully!" : "Password incorrect!", username);
             if (isPasswordCorrect) {
                 // Check if the user has exceeded maxed number of active sessions
-                tokenService.checkMaxActiveSessions(username);
+                tokenService.checkMaxActiveSessions(username, loginRequest.isOverrideMaxSession());
                 log.info("Current user: {}", user.getUsername());
                 // Create an authentication object from the user
                 // Generate and return the session, access and refresh token

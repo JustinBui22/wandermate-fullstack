@@ -9,4 +9,7 @@ import java.util.Optional;
 public interface OtpCheckRepository extends JpaRepository<OtpCheckEntity, Integer> {
     @Query("SELECT o FROM OtpCheckEntity o WHERE o.username = :username AND o.isBlock = :isBlock")
     Optional<OtpCheckEntity> findByUsernameAndBlock(String username, boolean isBlock);
+
+
+    Optional<OtpCheckEntity> findByUsername(String username);
 }

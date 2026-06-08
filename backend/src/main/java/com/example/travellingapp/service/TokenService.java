@@ -15,7 +15,7 @@ public interface TokenService {
 
     boolean isSessionTokenInvalid(String username, String sessionId, String sessionToken);
 
-    void checkMaxActiveSessions(String username);
+    void checkMaxActiveSessions(String username, boolean overrideMaxSession);
 
     void revokeActiveRefreshTokensBySessionId(String sessionId);
 }
