@@ -82,7 +82,7 @@ public class OtpServiceImpl implements OtpService {
 
     private void validateOtpRetryOrRestriction(OtpDTO otpDTO, OtpCheckEntity otpCheckEntity) {
         try {
-            int maxRetryOtp = convertStringToInt(getConfigValue(MAX_RETRY_OTP.name(), configurationRepository, "3"));
+            int maxRetrySendOtp = convertStringToInt(getConfigValue(MAX_RETRY_SEND_OTP.name(), configurationRepository, "3"));
             long restrictedOtpDuration = convertStringToLong(getConfigValue(OTP_RESTRICTED_TIME.name(), configurationRepository, "900000L"));
 
             // Check if the OTP record is currently blocked/restricted
@@ -92,7 +92,8 @@ public class OtpServiceImpl implements OtpService {
                     log.info("OTP restriction removed for user {}!", otpDTO.getUserName());
                     otpCheckEntity.setOtpRestrictedTime(null);
                     otpCheckEntity.setBlock(false);
-                    otpCheckEntity.setRetryCount(0);
+                    otpCheckEntity.setRetrySendOtpCount(0);
+                    otpCheckEntity.setRetryVerifyOtpCount(0);
                     otpCheckRepository.save(otpCheckEntity);
                     return;
                 }
@@ -102,8 +103,8 @@ public class OtpServiceImpl implements OtpService {
             }
 
             // Check if the user has already reached the maximum OTP retry/send limit
-            if (otpCheckEntity.getRetryCount() >= maxRetryOtp) {
-                log.error("User {} has exceeded max retry count of otp", otpDTO.getUserName());
+            if (otpCheckEntity.getRetrySendOtpCount() >= maxRetrySendOtp) {
+                log.error("User {} has exceeded max retry count of sending OTP", otpDTO.getUserName());
                 otpCheckEntity.setBlock(true);
                 // Calculate when the OTP restriction will expire
                 LocalDateTime restrictedOtpTime = LocalDateTime.now().plusSeconds(restrictedOtpDuration / 1000);
@@ -130,6 +131,7 @@ public class OtpServiceImpl implements OtpService {
                             otpDTO.getEmail(),
                             LocalDateTime.now(),
                             otpDTO.getPhoneNumber(),
+                            0,
                             0,
                             null,
                             false
@@ -183,8 +185,7 @@ public class OtpServiceImpl implements OtpService {
             sendEmailOtp(otpDTO, otpCode, otpDTO.getEmailEnum(), expirationOtpDuration);
             otpCheckEntity.setEmail(otpDTO.getEmail());
             otpCheckEntity.setPhoneNumber(null);
-        }
-        else {
+        } else {
             log.error("Unsupported OTP verification method {}", otpDTO.getOtpVerificationMethod());
             throw new BusinessException(INVALID_INPUT, OTP.name());
         }
@@ -192,7 +193,9 @@ public class OtpServiceImpl implements OtpService {
         otpCheckEntity.setCreatedDate(LocalDateTime.now());
         LocalDateTime expirationOtpTime = otpCheckEntity.getCreatedDate().plusSeconds(expirationOtpDuration / 1000);
         otpCheckEntity.setOtpExpirationTime(expirationOtpTime);
-        otpCheckEntity.setRetryCount(otpCheckEntity.getRetryCount() + 1);
+        // New OTP means previous wrong verification attempts should reset
+        otpCheckEntity.setRetryVerifyOtpCount(0);
+        otpCheckEntity.setRetrySendOtpCount(otpCheckEntity.getRetrySendOtpCount() + 1);
         otpCheckRepository.save(otpCheckEntity);
     }
 
@@ -259,9 +262,10 @@ public class OtpServiceImpl implements OtpService {
             throw new BusinessException(INTERNAL_SERVER_ERROR, REGISTER.name());
         }
     }
-    private void verifyOtpFailed(int maxRetryOtp, long restrictedOtpDuration, OtpCheckEntity otpCheckEntity) {
-        otpCheckEntity.setRetryCount(otpCheckEntity.getRetryCount() + 1);
-        if (otpCheckEntity.getRetryCount() >= maxRetryOtp) {
+
+    private void verifyOtpFailed(int maxRetryVerifyOtp, long restrictedOtpDuration, OtpCheckEntity otpCheckEntity) {
+        otpCheckEntity.setRetryVerifyOtpCount((otpCheckEntity.getRetryVerifyOtpCount() + 1));
+        if (otpCheckEntity.getRetryVerifyOtpCount() >= maxRetryVerifyOtp) {
             otpCheckEntity.setBlock(true);
             LocalDateTime restrictedOtpTime = LocalDateTime.now().plusSeconds(restrictedOtpDuration / 1000);
             otpCheckEntity.setOtpRestrictedTime(restrictedOtpTime);
@@ -271,8 +275,7 @@ public class OtpServiceImpl implements OtpService {
 
     @Override
     public CompleteResponse<Object> verifyOtp(OtpDTO otpDTO) {
-        int maxRetryOtp = convertStringToInt(getConfigValue(MAX_RETRY_OTP.name(), configurationRepository, "3"));
-
+        int maxRetryVerifyOtp = convertStringToInt(getConfigValue(MAX_RETRY_VERIFY_OTP.name(), configurationRepository, "3"));
         long restrictedOtpDuration = convertStringToLong(getConfigValue(OTP_RESTRICTED_TIME.name(), configurationRepository, "900000L"));
 
         // Validate basic input for verifying OTP request
@@ -287,37 +290,34 @@ public class OtpServiceImpl implements OtpService {
         }
 
         OtpCheckEntity otpCheckEntity = otpCheckEntityOptional.get();
+        // If OTP was sent by email, final verification must use the same email
+        if (otpCheckEntity.getEmail() != null && (otpDTO.getEmail() == null
+                || !otpCheckEntity.getEmail().equalsIgnoreCase(otpDTO.getEmail()))) {
+            log.error("OTP email does not match for user {}", otpDTO.getUserName());
+            throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
+        }
+
+        // If OTP was sent by phone, final verification must use the same phone number
+        if (otpCheckEntity.getPhoneNumber() != null && (otpDTO.getPhoneNumber() == null
+                || !otpCheckEntity.getPhoneNumber().equals(otpDTO.getPhoneNumber()))) {
+            log.error("OTP phone number does not match for user {}", otpDTO.getUserName());
+            throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
+        }
+
         // Check if OTP has expired
         if (otpCheckEntity.getOtpExpirationTime() != null
                 && LocalDateTime.now().isAfter(otpCheckEntity.getOtpExpirationTime())) {
             log.warn("Verification OTP has expired!");
-            verifyOtpFailed(maxRetryOtp, restrictedOtpDuration, otpCheckEntity);
+            verifyOtpFailed(maxRetryVerifyOtp, restrictedOtpDuration, otpCheckEntity);
             throw new BusinessException(VERIFICATION_OTP_EXPIRED, OTP.name());
         }
 
         // Check if OTP code matches
         if (!otpDTO.getOtp().equals(otpCheckEntity.getNewestOtp())) {
             log.warn("Verification OTP does not match!");
-            verifyOtpFailed(maxRetryOtp, restrictedOtpDuration, otpCheckEntity);
+            verifyOtpFailed(maxRetryVerifyOtp, restrictedOtpDuration, otpCheckEntity);
             throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
         }
-
-        // If OTP was sent by email, final verification must use the same email
-        if (otpCheckEntity.getEmail() != null && (otpDTO.getEmail() == null
-                    || !otpCheckEntity.getEmail().equalsIgnoreCase(otpDTO.getEmail()))) {
-                log.error("OTP email does not match for user {}", otpDTO.getUserName());
-                throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
-            }
-
-
-        // If OTP was sent by phone, final verification must use the same phone number
-        if (otpCheckEntity.getPhoneNumber() != null && (otpDTO.getPhoneNumber() == null
-                    || !otpCheckEntity.getPhoneNumber().equals(otpDTO.getPhoneNumber()))) {
-                log.error("OTP phone number does not match for user {}", otpDTO.getUserName());
-                throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
-            }
-
-
         return getCompleteResponse(
                 errorCodeRepository,
                 OTP_VERIFICATION_SUCCESS,

@@ -19,8 +19,8 @@ public class OtpCheckEntity implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private int userId;
+    @Column(name = "otp_check_id")
+    private int otpCheckId;
 
     @Column(name = "username", nullable = false, unique = true)
     private String username;
@@ -34,8 +34,11 @@ public class OtpCheckEntity implements Serializable {
     @Column(name = "phone_num")
     private String phoneNumber;
 
-    @Column(name = "retry_count", nullable = false)
-    private int retryCount;
+    @Column(name = "retry_verify_otp_count", nullable = false)
+    private int retryVerifyOtpCount;
+
+    @Column(name = "retry_send_otp_count", nullable = false)
+    private int retrySendOtpCount;
 
     @Column(name = "newest_otp")
     private String newestOtp;
@@ -52,12 +55,13 @@ public class OtpCheckEntity implements Serializable {
     public OtpCheckEntity() {
     }
 
-    public OtpCheckEntity(String username, String email, LocalDateTime createdDate, String phoneNumber, int retryCount, String newestOtp, boolean isBlock) {
+    public OtpCheckEntity(String username, String email, LocalDateTime createdDate, String phoneNumber, int retrySendOtpCount, int retryVerifyOtpCount, String newestOtp, boolean isBlock) {
         this.username = username;
         this.email = email;
         this.createdDate = createdDate;
         this.phoneNumber = phoneNumber;
-        this.retryCount = retryCount;
+        this.retrySendOtpCount = retrySendOtpCount;
+        this.retryVerifyOtpCount = retryVerifyOtpCount;
         this.newestOtp = newestOtp;
         this.isBlock = isBlock;
     }
