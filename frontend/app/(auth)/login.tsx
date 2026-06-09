@@ -19,15 +19,17 @@ import { useRouter } from "expo-router";
 import { useAuthStore } from "@/src/stores/authStore";
 import { colors, radius, shadow, spacing } from "@/src/theme/theme";
 
+const MAX_SESSIONS_REACHED_CODE = "E022";
+
 export default function LoginScreen() {
     const router = useRouter();
-    const { loginUser, isLoading, error, clearError } = useAuthStore();
+    const { loginUser, isLoading, error, errorCode, clearError } = useAuthStore();
 
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-    async function handleLogin() {
+    async function handleLogin(overrideMaxSession = false) {
         clearError();
 
         if (!username.trim() || !password.trim()) {
@@ -38,10 +40,29 @@ export default function LoginScreen() {
         const success = await loginUser({
             username: username.trim(),
             password,
+            overrideMaxSession,
         });
 
         if (success) {
             router.replace("/");
+            return;
+        }
+
+        const latestErrorCode = useAuthStore.getState().errorCode;
+
+        if (!overrideMaxSession && latestErrorCode === MAX_SESSIONS_REACHED_CODE) {
+            Alert.alert(
+                "Too many active sessions",
+                "Your account is already signed in on the maximum number of devices. Continue to sign in here and remove the oldest session?",
+                [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                        text: "Continue",
+                        style: "destructive",
+                        onPress: () => handleLogin(true),
+                    },
+                ]
+            );
         }
     }
 
@@ -121,7 +142,7 @@ export default function LoginScreen() {
                                 </View>
                             </View>
 
-                            {error ? (
+                            {error && errorCode !== MAX_SESSIONS_REACHED_CODE ? (
                                 <View style={styles.errorBox}>
                                     <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
                                     <Text style={styles.errorText}>{error}</Text>
@@ -129,7 +150,7 @@ export default function LoginScreen() {
                             ) : null}
 
                             <Pressable
-                                onPress={handleLogin}
+                                onPress={() => handleLogin(false)}
                                 disabled={isLoading}
                                 style={({ pressed }) => [
                                     styles.loginButton,
@@ -147,9 +168,17 @@ export default function LoginScreen() {
                                 )}
                             </Pressable>
 
-                            <Pressable style={styles.forgotButton}>
-                                <Text style={styles.forgotText}>Forgot password?</Text>
-                            </Pressable>
+                            <View style={styles.linkRow}>
+                                <Pressable onPress={() => router.push("/(auth)/forgot-password" as any)}>
+                                    <Text style={styles.linkText}>Forgot password?</Text>
+                                </Pressable>
+
+                                <Text style={styles.linkDivider}>•</Text>
+
+                                <Pressable onPress={() => router.push("/(auth)/register" as any)}>
+                                    <Text style={styles.linkText}>Create account</Text>
+                                </Pressable>
+                            </View>
                         </View>
 
                         <Text style={styles.footerText}>
@@ -163,15 +192,9 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-    gradient: {
-        flex: 1,
-    },
-    safeArea: {
-        flex: 1,
-    },
-    keyboardView: {
-        flex: 1,
-    },
+    gradient: { flex: 1 },
+    safeArea: { flex: 1 },
+    keyboardView: { flex: 1 },
     scrollContent: {
         flexGrow: 1,
         justifyContent: "center",
@@ -221,9 +244,7 @@ const styles = StyleSheet.create({
         padding: spacing.lg,
         ...shadow.card,
     },
-    cardHeader: {
-        marginBottom: spacing.lg,
-    },
+    cardHeader: { marginBottom: spacing.lg },
     cardTitle: {
         fontSize: 24,
         fontWeight: "800",
@@ -234,9 +255,7 @@ const styles = StyleSheet.create({
         color: colors.mutedText,
         marginTop: 4,
     },
-    inputGroup: {
-        marginBottom: spacing.md,
-    },
+    inputGroup: { marginBottom: spacing.md },
     label: {
         fontSize: 14,
         fontWeight: "700",
@@ -292,21 +311,27 @@ const styles = StyleSheet.create({
         backgroundColor: colors.primaryDark,
         transform: [{ scale: 0.99 }],
     },
-    loginButtonDisabled: {
-        opacity: 0.65,
-    },
+    loginButtonDisabled: { opacity: 0.65 },
     loginButtonText: {
         color: "#FFFFFF",
         fontSize: 16,
         fontWeight: "800",
     },
-    forgotButton: {
-        alignSelf: "center",
+    linkRow: {
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: spacing.sm,
         paddingVertical: spacing.md,
         marginTop: spacing.xs,
     },
-    forgotText: {
+    linkText: {
         color: colors.primary,
+        fontSize: 14,
+        fontWeight: "700",
+    },
+    linkDivider: {
+        color: colors.mutedText,
         fontSize: 14,
         fontWeight: "700",
     },

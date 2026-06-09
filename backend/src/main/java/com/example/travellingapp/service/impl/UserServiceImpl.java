@@ -165,7 +165,7 @@ public class UserServiceImpl implements UserService {
             log.error("User {} not found!", userInput);
             throw new BusinessException(USER_NOT_FOUND, COMMON.name());
         }
-        return getCompleteResponse(errorCodeRepository, USER_EXISTED, COMMON.name(), userOptional.get().getUsername());
+        return getCompleteResponse(errorCodeRepository, SEARCH_INFO_SUCCESS, COMMON.name(), userOptional.get().getUsername());
     }
 
     @Transactional
