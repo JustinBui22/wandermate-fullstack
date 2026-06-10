@@ -95,7 +95,6 @@ public class GoogleOAuthHelper implements SchedulingConfigurer {
             }
         } catch (Exception e) {
             log.error("Exception in refreshing OAuth2 token!", e);
-            throw new BusinessException(INTERNAL_SERVER_ERROR, OTP.name());
         }
     }
 

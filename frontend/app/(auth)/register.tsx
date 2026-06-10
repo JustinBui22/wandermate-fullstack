@@ -34,7 +34,11 @@ function formatTimer(seconds: number) {
 }
 
 function getApiMessage(error: any) {
-    return error.response?.data?.message || error.message || "Something went wrong. Please try again.";
+    const data = error.response?.data;
+    if (typeof data?.body === "string" && data.body.trim()) {
+        return data.body;
+    }
+    return data?.message || error.message || "Something went wrong. Please try again.";
 }
 
 function isOtpRestricted(error: any) {
@@ -150,7 +154,7 @@ export default function RegisterScreen() {
             await verifyRegisterDetails({
                 username: values.username,
                 email: values.email,
-                phoneNumber: values.phoneNumber,
+                phoneNumber: values.phoneNumber || undefined,
                 dob: values.dob,
                 password: values.password,
             });
@@ -245,7 +249,7 @@ export default function RegisterScreen() {
             await register({
                 username: values.username,
                 email: values.email,
-                phoneNumber: values.phoneNumber,
+                phoneNumber: values.phoneNumber || undefined,
                 dob: values.dob,
                 password: values.password,
                 otp: values.otp,

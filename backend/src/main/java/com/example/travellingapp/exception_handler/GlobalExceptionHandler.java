@@ -39,9 +39,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ResponseBody<Object>> handleMethodValidationExceptions(MethodArgumentNotValidException ex) {
         String errorMessage = "Invalid request body!";
         if (ex.getBindingResult().hasErrors()) {
-            errorMessage = Objects.requireNonNull(ex.getBindingResult().getAllErrors().getFirst().getDefaultMessage());
+            String validationMessage = ex.getBindingResult()
+                    .getAllErrors()
+                    .getFirst()
+                    .getDefaultMessage();
+            if (validationMessage != null && !validationMessage.isBlank()) {
+                errorMessage = validationMessage;
+            }
         }
-        CompleteResponse<Object> result = getCompleteResponse(errorCodeRepository, INVALID_INPUT, COMMON.name(), errorMessage);
+        CompleteResponse<Object> result = getCompleteResponse(
+                errorCodeRepository,
+                INVALID_INPUT,
+                COMMON.name(),
+                errorMessage
+        );
         return new ResponseEntity<>(result.getResponseBody(), HttpStatusCode.valueOf(result.getHttpCode()));
     }
 

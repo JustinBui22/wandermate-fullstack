@@ -16,7 +16,7 @@ export type RegisterRequest = {
     username: string;
     password: string;
     email: string;
-    phoneNumber: string;
+    phoneNumber?: string;
     dob: string;
     otp: string;
 };
@@ -25,17 +25,17 @@ export type RegisterVerifyRequest = Omit<RegisterRequest, "otp">;
 
 export type SendOtpRequest =
     | {
-          userName: string;
-          otpVerificationMethod: "EMAIL_OTP";
-          email: string;
-          emailEnum: "EMAIL_OTP_REGISTER";
-      }
+    userName: string;
+    otpVerificationMethod: "EMAIL_OTP";
+    email: string;
+    emailEnum: "EMAIL_OTP_REGISTER";
+}
     | {
-          userName: string;
-          otpVerificationMethod: "PHONE_NUM_OTP";
-          phoneNumber: string;
-          smsEnum: "SMS_OTP_REGISTER";
-      };
+    userName: string;
+    otpVerificationMethod: "PHONE_NUM_OTP";
+    phoneNumber: string;
+    smsEnum: "SMS_OTP_REGISTER";
+};
 
 export type ForgotPasswordRequest = {
     username: string;

@@ -33,7 +33,12 @@ function formatTimer(seconds: number) {
 }
 
 function getApiMessage(error: any) {
-    return error.response?.data?.message || error.message || "Something went wrong. Please try again.";
+    const data = error.response?.data;
+
+    if (typeof data?.body === "string" && data.body.trim()) {
+        return data.body;
+    }
+    return data?.message || error.message || "Something went wrong. Please try again.";
 }
 
 function isOtpRestricted(error: any) {
