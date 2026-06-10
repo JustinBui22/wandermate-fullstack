@@ -79,6 +79,9 @@ public enum ErrorCodeEnum {
     TRIP_NAME_ALREADY_EXISTS("E039", "Trip name already exists for this user", TRIP, HttpStatusCodeEnum.CONFLICT),
     INVALID_CONFIG("E040", "Invalid config value", COMMON, HttpStatusCodeEnum.INTERNAL_SERVER_ERROR),
     PHONE_NUMBER_TAKEN("E041", "Phone number taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
+    OTP_EMAIL_NOT_MATCH("E042", "OTP email does not match the provided email", OTP, HttpStatusCodeEnum.BAD_REQUEST),
+    OTP_PHONE_NOT_MATCH("E043", "OTP phone number does not match the provided phone number", OTP, HttpStatusCodeEnum.BAD_REQUEST),
+    OTP_CODE_NOT_CORRECT("E044", "OTP code is not correct", OTP, HttpStatusCodeEnum.BAD_REQUEST)
     ;
 
     private final String code;

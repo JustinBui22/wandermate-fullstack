@@ -120,6 +120,9 @@ export default function ForgotPasswordScreen() {
     }
 
     async function handleSendOtp() {
+        if (isSendingOtp) {
+            return;
+        }
         setError(null);
 
         if (resendCooldown > 0) {
@@ -162,9 +165,10 @@ export default function ForgotPasswordScreen() {
             setError(message);
 
             if (isOtpRestricted(error)) {
-                Alert.alert("OTP temporarily blocked", `Please wait about ${OTP_RESTRICTED_MINUTES} minutes before trying again.`);
-            } else {
-                Alert.alert("Cannot send OTP", message);
+                Alert.alert(
+                    "OTP temporarily blocked",
+                    `Please wait about ${OTP_RESTRICTED_MINUTES} minutes before trying again.`
+                );
             }
         } finally {
             setIsSendingOtp(false);
@@ -449,7 +453,7 @@ export default function ForgotPasswordScreen() {
     );
 }
 
-type AuthInputProps = {
+type AuthInputProps = Readonly<{
     label: string;
     icon: keyof typeof Ionicons.glyphMap;
     value: string;
@@ -459,7 +463,7 @@ type AuthInputProps = {
     secureTextEntry?: boolean;
     rightIcon?: keyof typeof Ionicons.glyphMap;
     onRightIconPress?: () => void;
-};
+}>;
 
 function AuthInput({
                        label,

@@ -3,6 +3,7 @@ package com.example.travellingapp.validator;
 import com.example.travellingapp.dto.request.create.CreateUserDTO;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.ConfigurationRepository;
+import io.micrometer.common.util.StringUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
@@ -33,7 +34,7 @@ public class UserValidator {
             throw new BusinessException(PASSWORD_NOT_QUALIFIED, REGISTER.name());
         }
         // Check if the phone number has a correct format
-        else if (!validatePhoneForm(registerRequest.getPhoneNumber(), configurationRepository.findByConfigCode(PHONE_VN_PATTERN.name()))) {
+        else if (!StringUtils.isEmpty(registerRequest.getPhoneNumber()) && !validatePhoneForm(registerRequest.getPhoneNumber(), configurationRepository.findByConfigCode(PHONE_VN_PATTERN.name()))) {
             log.info("Phone format is invalid");
             throw new BusinessException(PHONE_FORMAT_INVALID, REGISTER.name());
         }

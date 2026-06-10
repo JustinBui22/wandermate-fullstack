@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
     ActivityIndicator,
     Alert,
@@ -48,6 +49,8 @@ export default function RegisterScreen() {
     const [email, setEmail] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [dob, setDob] = useState("");
+    const [dobDate, setDobDate] = useState<Date | null>(null);
+    const [showDobPicker, setShowDobPicker] = useState(false);
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [otp, setOtp] = useState("");
@@ -83,10 +86,27 @@ export default function RegisterScreen() {
         };
     }
 
+    function getDefaultDobDate() {
+        const date = new Date();
+        date.setFullYear(date.getFullYear() - 18);
+        date.setHours(0, 0, 0, 0);
+
+        return date;
+    }
+
+    function handleDobValueChange(_event: unknown, selectedDate: Date) {
+        setDobDate(selectedDate);
+        setDob(formatDateForDisplay(selectedDate));
+
+        if (Platform.OS === "android") {
+            setShowDobPicker(false);
+        }
+    }
+
     function validateAccountFields() {
         const values = getTrimmedValues();
 
-        if (!values.username || !values.email || !values.phoneNumber || !values.dob || !values.password || !values.confirmPassword) {
+        if (!values.username || !values.email || !values.dob || !values.password || !values.confirmPassword) {
             Alert.alert("Missing details", "Please fill in all account details before requesting OTP.");
             return null;
         }
@@ -107,7 +127,6 @@ export default function RegisterScreen() {
         if (
             !values.username ||
             !values.email ||
-            !values.phoneNumber ||
             !values.dob ||
             !values.password ||
             !values.confirmPassword
@@ -156,6 +175,11 @@ export default function RegisterScreen() {
 
         const values = validateAccountFields();
         if (!values) return;
+
+        if (otpMethod === "PHONE_NUM_OTP" && !values.phoneNumber) {
+            Alert.alert("Phone number required", "Please enter your phone number to receive OTP by phone.");
+            return;
+        }
 
         try {
             setIsSendingOtp(true);
@@ -259,7 +283,7 @@ export default function RegisterScreen() {
                             <Text style={styles.subtitle}>
                                 Create your account in a few quick steps.
                             </Text>
-                            <Text style={styles.requiredNote}>* fields are required</Text>
+                            <Text style={styles.requiredNote}>* Fields are required. Phone number is optional unless you choose phone OTP.</Text>
                         </View>
 
                         <View style={styles.card}>
@@ -293,7 +317,6 @@ export default function RegisterScreen() {
 
                                     <AuthInput
                                         label="Phone number"
-                                        required
                                         icon="call-outline"
                                         value={phoneNumber}
                                         onChangeText={setPhoneNumber}
@@ -301,14 +324,53 @@ export default function RegisterScreen() {
                                         keyboardType="phone-pad"
                                     />
 
-                                    <AuthInput
-                                        label="Date of birth"
-                                        required
-                                        icon="calendar-outline"
-                                        value={dob}
-                                        onChangeText={setDob}
-                                        placeholder="DD/MM/YYYY"
-                                    />
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>
+                                            Date of birth
+                                            <Text style={styles.requiredMark}> *</Text>
+                                        </Text>
+
+                                        <Pressable
+                                            onPress={() => setShowDobPicker(true)}
+                                            style={styles.inputWrapper}
+                                        >
+                                            <Ionicons name="calendar-outline" size={20} color={colors.mutedText} />
+
+                                            <Text
+                                                style={[
+                                                    styles.datePickerText,
+                                                    !dob ? styles.datePickerPlaceholder : null,
+                                                ]}
+                                            >
+                                                {dob || "Select your date of birth"}
+                                            </Text>
+                                        </Pressable>
+
+                                        {showDobPicker ? (
+                                            <>
+                                                <DateTimePicker
+                                                    value={dobDate ?? getDefaultDobDate()}
+                                                    mode="date"
+                                                    display="spinner"
+                                                    // display={Platform.OS === "ios" ? "spinner" : "default"}
+                                                    maximumDate={getMaximumDobDate()}
+                                                    minimumDate={getMinimumDobDate()}
+                                                    onValueChange={handleDobValueChange}
+                                                />
+
+                                                {Platform.OS === "ios" ? (
+                                                    <View style={styles.pickerActionRow}>
+                                                        <Pressable
+                                                            onPress={() => setShowDobPicker(false)}
+                                                            style={styles.pickerDoneButton}
+                                                        >
+                                                            <Text style={styles.pickerDoneText}>Done</Text>
+                                                        </Pressable>
+                                                    </View>
+                                                ) : null}
+                                            </>
+                                        ) : null}
+                                    </View>
 
                                     <AuthInput
                                         label="Password"
@@ -520,6 +582,24 @@ function ErrorBox({message}: ErrorBoxProps) {
     );
 }
 
+function formatDateForDisplay(date: Date) {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}/${month}/${year}`;
+}
+
+function getMaximumDobDate() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+}
+
+function getMinimumDobDate() {
+    return new Date(1900, 0, 1);
+}
+
 const styles = StyleSheet.create({
     gradient: {flex: 1},
     safeArea: {flex: 1},
@@ -643,6 +723,32 @@ const styles = StyleSheet.create({
     },
     textButtonText: {
         color: colors.primary,
+        fontWeight: "800",
+        fontSize: 14,
+    },
+    datePickerText: {
+        flex: 1,
+        color: colors.text,
+        fontSize: 15,
+        fontWeight: "600",
+    },
+    datePickerPlaceholder: {
+        color: colors.mutedText,
+    },
+    pickerActionRow: {
+        alignItems: "flex-end",
+        marginTop: spacing.sm,
+    },
+
+    pickerDoneButton: {
+        backgroundColor: colors.primary,
+        borderRadius: 12,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
+    },
+
+    pickerDoneText: {
+        color: "#FFFFFF",
         fontWeight: "800",
         fontSize: 14,
     },

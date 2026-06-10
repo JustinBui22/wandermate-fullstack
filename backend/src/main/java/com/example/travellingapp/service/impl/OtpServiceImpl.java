@@ -143,13 +143,13 @@ public class OtpServiceImpl implements OtpService {
         if (EMAIL_OTP.name().equals(otpDTO.getOtpVerificationMethod())) {
             if (user.getEmail() == null || otpDTO.getEmail() == null || !user.getEmail().equalsIgnoreCase(otpDTO.getEmail())) {
                 log.error("OTP email does not match registered email for user {}", otpDTO.getUserName());
-                throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
+                throw new BusinessException(OTP_EMAIL_NOT_MATCH, OTP.name());
             }
             return;
         }
         if (PHONE_NUM_OTP.name().equals(otpDTO.getOtpVerificationMethod()) && (user.getPhoneNumber() == null || otpDTO.getPhoneNumber() == null || !user.getPhoneNumber().equals(otpDTO.getPhoneNumber()))) {
             log.error("OTP phone number does not match registered phone number for user {}", otpDTO.getUserName());
-            throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
+            throw new BusinessException(OTP_PHONE_NOT_MATCH, OTP.name());
         }
     }
 
@@ -169,7 +169,7 @@ public class OtpServiceImpl implements OtpService {
             otpValidator.validatePhoneOtpRequest(otpDTO, configurationRepository.findByConfigCode(PHONE_VN_PATTERN.name()));
             if (userRepository.findByPhoneNumberAndActive(otpDTO.getPhoneNumber(), true).isPresent()) {
                 log.error("Phone number {} is already linked to an active user!", otpDTO.getPhoneNumber());
-                throw new BusinessException(USER_EXISTED, REGISTER.name());
+                throw new BusinessException(PHONE_NUMBER_TAKEN, REGISTER.name());
             }
         }
     }
@@ -275,54 +275,61 @@ public class OtpServiceImpl implements OtpService {
 
     @Override
     public CompleteResponse<Object> verifyOtp(OtpDTO otpDTO) {
-        int maxRetryVerifyOtp = convertStringToInt(getConfigValue(MAX_RETRY_VERIFY_OTP.name(), configurationRepository, "3"));
-        long restrictedOtpDuration = convertStringToLong(getConfigValue(OTP_RESTRICTED_TIME.name(), configurationRepository, "900000L"));
+        try {
+            int maxRetryVerifyOtp = convertStringToInt(getConfigValue(MAX_RETRY_VERIFY_OTP.name(), configurationRepository, "3"));
+            long restrictedOtpDuration = convertStringToLong(getConfigValue(OTP_RESTRICTED_TIME.name(), configurationRepository, "900000L"));
 
-        // Validate basic input for verifying OTP request
-        otpValidator.validateVerifyOtpRequest(otpDTO);
+            // Validate basic input for verifying OTP request
+            otpValidator.validateVerifyOtpRequest(otpDTO);
 
-        // Check if there is an active OTP record for this username
-        Optional<OtpCheckEntity> otpCheckEntityOptional = otpCheckRepository.findByUsernameAndBlock(otpDTO.getUserName(), false);
+            // Check if there is an active OTP record for this username
+            Optional<OtpCheckEntity> otpCheckEntityOptional = otpCheckRepository.findByUsernameAndBlock(otpDTO.getUserName(), false);
 
-        if (otpCheckEntityOptional.isEmpty()) {
-            log.error("There is no OTP check entity for verification!");
-            throw new BusinessException(OTP_BLOCKED_OR_NOT_FOUND, OTP.name());
-        }
+            if (otpCheckEntityOptional.isEmpty()) {
+                log.error("There is no OTP check entity for verification!");
+                throw new BusinessException(OTP_BLOCKED_OR_NOT_FOUND, OTP.name());
+            }
 
-        OtpCheckEntity otpCheckEntity = otpCheckEntityOptional.get();
-        // If OTP was sent by email, final verification must use the same email
-        if (otpCheckEntity.getEmail() != null && (otpDTO.getEmail() == null
-                || !otpCheckEntity.getEmail().equalsIgnoreCase(otpDTO.getEmail()))) {
-            log.error("OTP email does not match for user {}", otpDTO.getUserName());
+            OtpCheckEntity otpCheckEntity = otpCheckEntityOptional.get();
+            // If OTP was sent by email, final verification must use the same email
+            if (otpCheckEntity.getEmail() != null && (otpDTO.getEmail() == null
+                    || !otpCheckEntity.getEmail().equalsIgnoreCase(otpDTO.getEmail()))) {
+                log.error("OTP email destination does not match for user {}", otpDTO.getUserName());
+                throw new BusinessException(OTP_EMAIL_NOT_MATCH, OTP.name());
+            }
+
+            // If OTP was sent by phone, final verification must use the same phone number
+            if (otpCheckEntity.getPhoneNumber() != null && (otpDTO.getPhoneNumber() == null
+                    || !otpCheckEntity.getPhoneNumber().equals(otpDTO.getPhoneNumber()))) {
+                log.error("OTP phone number destination does not match for user {}", otpDTO.getUserName());
+                throw new BusinessException(OTP_PHONE_NOT_MATCH, OTP.name());
+            }
+
+            // Check if OTP has expired
+            if (otpCheckEntity.getOtpExpirationTime() != null
+                    && LocalDateTime.now().isAfter(otpCheckEntity.getOtpExpirationTime())) {
+                log.warn("Verification OTP has expired!");
+                verifyOtpFailed(maxRetryVerifyOtp, restrictedOtpDuration, otpCheckEntity);
+                throw new BusinessException(VERIFICATION_OTP_EXPIRED, OTP.name());
+            }
+
+            // Check if OTP code matches
+            if (!otpDTO.getOtp().equals(otpCheckEntity.getNewestOtp())) {
+                log.warn("Verification OTP does not match!");
+                verifyOtpFailed(maxRetryVerifyOtp, restrictedOtpDuration, otpCheckEntity);
+                throw new BusinessException(OTP_CODE_NOT_CORRECT, OTP.name());
+            }
+            return getCompleteResponse(
+                    errorCodeRepository,
+                    OTP_VERIFICATION_SUCCESS,
+                    OTP.name(),
+                    null
+            );
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("There has been an error in verifying otp!", e);
             throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
         }
-
-        // If OTP was sent by phone, final verification must use the same phone number
-        if (otpCheckEntity.getPhoneNumber() != null && (otpDTO.getPhoneNumber() == null
-                || !otpCheckEntity.getPhoneNumber().equals(otpDTO.getPhoneNumber()))) {
-            log.error("OTP phone number does not match for user {}", otpDTO.getUserName());
-            throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
-        }
-
-        // Check if OTP has expired
-        if (otpCheckEntity.getOtpExpirationTime() != null
-                && LocalDateTime.now().isAfter(otpCheckEntity.getOtpExpirationTime())) {
-            log.warn("Verification OTP has expired!");
-            verifyOtpFailed(maxRetryVerifyOtp, restrictedOtpDuration, otpCheckEntity);
-            throw new BusinessException(VERIFICATION_OTP_EXPIRED, OTP.name());
-        }
-
-        // Check if OTP code matches
-        if (!otpDTO.getOtp().equals(otpCheckEntity.getNewestOtp())) {
-            log.warn("Verification OTP does not match!");
-            verifyOtpFailed(maxRetryVerifyOtp, restrictedOtpDuration, otpCheckEntity);
-            throw new BusinessException(OTP_VERIFICATION_FAIL, OTP.name());
-        }
-        return getCompleteResponse(
-                errorCodeRepository,
-                OTP_VERIFICATION_SUCCESS,
-                OTP.name(),
-                null
-        );
     }
 }

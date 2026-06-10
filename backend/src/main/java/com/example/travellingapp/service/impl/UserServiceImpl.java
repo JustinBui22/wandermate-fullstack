@@ -68,10 +68,11 @@ public class UserServiceImpl implements UserService {
             }
             // Check if email is inputted and has valid form and if taken
             else if (userRepository.findByEmailAndActive(registerRequest.getEmail(), true).isPresent()) {
-                log.info("Email is not available!");
+                log.info("Email is taken for registration!");
                 throw new BusinessException(EMAIL_TAKEN, REGISTER.name());
-            } else if (userRepository.findByPhoneNumberAndActive(registerRequest.getPhoneNumber(), true).isPresent()) {
-                log.info("Phone number is not available!");
+            } else if (!StringUtils.isEmpty(registerRequest.getPhoneNumber())
+                    && userRepository.findByPhoneNumberAndActive(registerRequest.getPhoneNumber(), true).isPresent()) {
+                log.info("Phone number is taken for registration!");
                 throw new BusinessException(PHONE_NUMBER_TAKEN, REGISTER.name());
             }
             // Check if the OTP is empty
@@ -115,8 +116,8 @@ public class UserServiceImpl implements UserService {
             } else if (userRepository.findByEmailAndActive(registerRequest.getEmail(), true).isPresent()) {
                 log.info("Email is already taken!");
                 throw new BusinessException(EMAIL_TAKEN, REGISTER.name());
-            }
-            else if (userRepository.findByPhoneNumberAndActive(registerRequest.getPhoneNumber(), true).isPresent()) {
+            } else if (!StringUtils.isEmpty(registerRequest.getPhoneNumber())
+                    && userRepository.findByPhoneNumberAndActive(registerRequest.getPhoneNumber(), true).isPresent()) {
                 log.info("Phone number is already taken!");
                 throw new BusinessException(PHONE_NUMBER_TAKEN, REGISTER.name());
             }
