@@ -25,14 +25,14 @@ public class OtpValidator {
 
         if (otpDTO.getOtpVerificationMethod() == null || otpDTO.getOtpVerificationMethod().isBlank()) {
             log.error("OTP verification method is missing.");
-            throw new BusinessException(INVALID_INPUT, OTP.name());
+            throw new BusinessException(OTP_METHOD_MISSING, OTP.name());
         }
     }
 
     public void validateEmailOtpRequest(OtpDTO otpDTO, Optional<ConfigurationEntity> emailPatternConfig) {
         if (otpDTO.getEmailEnum() == null) {
             log.info("Email enum is missing.");
-            throw new BusinessException(CONFIG_NOT_FOUND, OTP.name());
+            throw new BusinessException(EMAIL_ENUM_MISSING, OTP.name());
         }
 
         if (!validateEmailForm(otpDTO.getEmail(), emailPatternConfig)) {
@@ -44,7 +44,7 @@ public class OtpValidator {
     public void validatePhoneOtpRequest(OtpDTO otpDTO, Optional<ConfigurationEntity> phonePatternConfig) {
         if (otpDTO.getSmsEnum() == null) {
             log.info("SMS enum is missing.");
-            throw new BusinessException(CONFIG_NOT_FOUND, OTP.name());
+            throw new BusinessException(SMS_ENUM_MISSING, OTP.name());
         }
 
         if (!validatePhoneForm(otpDTO.getPhoneNumber(), phonePatternConfig)) {
@@ -60,7 +60,7 @@ public class OtpValidator {
                 || otpDTO.getOtp() == null
                 || otpDTO.getOtp().isBlank()) {
             log.error("There is no OTP for verification.");
-            throw new BusinessException(INVALID_INPUT, OTP.name());
+            throw new BusinessException(OTP_BLOCKED_OR_NOT_FOUND, OTP.name());
         }
     }
 }

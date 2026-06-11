@@ -88,7 +88,7 @@ public class ActivityServiceImpl implements ActivityService {
 
             if (hasOverlap) {
                 log.error("Activity time overlaps with another activity in this trip.");
-                throw new BusinessException(ACTIVITY_OVERLAP_ERROR, ACTIVITY.name());
+                throw new BusinessException(ACTIVITY_TIME_CONFLICT_WITH_EXISTING_ACTIVITY, ACTIVITY.name());
             }
             ActivityEntity activity = new ActivityEntity(
                     activityName,
@@ -217,7 +217,7 @@ public class ActivityServiceImpl implements ActivityService {
                     );
             if (hasOverlap) {
                 log.error("Updated activity time overlaps with another activity in this trip.");
-                throw new BusinessException(ACTIVITY_OVERLAP_ERROR, ACTIVITY.name());
+                throw new BusinessException(ACTIVITY_TIME_CONFLICT_WITH_EXISTING_ACTIVITY, ACTIVITY.name());
             }
 
             activity.setActivityName(activityName);

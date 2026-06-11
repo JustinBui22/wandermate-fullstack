@@ -10,9 +10,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import static com.example.travellingapp.enums.CommonEnum.DESTINATION;
-import static com.example.travellingapp.enums.ErrorCodeEnum.DESTINATION_DATE_OUTSIDE_TRIP_RANGE;
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
-import static com.example.travellingapp.enums.ErrorCodeEnum.INVALID_INPUT;
+import static com.example.travellingapp.enums.ErrorCodeEnum.*;
 import static com.example.travellingapp.util.Common.normalizeKeyword;
 
 @Component
@@ -23,24 +22,24 @@ public class DestinationValidator {
     public String validateCreateInput(Long tripId, CreateDestinationDTO destinationDTO) {
         if (tripId == null || destinationDTO == null) {
             log.error("Invalid input to create destination!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(INVALID_INPUT, DESTINATION.name());
         }
 
         if (destinationDTO.getStartDate() == null || destinationDTO.getEndDate() == null) {
             log.error("Destination start date or end date is missing to create a destination!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(DESTINATION_TIME_NOT_FOUND, DESTINATION.name());
         }
 
         String destinationName = normalizeKeyword(destinationDTO.getDestinationName());
 
         if (destinationName.isBlank()) {
             log.error("Destination name is missing to create a destination!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(DESTINATION_NAME_NOT_FOUND, DESTINATION.name());
         }
 
         if (!destinationDTO.getStartDate().isBefore(destinationDTO.getEndDate())) {
             log.error("Start date must be before end date to create a destination!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(DESTINATION_TIME_INVALID, DESTINATION.name());
         }
 
         return destinationName;
@@ -53,24 +52,24 @@ public class DestinationValidator {
     ) {
         if (tripId == null || destinationId == null || destinationDTO == null) {
             log.error("Invalid input to update destination!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(INVALID_INPUT, DESTINATION.name());
         }
 
         if (destinationDTO.getStartDate() == null || destinationDTO.getEndDate() == null) {
             log.error("Destination start date or end date is missing to update a destination!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(DESTINATION_TIME_NOT_FOUND, DESTINATION.name());
         }
 
         String destinationName = normalizeKeyword(destinationDTO.getDestinationName());
 
         if (destinationName.isBlank()) {
             log.error("Destination name is missing to update a destination!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(DESTINATION_NAME_NOT_FOUND, DESTINATION.name());
         }
 
         if (!destinationDTO.getStartDate().isBefore(destinationDTO.getEndDate())) {
             log.error("Start date must be before end date to update a destination!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(DESTINATION_TIME_INVALID, DESTINATION.name());
         }
 
         return destinationName;
@@ -83,12 +82,12 @@ public class DestinationValidator {
     ) {
         if (trip == null) {
             log.error("Trip is missing when validating destination date range!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(INVALID_INPUT, DESTINATION.name());
         }
 
         if (trip.getStartDate() == null || trip.getEndDate() == null) {
             log.error("Trip start date or end date is missing when validating destination date range!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(TRIP_TIME_NOT_FOUND, DESTINATION.name());
         }
 
         boolean startsBeforeTrip = destinationStart.isBefore(trip.getStartDate());
@@ -96,7 +95,7 @@ public class DestinationValidator {
 
         if (startsBeforeTrip || endsAfterTrip) {
             log.error("Destination date range must be inside the trip date range!");
-            throw new BusinessException(DESTINATION_DATE_OUTSIDE_TRIP_RANGE, COMMON.name());
+            throw new BusinessException(DESTINATION_DATE_OUTSIDE_TRIP_RANGE, DESTINATION.name());
         }
     }
 }

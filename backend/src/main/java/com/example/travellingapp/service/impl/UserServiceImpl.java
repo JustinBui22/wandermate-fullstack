@@ -79,6 +79,9 @@ public class UserServiceImpl implements UserService {
             else if (StringUtils.isEmpty(registerRequest.getOtp())) {
                 log.info("OTP is empty/ invalid!");
                 throw new BusinessException(OTP_BLOCKED_OR_NOT_FOUND, REGISTER.name());
+            } else if (toLocalDate(registerRequest.getDob()).isAfter(LocalDateTime.now().toLocalDate())) {
+                log.error("Date of birth cannot be in the future!");
+                throw new BusinessException(DOB_IN_FUTURE, REGISTER.name());
             }
             // Check if OTP code is verified
             OtpDTO verifyOtpDTO = new OtpDTO(registerRequest.getUsername(), registerRequest.getOtp());

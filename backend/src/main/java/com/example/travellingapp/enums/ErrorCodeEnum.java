@@ -81,7 +81,32 @@ public enum ErrorCodeEnum {
     PHONE_NUMBER_TAKEN("E041", "Phone number taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
     OTP_EMAIL_NOT_MATCH("E042", "OTP email does not match the provided email", OTP, HttpStatusCodeEnum.BAD_REQUEST),
     OTP_PHONE_NOT_MATCH("E043", "OTP phone number does not match the provided phone number", OTP, HttpStatusCodeEnum.BAD_REQUEST),
-    OTP_CODE_NOT_CORRECT("E044", "OTP code is not correct", OTP, HttpStatusCodeEnum.BAD_REQUEST)
+    OTP_CODE_NOT_CORRECT("E044", "OTP code is not correct", OTP, HttpStatusCodeEnum.BAD_REQUEST),
+    DOB_IN_FUTURE("E045", "Date of birth cannot be in the future", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
+    
+    
+    ACTIVITY_TIME_INVALID("E046", "Activity start time must be before end time", ACTIVITY, HttpStatusCodeEnum.BAD_REQUEST),
+
+    TRIP_DATE_IN_PAST("E047", "Trip start date cannot be in the past", TRIP, HttpStatusCodeEnum.BAD_REQUEST),
+    DESTINATION_DATE_IN_PAST("E048", "Destination start date cannot be in the past", DESTINATION, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_DATE_CONFLICT_WITH_EXISTING_DESTINATION("E049", "Trip date range must include all existing destinations", TRIP, HttpStatusCodeEnum.CONFLICT),
+    DESTINATION_DATE_CONFLICT_WITH_EXISTING_ACTIVITY("E050", "Destination date range must include all existing activities in this destination", DESTINATION, HttpStatusCodeEnum.CONFLICT),
+    ACTIVITY_TIME_CONFLICT_WITH_EXISTING_ACTIVITY("E051", "Activity time must not overlap with existing activities in this trip", ACTIVITY, HttpStatusCodeEnum.CONFLICT),
+
+    ACTIVITY_TIME_NOT_FOUND("E052", "Activity time not found", ACTIVITY, HttpStatusCodeEnum.BAD_REQUEST),
+    ACTIVITY_NAME_NOT_FOUND("E053", "Activity name is not found", ACTIVITY, HttpStatusCodeEnum.BAD_REQUEST),
+    DESTINATION_NAME_NOT_FOUND("E054", "Destination name is not found", DESTINATION, HttpStatusCodeEnum.BAD_REQUEST),
+    DESTINATION_TIME_NOT_FOUND("E055", "Destination time not found", DESTINATION, HttpStatusCodeEnum.BAD_REQUEST),
+    DESTINATION_TIME_INVALID("E056", "Destination start time must be before end time", DESTINATION, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_NAME_NOT_FOUND("E057", "Trip name is not found", TRIP, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_TIME_NOT_FOUND("E058", "Trip time not found", TRIP, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_TIME_INVALID("E059", "Trip start time must be before end time", TRIP, HttpStatusCodeEnum.BAD_REQUEST),
+    OTP_METHOD_MISSING("E060", "OTP verification method is missing", OTP, HttpStatusCodeEnum.BAD_REQUEST),
+    EMAIL_ENUM_MISSING("E061", "Email enum is missing", OTP, HttpStatusCodeEnum.BAD_REQUEST),
+    SMS_ENUM_MISSING("E062", "SMS enum is missing", OTP, HttpStatusCodeEnum.BAD_REQUEST),
+
+
+    
     ;
 
     private final String code;

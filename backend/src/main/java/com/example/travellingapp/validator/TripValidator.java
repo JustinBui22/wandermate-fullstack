@@ -8,7 +8,8 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
-import static com.example.travellingapp.enums.ErrorCodeEnum.INVALID_INPUT;
+import static com.example.travellingapp.enums.CommonEnum.TRIP;
+import static com.example.travellingapp.enums.ErrorCodeEnum.*;
 import static com.example.travellingapp.util.Common.normalizeKeyword;
 
 @Component
@@ -18,12 +19,12 @@ public class TripValidator {
     public String validateCreateInput(CreateTripDTO tripDTO) {
         if (tripDTO == null) {
             log.error("Invalid input to create trip!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(INVALID_INPUT, TRIP.name());
         }
 
         if (tripDTO.getStartDate() == null || tripDTO.getEndDate() == null) {
             log.error("Trip start date or end date is missing to create a trip!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(TRIP_TIME_NOT_FOUND, TRIP.name());
         }
 
         String tripName = normalizeKeyword(tripDTO.getTripName());
@@ -31,12 +32,12 @@ public class TripValidator {
 
         if (tripName.isBlank() || destination.isBlank()) {
             log.error("Trip name or destination is missing to create a trip!!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(TRIP_NAME_NOT_FOUND, TRIP.name());
         }
 
         if (!tripDTO.getStartDate().isBefore(tripDTO.getEndDate())) {
             log.error("Start date must be before end date to create a trip!!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(TRIP_TIME_INVALID, TRIP.name());
         }
 
         return tripName;
@@ -45,12 +46,12 @@ public class TripValidator {
     public String validateUpdateInput(Long tripId, UpdateTripDTO tripDTO) {
         if (tripId == null || tripDTO == null) {
             log.error("Invalid input to update trip!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(INVALID_INPUT, TRIP.name());
         }
 
         if (tripDTO.getStartDate() == null || tripDTO.getEndDate() == null) {
             log.error("Trip start date or end date is missing to update a trip!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(TRIP_TIME_NOT_FOUND, TRIP.name());
         }
 
         String tripName = normalizeKeyword(tripDTO.getTripName());
@@ -58,12 +59,12 @@ public class TripValidator {
 
         if (tripName.isBlank() || destination.isBlank()) {
             log.error("Trip name or destination is missing to update a trip!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(TRIP_NAME_NOT_FOUND, TRIP.name());
         }
 
         if (!tripDTO.getStartDate().isBefore(tripDTO.getEndDate())) {
             log.error("Start date must be before end date to update a trip!");
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
+            throw new BusinessException(TRIP_TIME_INVALID, TRIP.name());
         }
         return tripName;
     }

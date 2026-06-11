@@ -7,6 +7,7 @@ import com.example.travellingapp.entity.DestinationEntity;
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.DestinationMapper;
+import com.example.travellingapp.repository.ActivityRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.DestinationRepository;
 import com.example.travellingapp.repository.TripRepository;
@@ -34,6 +35,7 @@ public class DestinationServiceImpl implements DestinationService {
     private final DestinationValidator destinationValidator;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final DestinationMapper destinationMapper;
+    private final ActivityRepository activityRepository;
 
     public DestinationServiceImpl(
             DestinationRepository destinationRepository,
@@ -41,7 +43,7 @@ public class DestinationServiceImpl implements DestinationService {
             ErrorCodeRepository errorCodeRepository,
             DestinationValidator destinationValidator,
             AuthenticatedUserProvider authenticatedUserProvider,
-            DestinationMapper destinationMapper
+            DestinationMapper destinationMapper, ActivityRepository activityRepository
     ) {
         this.destinationRepository = destinationRepository;
         this.tripRepository = tripRepository;
@@ -49,6 +51,7 @@ public class DestinationServiceImpl implements DestinationService {
         this.destinationValidator = destinationValidator;
         this.authenticatedUserProvider = authenticatedUserProvider;
         this.destinationMapper = destinationMapper;
+        this.activityRepository = activityRepository;
     }
 
     @Override
@@ -199,6 +202,25 @@ public class DestinationServiceImpl implements DestinationService {
                     destinationDTO.getEndDate(),
                     trip
             );
+
+            // Check if there are activities outside the updated destination date range
+            boolean hasActivityOutsideUpdatedDestinationRange =
+                    activityRepository.existsByDestination_DestinationIdAndStartDateTimeBefore(
+                            destinationId,
+                            destinationDTO.getStartDate()
+                    )
+                            || activityRepository.existsByDestination_DestinationIdAndEndDateTimeAfter(
+                            destinationId,
+                            destinationDTO.getEndDate()
+                    );
+
+            if (hasActivityOutsideUpdatedDestinationRange) {
+                log.error("Updated destination date range does not include all existing activities in destination {}.", destinationId);
+                throw new BusinessException(
+                        DESTINATION_DATE_CONFLICT_WITH_EXISTING_ACTIVITY,
+                        DESTINATION.name()
+                );
+            }
 
             // Check for overlapping destinations excluding the current one
             boolean allowOverlap = Boolean.TRUE.equals(destinationDTO.getAllowOverlap());

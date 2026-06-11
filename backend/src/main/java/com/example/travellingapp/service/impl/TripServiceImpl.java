@@ -189,7 +189,7 @@ public class TripServiceImpl implements TripService {
                     );
             if (hasDestinationOutsideNewTripRange) {
                 log.error("Updated trip date range does not cover all destinations in trip {}.", tripId);
-                throw new BusinessException(TRIP_DATE_CONFLICT_WITH_DESTINATION, TRIP.name());
+                throw new BusinessException(TRIP_DATE_CONFLICT_WITH_EXISTING_DESTINATION, TRIP.name());
             }
 
             trip.setTripName(tripName);

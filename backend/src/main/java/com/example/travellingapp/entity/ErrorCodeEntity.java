@@ -26,7 +26,7 @@ public class ErrorCodeEntity {
     @Column(name = "error_description")
     private String errorDescription;
 
-    @Column(name = "createdD_date")
+    @Column(name = "created_date")
     private LocalDateTime createdDate;
 
     @Column(name = "modified_date")

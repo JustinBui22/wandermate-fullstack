@@ -36,4 +36,14 @@ public interface ActivityRepository extends JpaRepository<ActivityEntity, Long> 
             LocalDateTime newEnd,
             LocalDateTime newStart
     );
+
+    boolean existsByDestination_DestinationIdAndStartDateTimeBefore(
+            Long destinationId,
+            LocalDateTime startDateTime
+    );
+
+    boolean existsByDestination_DestinationIdAndEndDateTimeAfter(
+            Long destinationId,
+            LocalDateTime endDateTime
+    );
 }
