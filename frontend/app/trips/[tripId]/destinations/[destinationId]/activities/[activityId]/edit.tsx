@@ -29,7 +29,10 @@ import {
     updateDatePart,
     updateTimePart,
 } from "@/src/utils/dateTimePickerUtils";
-import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
+import {
+    getApiErrorMessage,
+    getApiErrorTitle,
+} from "@/src/utils/apiWarningUtils";
 
 type DateTimePickerValueChange = NonNullable<
     ComponentProps<typeof DateTimePicker>["onValueChange"]
@@ -207,7 +210,7 @@ export default function EditActivityScreen() {
             console.log("Update activity failed:", error.response?.data || error.message);
 
             Alert.alert(
-                "Update activity failed",
+                getApiErrorTitle(error, "Update activity failed"),
                 getApiErrorMessage(
                     error,
                     "Please check the activity time and try again."

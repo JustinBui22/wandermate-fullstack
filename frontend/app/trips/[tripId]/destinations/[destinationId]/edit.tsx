@@ -31,6 +31,7 @@ import {
 } from "@/src/utils/dateTimePickerUtils";
 import {
     getApiErrorMessage,
+    getApiErrorTitle,
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
 
@@ -243,7 +244,7 @@ export default function EditDestinationScreen() {
                                     );
 
                                     Alert.alert(
-                                        "Update destination failed",
+                                        getApiErrorTitle(confirmError, "Update destination failed"),
                                         getApiErrorMessage(
                                             confirmError,
                                             "Please check your input and try again."
@@ -261,7 +262,7 @@ export default function EditDestinationScreen() {
             }
 
             Alert.alert(
-                "Update destination failed",
+                getApiErrorTitle(error, "Update destination failed"),
                 getApiErrorMessage(error, "Please check your input and try again.")
             );
         } finally {

@@ -27,7 +27,7 @@ import {
     updateTimePart,
 } from "@/src/utils/dateTimePickerUtils";
 import {
-    getApiErrorMessage,
+    getApiErrorMessage, getApiErrorTitle,
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
 
@@ -210,7 +210,7 @@ export default function EditTripScreen() {
                                     );
 
                                     Alert.alert(
-                                        "Update trip failed",
+                                        getApiErrorTitle(confirmError, "Update trip failed"),
                                         getApiErrorMessage(
                                             confirmError,
                                             "Please check your input and try again."
@@ -228,7 +228,7 @@ export default function EditTripScreen() {
             }
 
             Alert.alert(
-                "Update trip failed",
+                getApiErrorTitle(error, "Update trip failed"),
                 getApiErrorMessage(error, "Please check your input and try again.")
             );
         } finally {

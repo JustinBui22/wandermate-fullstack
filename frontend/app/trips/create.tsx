@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
     getApiErrorMessage,
+    getApiErrorTitle,
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
 import {
@@ -149,9 +150,8 @@ export default function CreateTripScreen() {
                                         "Create trip after confirmation failed:",
                                         confirmError.response?.data || confirmError.message
                                     );
-
                                     Alert.alert(
-                                        "Create trip failed",
+                                        getApiErrorTitle(confirmError, "Create trip failed"),
                                         getApiErrorMessage(
                                             confirmError,
                                             "Please check your input and try again."
@@ -168,7 +168,7 @@ export default function CreateTripScreen() {
             }
 
             Alert.alert(
-                "Create trip failed",
+                getApiErrorTitle(error, "Create trip failed"),
                 getApiErrorMessage(error, "Please check your input and try again.")
             );
         } finally {

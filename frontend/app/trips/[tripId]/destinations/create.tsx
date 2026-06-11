@@ -17,6 +17,7 @@ import {Ionicons} from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
     getApiErrorMessage,
+    getApiErrorTitle,
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
 import {createDestination} from "@/src/api/destinationApi";
@@ -169,11 +170,8 @@ export default function CreateDestinationScreen() {
                                     );
 
                                     Alert.alert(
-                                        "Create destination failed",
-                                        getApiErrorMessage(
-                                            confirmError,
-                                            "Please check your input and try again."
-                                        )
+                                        getApiErrorTitle(error, "Create destination failed"),
+                                        getApiErrorMessage(error, "Please check your input and try again.")
                                     );
                                 } finally {
                                     setIsSubmitting(false);
