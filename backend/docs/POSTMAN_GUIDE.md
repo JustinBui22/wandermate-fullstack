@@ -1,6 +1,6 @@
 # Postman Guide
 
-This document explains how to test the WanderMate / Travelling App backend using Postman.
+This document explains how to manually test the WanderMate / Travelling App backend using Postman.
 
 ---
 
@@ -18,7 +18,11 @@ Docker backend:
 http://localhost:8082/The-Project
 ```
 
-If the application context path changes later, remove or update `/The-Project`.
+Recommended Postman environment variable:
+
+```text
+baseUrl = http://localhost:8082/The-Project
+```
 
 ---
 
@@ -28,87 +32,154 @@ Create a Postman environment with:
 
 ```text
 baseUrl
+username
+email
+phoneNumber
+otp
 accessToken
 refreshToken
 sessionToken
-username
 tripId
 destinationId
 activityId
-otp
-```
-
-Example for Docker:
-
-```text
-baseUrl = http://localhost:8082/The-Project
-```
-
-Example for IntelliJ local run:
-
-```text
-baseUrl = http://localhost:8080/The-Project
 ```
 
 ---
 
-## Typical Testing Order
+## Protected API Headers
 
-```mermaid
-flowchart TD
-    A[Register user] --> B[Login]
-    B --> C[Save accessToken, refreshToken, sessionToken]
-    C --> D[Create trip with Authorization + Session-Token]
-    D --> E[Create destination under trip]
-    E --> F[Create activity under destination]
-    F --> G[Test trip/destination warnings and activity hard errors]
-    G --> H[Refresh token using Refresh-Token + Session-Token]
-    H --> I[Logout using Authorization + Session-Token]
-```
-
----
-
-## Testing Protected APIs
-
-For protected APIs, add these headers:
+For protected APIs:
 
 ```text
 Authorization: Bearer {{accessToken}}
 Session-Token: {{sessionToken}}
 ```
 
-Login should save the returned tokens into the Postman environment if the collection has test scripts configured.
-
----
-
-## Testing Refresh Token
-
-The refresh endpoint does not require an access token, but it does require:
+For token refresh:
 
 ```text
 Refresh-Token: {{refreshToken}}
 Session-Token: {{sessionToken}}
 ```
 
-Expected result:
+---
 
-```text
-New accessToken and refreshToken are returned.
+## Recommended Manual Test Order
+
+```mermaid
+flowchart TD
+    A[Check user / registration details] --> B[Send email OTP]
+    B --> C[Register with OTP]
+    C --> D[Login]
+    D --> E[Save tokens]
+    E --> F[Create trip]
+    F --> G[Create destination]
+    G --> H[Create activity]
+    H --> I[Test overlap warnings/errors]
+    I --> J[Refresh token]
+    J --> K[Logout]
 ```
-
-Update the Postman environment with the new values.
 
 ---
 
-## Recommended Test Flow
+## 1. Verify Register Details
 
-### 1. Register
+```http
+POST {{baseUrl}}/api/v1/users/register/verify
+```
 
-Create a new user.
+Body:
 
-### 2. Login
+```json
+{
+  "username": "JustinBo123",
+  "password": "Password123",
+  "email": "justin@example.com",
+  "phoneNumber": "0412345678",
+  "dob": "01/01/2000",
+  "otp": ""
+}
+```
 
-Login and save:
+Expected:
+
+```text
+E000 / USER_DETAILS_VERIFIED
+```
+
+---
+
+## 2. Send Email OTP
+
+```http
+POST {{baseUrl}}/api/v1/otp/send
+```
+
+Body:
+
+```json
+{
+  "userName": "JustinBo123",
+  "otpVerificationMethod": "EMAIL_OTP",
+  "email": "justin@example.com",
+  "emailEnum": "EMAIL_OTP_REGISTER"
+}
+```
+
+Expected:
+
+```text
+E000 / OTP_SENT_SUCCESS
+```
+
+Note: real email sending requires working email/OAuth configuration. Public placeholder Docker config will not send real email.
+
+---
+
+## 3. Register
+
+```http
+POST {{baseUrl}}/api/v1/users/register
+```
+
+Body:
+
+```json
+{
+  "username": "JustinBo123",
+  "password": "Password123",
+  "email": "justin@example.com",
+  "phoneNumber": "0412345678",
+  "dob": "01/01/2000",
+  "otp": "123456"
+}
+```
+
+Expected:
+
+```text
+E000 / USER_CREATED
+```
+
+---
+
+## 4. Login
+
+```http
+POST {{baseUrl}}/api/v1/users/login
+```
+
+Body:
+
+```json
+{
+  "username": "JustinBo123",
+  "password": "Password123",
+  "overrideMaxSession": false
+}
+```
+
+Save response body values:
 
 ```text
 accessToken
@@ -116,120 +187,33 @@ refreshToken
 sessionToken
 ```
 
-### 3. Create Trip
+Postman test script example:
 
-Create a trip using:
+```javascript
+const body = pm.response.json().body;
+if (body) {
+  pm.environment.set("accessToken", body.accessToken);
+  pm.environment.set("refreshToken", body.refreshToken);
+  pm.environment.set("sessionToken", body.sessionToken);
+}
+```
+
+---
+
+## 5. Create Trip
+
+```http
+POST {{baseUrl}}/api/v1/trips
+```
+
+Headers:
 
 ```text
 Authorization: Bearer {{accessToken}}
 Session-Token: {{sessionToken}}
 ```
 
-Save the returned `tripId`.
-
-### 4. Create Destination
-
-Create a destination under the trip:
-
-```text
-POST {{baseUrl}}/api/v1/trips/{{tripId}}/destinations
-```
-
-Save the returned `destinationId`.
-
-### 5. Create Activity
-
-Create an activity under the destination:
-
-```text
-POST {{baseUrl}}/api/v1/trips/{{tripId}}/destinations/{{destinationId}}/activities
-```
-
-Save the returned `activityId`.
-
-### 6. Test Trip Overlap Warning
-
-Create another trip with overlapping dates.
-
-Expected result:
-
-```text
-TRIP_OVERLAP_WARNING
-```
-
-Then retry the same request with:
-
-```json
-{
-  "allowOverlap": true
-}
-```
-
-Expected result:
-
-```text
-Trip is created.
-```
-
-### 7. Test Destination Overlap Warning
-
-Create another destination inside the same trip with overlapping dates.
-
-Expected result:
-
-```text
-DESTINATION_OVERLAP_WARNING
-```
-
-Then retry the same request with:
-
-```json
-{
-  "allowOverlap": true
-}
-```
-
-Expected result:
-
-```text
-Destination is created.
-```
-
-### 8. Test Activity Overlap Hard Error
-
-Create another activity that overlaps an existing activity.
-
-Expected result:
-
-```text
-ACTIVITY_OVERLAP_ERROR
-```
-
-There is no `allowOverlap` flow for activities.
-
-### 9. Test Activity Outside Destination Range
-
-Create an activity before the destination starts or after the destination ends.
-
-Expected result:
-
-```text
-ACTIVITY_OUTSIDE_DESTINATION_RANGE
-```
-
-### 10. Refresh Token
-
-Use the refresh token and session token to request a new access token.
-
-### 11. Logout
-
-Logout and verify the session/refresh token is revoked.
-
----
-
-## Sample Request Bodies
-
-### Create Trip
+Body:
 
 ```json
 {
@@ -241,7 +225,17 @@ Logout and verify the session/refresh token is revoked.
 }
 ```
 
-### Create Destination
+Save `tripId` from response body.
+
+---
+
+## 6. Create Destination
+
+```http
+POST {{baseUrl}}/api/v1/trips/{{tripId}}/destinations
+```
+
+Body:
 
 ```json
 {
@@ -254,95 +248,169 @@ Logout and verify the session/refresh token is revoked.
 }
 ```
 
-### Create Activity
+Save `destinationId` from response body.
+
+---
+
+## 7. Create Activity
+
+```http
+POST {{baseUrl}}/api/v1/trips/{{tripId}}/destinations/{{destinationId}}/activities
+```
+
+Body:
 
 ```json
 {
-  "activityName": "Visit Tokyo Tower",
-  "location": "Tokyo Tower",
-  "description": "Evening visit",
-  "startDateTime": "2026-07-02T10:00:00",
-  "endDateTime": "2026-07-02T12:00:00"
+  "activityName": "Shibuya Crossing",
+  "location": "Shibuya",
+  "description": "Walk around and take photos",
+  "startDateTime": "2026-07-01T10:00:00",
+  "endDateTime": "2026-07-01T12:00:00"
 }
 ```
 
----
-
-## Expected Validation Results
-
-### Trip
-
-```text
-Duplicate trip name
-→ TRIP_NAME_ALREADY_EXISTS
-
-Overlapping trip
-→ TRIP_OVERLAP_WARNING
-
-Retry overlapping trip with allowOverlap true
-→ success
-
-Update trip so existing destination is outside new trip range
-→ TRIP_DATE_CONFLICT_WITH_DESTINATION
-```
-
-### Destination
-
-```text
-Destination outside trip range
-→ DESTINATION_DATE_OUTSIDE_TRIP_RANGE
-
-Overlapping destination
-→ DESTINATION_OVERLAP_WARNING
-
-Retry overlapping destination with allowOverlap true
-→ success
-```
-
-### Activity
-
-```text
-Activity outside destination range
-→ ACTIVITY_OUTSIDE_DESTINATION_RANGE
-
-Overlapping activity
-→ ACTIVITY_OVERLAP_ERROR
-
-Activity starts exactly when another ends
-→ success
-```
+Save `activityId` from response body.
 
 ---
 
-## Docker Demo Note
+## 8. Test Trip Overlap Warning
 
-If email OAuth is disabled in `.env`, email OTP may not actually send.
+Create another trip with overlapping dates:
 
-For public/demo Docker:
-
-```env
-EMAIL_OAUTH_REFRESH_ENABLED=false
+```json
+{
+  "tripName": "Japan Trip 2",
+  "destination": "Japan",
+  "startDate": "2026-07-03T09:00:00",
+  "endDate": "2026-07-12T18:00:00",
+  "allowOverlap": false
+}
 ```
 
-For private testing, use real email OAuth values in `.env`.
+Expected:
+
+```text
+W001 / TRIP_OVERLAP_WARNING
+```
+
+Then retry with:
+
+```json
+{
+  "tripName": "Japan Trip 2",
+  "destination": "Japan",
+  "startDate": "2026-07-03T09:00:00",
+  "endDate": "2026-07-12T18:00:00",
+  "allowOverlap": true
+}
+```
+
+Expected: trip is created.
 
 ---
 
-## What to Screenshot for Portfolio
+## 9. Test Destination Overlap Warning
 
-Good screenshots to include later:
+Create another destination inside the same trip with overlapping dates.
+
+Expected:
 
 ```text
-Swagger page
-Successful login response
-Protected API request with Bearer token and Session-Token
-Trip creation response
-Destination creation response
-Activity creation response
-Trip overlap warning
-Destination overlap warning
-Activity overlap validation error
-Docker containers running
+W002 / DESTINATION_OVERLAP_WARNING
 ```
 
-Hide access tokens and secrets in screenshots.
+Then retry with:
+
+```json
+{
+  "allowOverlap": true
+}
+```
+
+inside the full request body.
+
+---
+
+## 10. Test Activity Overlap Hard Error
+
+Create another activity overlapping an existing activity:
+
+```json
+{
+  "activityName": "Lunch",
+  "location": "Tokyo",
+  "description": "Overlapping activity test",
+  "startDateTime": "2026-07-01T11:00:00",
+  "endDateTime": "2026-07-01T13:00:00"
+}
+```
+
+Expected:
+
+```text
+E051 / ACTIVITY_TIME_CONFLICT_WITH_EXISTING_ACTIVITY
+```
+
+There is no `allowOverlap` override for activities.
+
+---
+
+## 11. Refresh Token
+
+```http
+POST {{baseUrl}}/api/v1/auth/refresh
+```
+
+Headers:
+
+```text
+Refresh-Token: {{refreshToken}}
+Session-Token: {{sessionToken}}
+```
+
+Body:
+
+```json
+{}
+```
+
+Expected: new `accessToken` and `refreshToken`.
+
+Update Postman variables after refresh.
+
+---
+
+## 12. Logout
+
+```http
+POST {{baseUrl}}/api/v1/users/logout
+```
+
+Headers:
+
+```text
+Authorization: Bearer {{accessToken}}
+Session-Token: {{sessionToken}}
+```
+
+Expected:
+
+```text
+E000 / LOGOUT_SUCCESS
+```
+
+After logout, protected API calls using the same tokens should fail.
+
+---
+
+## SMS OTP Testing Note
+
+You can test the phone OTP branch at service/unit-test level, but Postman should not be used as proof of real SMS delivery because no real SMS provider is currently integrated.
+
+Current status:
+
+```text
+Email OTP: real when email config is valid
+SMS OTP: mocked/stubbed service flow only
+```

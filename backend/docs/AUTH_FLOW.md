@@ -1,30 +1,24 @@
-# Authentication and Token Flow
+# Authentication and OTP Flow
 
-This document explains how authentication, access tokens, refresh tokens, sessions, and logout work in the backend.
-
----
-
-## Main Concepts
-
-| Concept | Purpose |
-|---|---|
-| Access token | Short-lived JWT used to access protected APIs |
-| Refresh token | Longer-lived token used to request a new access token |
-| Session token | Represents a login session and supports session validation/revocation |
-| Token filter | Checks incoming protected requests before they reach controllers |
-| Logout | Revokes session and active refresh tokens so the user cannot continue using that session |
+This document explains authentication, sessions, refresh tokens, logout, and OTP behaviour in the WanderMate / Travelling App backend.
 
 ---
 
-## Login Response
+## Core Token Model
 
-A successful login returns:
+The backend uses three token values after login:
 
 ```text
 accessToken
 refreshToken
 sessionToken
 ```
+
+| Token | Purpose | Storage |
+|---|---|---|
+| `accessToken` | JWT used for protected API authorization | Returned to client; not stored as raw value in DB |
+| `refreshToken` | Used to rotate access tokens | Raw token returned to client; hashed token stored in DB |
+| `sessionToken` | Validates the active login session | Raw token returned to client; encoded token stored in DB |
 
 Protected requests require:
 
@@ -33,7 +27,7 @@ Authorization: Bearer <accessToken>
 Session-Token: <sessionToken>
 ```
 
-The refresh endpoint requires:
+Refresh requests require:
 
 ```text
 Refresh-Token: <refreshToken>
@@ -47,92 +41,159 @@ Session-Token: <sessionToken>
 ```mermaid
 sequenceDiagram
     actor Client
-    participant Controller as UserController
-    participant Service as UserService
+    participant UserAPI as User API
+    participant UserService
     participant TokenService
     participant DB as MariaDB
 
-    Client->>Controller: POST /api/v1/users/login
-    Controller->>Service: login(loginDTO)
-    Service->>DB: Find active user
-    DB-->>Service: User
-    Service->>Service: Validate password
-    Service->>TokenService: Generate access token
-    Service->>TokenService: Generate refresh token
-    Service->>TokenService: Generate session token
-    TokenService->>DB: Store refresh/session token data
-    Service-->>Controller: accessToken + refreshToken + sessionToken
-    Controller-->>Client: Login response
+    Client->>UserAPI: POST /api/v1/users/login
+    UserAPI->>UserService: login(request)
+    UserService->>DB: Find active user by username/email/phone
+    DB-->>UserService: User entity
+    UserService->>UserService: Validate password
+    UserService->>TokenService: checkMaxActiveSessions(username, overrideMaxSession)
+    TokenService->>DB: Query active sessions
+    alt Max sessions reached and override=false
+        TokenService-->>UserService: MAX_SESSIONS_REACHED
+        UserService-->>Client: 429 response
+    else Max sessions not reached or override=true
+        TokenService->>TokenService: Generate sessionId
+        UserService->>TokenService: Generate access token with sessionId claim
+        UserService->>TokenService: Generate session token
+        TokenService->>DB: Save encoded session token
+        UserService->>TokenService: Generate refresh token
+        TokenService->>DB: Save hashed refresh token
+        UserService-->>Client: accessToken + refreshToken + sessionToken
+    end
+```
+
+Login request:
+
+```json
+{
+  "username": "JustinBo123",
+  "password": "Password123",
+  "overrideMaxSession": false
+}
+```
+
+Response body:
+
+```json
+{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "sessionToken": "..."
+}
 ```
 
 ---
 
-## Protected Request Flow
+## Max Active Session Flow
+
+The max active sessions value is read from configuration:
+
+```text
+MAX_ALLOWED_SESSIONS
+```
+
+Default behaviour:
+
+```text
+If active sessions < max → login allowed
+If active sessions >= max and overrideMaxSession=false → MAX_SESSIONS_REACHED
+If active sessions >= max and overrideMaxSession=true → revoke oldest session(s), then login allowed
+```
+
+Frontend expected behaviour:
+
+```text
+1. Login returns MAX_SESSIONS_REACHED
+2. Frontend shows confirmation popup
+3. User agrees to terminate oldest session
+4. Frontend retries login with overrideMaxSession=true
+```
+
+---
+
+## Access Token Validation Flow
+
+```mermaid
+flowchart TD
+    A[Protected request] --> B{URL public?}
+    B -- Yes --> C[Skip token validation]
+    B -- No --> D{Authorization header Bearer token?}
+    D -- No --> E[401 Unauthorized]
+    D -- Yes --> F[Validate JWT signature and expiry]
+    F --> G{Token valid?}
+    G -- No --> H[Return token error]
+    G -- Yes --> I[Extract username and sessionId]
+    I --> J{Session-Token valid for username + sessionId?}
+    J -- No --> K[SESSION_TOKEN_INVALID]
+    J -- Yes --> L[Populate SecurityContext]
+    L --> M[Allow controller]
+```
+
+The access token contains:
+
+```text
+subject = username
+sessionId = active session id
+roles = user authorities
+```
+
+---
+
+## Refresh Token Rotation Flow
 
 ```mermaid
 sequenceDiagram
     actor Client
-    participant Filter as TokenFilter
+    participant AuthAPI as Auth API
     participant TokenService
     participant DB as MariaDB
-    participant Controller
 
-    Client->>Filter: Request with Authorization + Session-Token
-    Filter->>TokenService: Validate access token
-    Filter->>DB: Validate session token
-    DB-->>Filter: Session valid/invalid
-    alt Valid token and session
-        Filter->>Controller: Continue request
-    else Invalid token or session
-        Filter-->>Client: Unauthorized response
+    Client->>AuthAPI: POST /api/v1/auth/refresh
+    Note over Client,AuthAPI: Refresh-Token + Session-Token headers
+    AuthAPI->>TokenService: refreshAccessToken(refreshToken, sessionToken)
+    TokenService->>TokenService: Hash incoming refresh token
+    TokenService->>DB: Find refresh token by hash
+    alt Token not found
+        TokenService-->>Client: REFRESH_TOKEN_INVALID
+    else Token revoked/reused
+        TokenService->>DB: Mark reuseDetected=true
+        TokenService->>DB: Revoke active refresh tokens for session
+        TokenService->>DB: Delete session token
+        TokenService-->>Client: REFRESH_TOKEN_INVALID
+    else Token expired
+        TokenService->>DB: Revoke refresh token
+        TokenService->>DB: Delete session token
+        TokenService-->>Client: REFRESH_TOKEN_EXPIRED
+    else Valid token and valid session token
+        TokenService->>DB: Revoke old refresh token
+        TokenService->>TokenService: Generate new access token
+        TokenService->>TokenService: Generate new refresh token
+        TokenService->>DB: Save new refresh token hash
+        TokenService->>DB: Save replacedByTokenId on old token
+        TokenService-->>Client: new accessToken + new refreshToken
     end
 ```
 
----
+Refresh request:
 
-## Refresh Token Flow
-
-The refresh endpoint is public from the access-token filter perspective, but it still requires refresh/session headers.
-
-Required headers:
-
-```text
+```http
+POST /api/v1/auth/refresh
 Refresh-Token: <refreshToken>
 Session-Token: <sessionToken>
 ```
 
-Flow:
-
-```mermaid
-sequenceDiagram
-    actor Client
-    participant Controller as AuthController
-    participant Service as AuthService
-    participant TokenService
-    participant DB as MariaDB
-
-    Client->>Controller: POST /api/v1/auth/refresh
-    Controller->>Service: refresh(refreshToken, sessionToken)
-    Service->>TokenService: Validate refresh token
-    Service->>DB: Validate session token
-    alt Valid refresh token and session
-        Service->>TokenService: Revoke/replace old refresh token
-        Service->>TokenService: Generate new access token
-        Service->>TokenService: Generate new refresh token
-        Service-->>Controller: New token response
-        Controller-->>Client: New accessToken + refreshToken
-    else Invalid/reused/expired token
-        Service->>DB: Revoke affected session/tokens if needed
-        Service-->>Controller: Error response
-        Controller-->>Client: Refresh failed
-    end
-```
+The refresh token is rotated on every successful refresh.
 
 ---
 
 ## Logout Flow
 
-Protected logout requests require:
+Logout is protected and needs:
 
 ```text
 Authorization: Bearer <accessToken>
@@ -141,75 +202,135 @@ Session-Token: <sessionToken>
 
 Flow:
 
-```mermaid
-sequenceDiagram
-    actor Client
-    participant Controller as UserController/AuthController
-    participant Service as AuthService
-    participant DB as MariaDB
-
-    Client->>Controller: POST /logout
-    Controller->>Service: logout(currentSession)
-    Service->>DB: Revoke session token
-    Service->>DB: Revoke active refresh token for session
-    Service-->>Controller: Logout success
-    Controller-->>Client: Session revoked
+```text
+1. TokenFilter validates access token and session token
+2. UserService gets authenticated username + sessionId
+3. Backend deletes the matching session token
+4. Backend revokes active refresh tokens for that sessionId
+5. Client clears local tokens
 ```
-
-After logout, the user cannot keep using the same session token or refresh token.
 
 ---
 
-## Why Access Token + Session Token?
+## Register with Email OTP
 
-The access token proves the identity of the user.
+Recommended current real flow:
 
-The session token proves the login session is still active and not revoked.
+```text
+1. User enters username, password, email, optional phone, dob
+2. Frontend calls /api/v1/users/register/verify
+3. Backend validates duplicate username/email/phone and request format
+4. Frontend calls /api/v1/otp/send with EMAIL_OTP
+5. Backend sends email OTP when email config is correctly set
+6. User enters OTP
+7. Frontend calls /api/v1/users/register with OTP
+8. Backend verifies OTP and creates user
+```
 
-This gives the backend more control than a JWT-only setup because logout and session revocation can be enforced through the database.
+Send OTP request:
+
+```json
+{
+  "userName": "JustinBo123",
+  "otpVerificationMethod": "EMAIL_OTP",
+  "email": "justin@example.com",
+  "emailEnum": "EMAIL_OTP_REGISTER"
+}
+```
+
+Register request:
+
+```json
+{
+  "username": "JustinBo123",
+  "password": "Password123",
+  "email": "justin@example.com",
+  "phoneNumber": "0412345678",
+  "dob": "01/01/2000",
+  "otp": "123456"
+}
+```
+
+---
+
+## Forgot Password with OTP
+
+Flow:
+
+```text
+1. User requests OTP using registered email or phone
+2. Backend validates the OTP destination belongs to the existing user
+3. User submits new password + OTP
+4. Backend verifies OTP
+5. Backend updates encoded password
+```
+
+Request:
+
+```json
+{
+  "username": "JustinBo123",
+  "newPassword": "NewPassword123",
+  "email": "justin@example.com",
+  "otp": "123456"
+}
+```
+
+---
+
+## OTP Retry and Blocking Rules
+
+The backend tracks separate retry counters:
+
+```text
+retrySendOtpCount
+retryVerifyOtpCount
+```
+
+Configuration keys:
+
+```text
+MAX_RETRY_SEND_OTP
+MAX_RETRY_VERIFY_OTP
+OTP_RESTRICTED_TIME
+OTP_EXPIRATION_TIME
+```
+
+Behaviour:
+
+```text
+Too many send attempts → OTP record blocked temporarily
+Too many wrong/expired verification attempts → OTP record blocked temporarily
+Restriction expired → counters reset and OTP can be requested again
+New OTP send → verification retry count resets
+```
+
+---
+
+## Email vs SMS OTP Status
+
+Email OTP:
+
+```text
+Implemented end-to-end when Gmail/OAuth/email configuration is correctly set.
+```
+
+SMS OTP:
+
+```text
+Prepared at service level and unit-tested with mocks.
+Real SMS provider integration is not enabled yet.
+```
+
+The current `SmsServiceImpl` returns `SMS_SENT_SUCCESS` without calling an external SMS provider. Do not describe phone OTP as real delivery until a provider is integrated.
 
 ---
 
 ## Security Notes
 
-- Access tokens should be short-lived.
-- Refresh tokens should be treated as sensitive.
-- Session tokens should be revoked on logout.
-- Refresh token reuse should be treated as suspicious.
-- Stored refresh/session tokens should be hashed if possible.
-- Real token values should never be logged.
-- Real secrets must be stored in `.env` or cloud secret storage, not in Git.
-
----
-
-## Public vs Protected Routes
-
-Public routes include:
-
-```text
-POST /api/v1/users/register
-POST /api/v1/users/login
-POST /api/v1/auth/refresh
-POST /api/v1/otp/send
-POST /api/v1/otp/verify
-GET  /swagger-ui/**
-GET  /v3/api-docs/**
-```
-
-Protected routes include user-specific resources such as:
-
-```text
-/api/v1/trips/**
-/api/v1/trips/{tripId}/destinations/**
-/api/v1/trips/{tripId}/destinations/{destinationId}/activities/**
-```
-
----
-
-## Interview Explanation
-
-A clear way to explain this project in an interview:
-
-```text
-The backend uses short-lived JWT access tokens for protected API requests, but it also requires a session token for session validation. When the access token expires, the client can use a refresh token with the session token to request a new access token. Refresh tokens and session tokens are stored in the database so they can be revoked during logout or replaced during refresh.
-```
+- Passwords are encoded before storage.
+- Refresh tokens are hashed before storage.
+- Session tokens are encoded before storage.
+- Access token includes session id, so a stolen access token alone is not enough if the session token is missing/invalid.
+- Refresh token reuse triggers session revocation.
+- Public/private routes are configured from the database-backed configuration table.

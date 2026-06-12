@@ -1,161 +1,146 @@
-# Database Seed
+# Database Seed Guide
 
-This document explains how database seed files are used in the Docker demo environment.
-
----
-
-## Seed File Location
-
-The Docker demo database imports SQL files from:
-
-```text
-docker/init/
-```
-
-The main safe seed file is:
-
-```text
-docker/init/init.sql
-```
-
-This folder is mounted into the MariaDB container:
-
-```yaml
-volumes:
-  - traveling-db-data:/var/lib/mysql
-  - ./docker/init:/docker-entrypoint-initdb.d
-```
+This document explains the purpose of the SQL seed files used by the local Docker MariaDB setup.
 
 ---
 
-## When `init.sql` Runs
+## Seed Location
 
-MariaDB only runs `init.sql` the first time the database volume is created.
+Docker Compose mounts this folder into the MariaDB container:
 
-This runs the seed:
+```text
+backend/docker/init
+```
+
+MariaDB automatically runs SQL files in:
+
+```text
+/docker-entrypoint-initdb.d
+```
+
+only when the database volume is first created.
+
+---
+
+## Main Safe Seed File
+
+The safe local demo seed should be:
+
+```text
+backend/docker/init/init.sql
+```
+
+This file should contain safe schema/configuration/demo data only.
+
+It can include:
+
+- Table structure
+- Error-code rows
+- Public/non-sensitive configuration keys
+- Email/SMS template rows with placeholder values
+- Search/suggest seed data for cities/restaurants/accommodations
+
+It should not include:
+
+- Real passwords
+- Real users
+- OTP records
+- Session tokens
+- Refresh tokens
+- Real OAuth tokens
+- Real email credentials
+- Personal/private data
+
+---
+
+## Private Dump File
+
+The project currently may contain or locally generate files such as:
+
+```text
+backend/docker/init/full-init.sql
+```
+
+This type of file should be treated as private/local if it came from a real or cloud database dump. It should not be committed if it contains real data or environment-specific details.
+
+Recommended approach:
+
+```text
+init.sql       → committed safe demo seed
+full-init.sql  → ignored/private local dump
+```
+
+---
+
+## Why Seed Data Matters
+
+The backend uses database-backed configuration for several behaviours, including:
+
+- Public/non-authenticated URLs
+- Token expiration times
+- OTP retry limits
+- OTP restriction duration
+- OTP/email/SMS template data
+- Error code lookups
+- Search/suggest data
+
+Without seed configuration, some flows may fail at runtime because the app expects configuration rows to exist.
+
+---
+
+## Docker Import Behaviour
+
+MariaDB imports seed files only when the DB volume is empty.
+
+If `init.sql` changes but your container already has an existing volume, the changes will not re-import automatically.
+
+Reset the DB volume:
 
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-This does not re-run the seed:
-
-```bash
-docker compose down
-docker compose up
-```
-
-because the existing Docker volume already contains database data.
+Warning: `down -v` deletes local Docker database data.
 
 ---
 
-## What the Safe Seed Should Include
+## Safe Seed Rules for GitHub
 
-The public GitHub seed can include:
+Before committing SQL seed files, check:
 
 ```text
-✅ Table structures
-✅ Error code rows
-✅ Non-secret configuration rows
-✅ Public endpoint config
-✅ OTP/email template content
-✅ Demo-safe values
+No real usernames/emails/phone numbers
+No real hashed passwords
+No OTP values
+No refresh/session tokens
+No OAuth access/refresh tokens
+No cloud DB hostnames if they reveal private infrastructure
+No private API keys or secrets
 ```
 
-Recommended error code rows include:
+For public GitHub, use placeholder values such as:
 
 ```text
-TRIP_OVERLAP_WARNING
-DESTINATION_OVERLAP_WARNING
-TRIP_NAME_ALREADY_EXISTS
-TRIP_DATE_CONFLICT_WITH_DESTINATION
-DESTINATION_DATE_OUTSIDE_TRIP_RANGE
-ACTIVITY_OUTSIDE_DESTINATION_RANGE
-ACTIVITY_OVERLAP_ERROR
+demo@example.com
+replace_me
+local/demo
 ```
 
 ---
 
-## What the Safe Seed Must Not Include
+## Recommended Future Improvement
 
-The public GitHub seed must not include:
-
-```text
-❌ Real users
-❌ Password hashes from real users
-❌ OTP records
-❌ Refresh token records
-❌ Session token records
-❌ Real Gmail OAuth access tokens
-❌ Real Gmail OAuth refresh tokens
-❌ Real client secrets
-❌ Real API keys
-❌ Private phone numbers/emails
-```
-
----
-
-## Safe Email/OAuth Values
-
-For public demo seed, OAuth values should be placeholders:
+For a more production-style setup later, consider replacing large SQL dumps with:
 
 ```text
-EMAIL_OAUTH_REFRESH_ENABLED = false
-EMAIL_CLIENT_ID = replace_me
-EMAIL_CLIENT_SECRET = replace_me
-EMAIL_REFRESH_TOKEN = replace_me
-EMAIL_ACCESS_TOKEN_CONFIG = replace_me
-EMAIL_ADDRESS_CONFIG = demo@example.com
+Flyway or Liquibase migrations
 ```
 
-For private local testing, real values should come from `.env`, not from the public SQL seed.
-
----
-
-## Docker Database Connection
-
-Inside Docker, the backend connects to MariaDB using the Docker service name:
-
-```env
-SPRING_DATASOURCE_URL=jdbc:mariadb://db:3306/traveling_app
-```
-
-From the host machine, MariaDB is exposed on:
+That would separate:
 
 ```text
-localhost:3307
+Schema migration
+Seed reference data
+Private runtime secrets
 ```
-
-Do not use `localhost:3307` inside the backend container.
-
----
-
-## Why This Matters
-
-The project uses database-backed configuration, so the app needs some configuration rows to start and run properly.
-
-At the same time, GitHub must not expose real secrets.
-
-The clean solution is:
-
-```text
-Public GitHub init.sql
-→ safe config and demo data only
-
-Private .env / cloud secrets
-→ real passwords, OAuth secrets, tokens, DB credentials
-```
-
----
-
-## Production Note
-
-In production, the backend would normally connect to a real cloud database.
-
-The local Docker `init.sql` is mainly for:
-
-- local demo
-- portfolio setup
-- running the project on another machine
-- testing without using the real cloud database

@@ -1,8 +1,8 @@
 # Travelling App Backend
 
-A Spring Boot backend for a travel planning application. The backend provides user authentication, token/session management, OTP verification, trip management, activity management, Swagger API documentation, and Docker-based local setup.
+Spring Boot backend for the WanderMate travel planning application. The backend provides authentication, token/session management, OTP verification, trip/destination/activity management, Swagger API documentation, service-level tests, and Docker-based local setup.
 
-This project is designed as a backend portfolio project with real-world backend concerns such as JWT authentication, refresh token handling, database-backed configuration, request validation, ownership checks, safe environment variable usage, and Dockerized demo setup.
+This project is designed as a backend portfolio project with real-world backend concerns such as JWT authentication, refresh token handling, session revocation, database-backed configuration, request validation, ownership checks, safe environment variable usage, and a Dockerized demo environment.
 
 ---
 
@@ -11,43 +11,49 @@ This project is designed as a backend portfolio project with real-world backend 
 | Area | Technology |
 |---|---|
 | Language | Java 21 |
-| Framework | Spring Boot |
+| Framework | Spring Boot 3.5 |
 | Database | MariaDB |
 | ORM | Spring Data JPA / Hibernate |
 | Security | Spring Security, JWT, refresh tokens, session tokens |
 | API Documentation | Swagger / SpringDoc OpenAPI |
 | Build Tool | Maven |
+| Testing | JUnit 5, Mockito, Maven Surefire |
 | Containerization | Docker, Docker Compose |
-| API Testing | Postman |
 
 ---
 
-## Main Features
+## Current Status
 
-- User registration and login
-- JWT access token authentication
-- Refresh token generation, validation, rotation, reuse detection, and revocation
-- Session token handling for active login sessions
-- Logout flow with session and refresh token revocation
-- OTP sending and verification flow
-- Email sending using Gmail OAuth configuration
-- Trip CRUD
-- Activity CRUD
-- Activity time-overlap validation
-- User ownership checks for protected resources
-- DTO validation and global exception handling
-- Swagger UI with JWT Bearer authorization
-- Postman collection support
-- Dockerized backend and MariaDB demo environment
-- Safe `.env.example` and cleaned database seed for GitHub
+```text
+✅ User registration/login/logout implemented
+✅ JWT access token authentication implemented
+✅ Refresh token rotation, revocation, and reuse detection implemented
+✅ Session token handling for active login sessions implemented
+✅ Max active session enforcement implemented
+✅ Email OTP implemented end-to-end when email OAuth/config is correctly set
+✅ Phone/SMS OTP service flow exists and is unit-tested with mocks
+✅ Trip, destination, and activity CRUD implemented
+✅ Trip/destination/activity date and time validation implemented
+✅ Trip and destination overlap warnings implemented with allowOverlap support
+✅ Activity overlap is blocked as a hard validation error
+✅ Ownership checks protect user-specific data
+✅ Standardized response wrapper and error code system implemented
+✅ Swagger UI available for manual testing
+✅ Docker Compose local backend + MariaDB setup available
+✅ 197 service-level backend tests are passing
+⚠️ Real SMS provider integration is not enabled yet
+⚠️ Public Docker demo values do not include real email/OAuth secrets
+```
+
+Important OTP note: email OTP is the real working OTP flow when email secrets/config are provided. Phone/SMS OTP is prepared at service level and covered with mocked tests, but the current `SmsServiceImpl` is a stub and does not send real SMS.
 
 ---
 
-## Backend Architecture
+## Architecture Summary
 
 ```mermaid
 flowchart TD
-    Client[Client / Postman / Swagger / Frontend] --> Security[Spring Security Filter Chain]
+    Client[Frontend / Swagger / Postman] --> Security[Spring Security Filter Chain]
     Security --> TokenFilter[TokenFilter]
     TokenFilter --> Controller[Controller Layer]
     Controller --> Service[Service Layer]
@@ -60,21 +66,145 @@ flowchart TD
     Controller --> Client
 ```
 
-The project follows a layered backend structure:
+Layering:
 
 ```text
-Controller → Service → Validator / Mapper → Repository → Database
+Controller → Service → Validator / Mapper → Repository → MariaDB
 ```
 
-The service layer coordinates business logic, validators handle input/business validation, mappers convert entities to response DTOs, and repositories handle database access.
+Core domain:
 
-More details are available in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+```text
+User
+  └── Trip
+        └── Destination
+              └── Activity
+```
+
+More details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+
+---
+
+## API Base URLs
+
+Local IntelliJ backend:
+
+```text
+http://localhost:8080/The-Project
+```
+
+Docker backend:
+
+```text
+http://localhost:8082/The-Project
+```
+
+Docker Swagger UI:
+
+```text
+http://localhost:8082/The-Project/swagger-ui/index.html
+```
+
+---
+
+## Docker Local Setup
+
+### 1. Create `.env`
+
+From the backend folder:
+
+```bash
+cp .env.example .env
+```
+
+Windows PowerShell:
+
+```powershell
+copy .env.example .env
+```
+
+### 2. Run Docker
+
+```bash
+docker compose up --build
+```
+
+### 3. Open Swagger
+
+```text
+http://localhost:8082/The-Project/swagger-ui/index.html
+```
+
+### 4. Stop Docker
+
+```bash
+docker compose down
+```
+
+Reset database volume and re-import seed SQL:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+More details: [`docs/DOCKER_SETUP.md`](docs/DOCKER_SETUP.md)
+
+---
+
+## Docker Port Mapping
+
+| Service | Host Port | Container Port |
+|---|---:|---:|
+| Backend | 8082 | 8080 |
+| MariaDB | 3307 | 3306 |
+
+Inside Docker, the backend connects to MariaDB using:
+
+```env
+DB_URL=jdbc:mariadb://db:3306/traveling_app
+```
+
+From the host machine, database clients connect using:
+
+```text
+localhost:3307
+```
+
+---
+
+## Environment Variables
+
+The real `.env` file is ignored by Git and should contain private local values.
+
+Safe example values are provided in `.env.example`:
+
+```env
+DB_NAME=traveling_app
+DB_HOST_PORT=3307
+DB_USERNAME=traveling_user
+DB_PASSWORD=traveling_password
+DB_ROOT_PASSWORD=root_password
+
+BACKEND_HOST_PORT=8082
+DB_URL=jdbc:mariadb://db:3306/traveling_app
+SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
+EMAIL_OAUTH_REFRESH_ENABLED=false
+EMAIL_CLIENT_ID=replace_me
+EMAIL_CLIENT_SECRET=replace_me
+EMAIL_REFRESH_TOKEN=replace_me
+EMAIL_TOKEN_URL=https://oauth2.googleapis.com/token
+EMAIL_ADDRESS_CONFIG=demo@example.com
+```
+
+For private local testing or deployment, real values should be provided through `.env` or the cloud provider environment variable settings.
 
 ---
 
 ## Authentication Overview
 
-Login returns three important values:
+Login returns:
 
 ```text
 accessToken
@@ -89,104 +219,14 @@ Authorization: Bearer <accessToken>
 Session-Token: <sessionToken>
 ```
 
-```mermaid
-sequenceDiagram
-    actor Client
-    participant UserAPI as User API
-    participant UserService
-    participant TokenService
-    participant DB as MariaDB
-
-    Client->>UserAPI: POST /api/v1/users/login
-    UserAPI->>UserService: login(request)
-    UserService->>DB: Find active user by username/email/phone
-    DB-->>UserService: User entity
-    UserService->>UserService: Validate password
-    UserService->>TokenService: Check max active sessions
-    UserService->>TokenService: Generate access token with sessionId claim
-    UserService->>TokenService: Generate session token
-    TokenService->>DB: Save hashed session token
-    UserService->>TokenService: Generate refresh token
-    TokenService->>DB: Save hashed refresh token
-    UserService-->>UserAPI: accessToken + refreshToken + sessionToken
-    UserAPI-->>Client: Login success response
-```
-
-More details are available in [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md).
-
----
-
-## Docker Local Demo Setup
-
-The project includes Docker setup for running the backend and a local MariaDB database without manually installing Java, Maven, or MariaDB.
-
-### 1. Create `.env`
-
-Copy the example file:
-
-```bash
-cp .env.example .env
-```
-
-On Windows, copy `.env.example` manually and rename it to `.env`.
-
-### 2. Run with Docker
-
-```bash
-docker compose up --build
-```
-
-### 3. Open Swagger
-
-If the backend is mapped to port `8081`:
+Refresh token endpoint requires:
 
 ```text
-http://localhost:8081/The-Project/swagger-ui/index.html
+Refresh-Token: <refreshToken>
+Session-Token: <sessionToken>
 ```
 
-More details are available in [`docs/DOCKER_SETUP.md`](docs/DOCKER_SETUP.md).
-
----
-
-## Environment Variables
-
-Sensitive values are not committed to GitHub. The real `.env` file is ignored by Git.
-
-Safe example values are provided in `.env.example`:
-
-```env
-DB_USERNAME=traveling_user
-DB_PASSWORD=traveling_password
-DB_ROOT_PASSWORD=root_password
-
-SPRING_DATASOURCE_URL=jdbc:mariadb://db:3306/traveling_app
-SPRING_DATASOURCE_USERNAME=traveling_user
-SPRING_DATASOURCE_PASSWORD=traveling_password
-SPRING_JPA_HIBERNATE_DDL_AUTO=update
-
-EMAIL_OAUTH_REFRESH_ENABLED=false
-EMAIL_CLIENT_ID=replace_me
-EMAIL_CLIENT_SECRET=replace_me
-EMAIL_REFRESH_TOKEN=replace_me
-EMAIL_TOKEN_URL=https://oauth2.googleapis.com/token
-EMAIL_ADDRESS_CONFIG=demo@example.com
-```
-
-For private local testing or deployment, real values should be provided through `.env` or cloud provider environment variables.
-
----
-
-## Database Seed
-
-The Docker demo database uses a cleaned seed file:
-
-```text
-docker/init/init.sql
-```
-
-This file contains safe configuration/error-code seed data for local demo. It should not contain real secrets, real users, OTP records, refresh tokens, session tokens, or OAuth credentials.
-
-More details are available in [`docs/DATABASE_SEED.md`](docs/DATABASE_SEED.md).
+More details: [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md)
 
 ---
 
@@ -194,73 +234,62 @@ More details are available in [`docs/DATABASE_SEED.md`](docs/DATABASE_SEED.md).
 
 | Module | Purpose |
 |---|---|
-| Users | Register, login, check user details, forgot password, logout |
-| Auth / Token | Refresh access token, validate/revoke token/session state |
-| OTP | Send and verify OTP |
-| Trips | Create, read, update, delete trips |
-| Activities | Create, read, update, delete activities within trips |
-| Swagger | API documentation and manual testing |
+| Users | Register, verify registration details, login, forgot password, logout, check user |
+| OTP | Send and verify OTP through email flow or prepared SMS flow |
+| Auth | Refresh access token using refresh token + session token |
+| Trips | Create, list, detail, update, delete trips; search/suggest travel data |
+| Destinations | Create, list, detail, update, delete destinations under trips |
+| Activities | Create, list, detail, update, delete activities under destinations |
 
-More details are available in [`docs/API_GUIDE.md`](docs/API_GUIDE.md).
-
----
-
-## Postman Testing
-
-Postman can be used to test the main backend flows:
-
-- Register
-- Login
-- Refresh token
-- Logout
-- OTP send/verify
-- Trip CRUD
-- Activity CRUD
-
-More details are available in [`docs/POSTMAN_GUIDE.md`](docs/POSTMAN_GUIDE.md).
+More details: [`docs/API_GUIDE.md`](docs/API_GUIDE.md)
 
 ---
 
-## Security Notes
+## Backend Tests
 
-- `.env` is ignored and should never be committed.
-- `.env.example` contains placeholders only.
-- The public `init.sql` is cleaned for demo use.
-- Real OAuth credentials should be stored in private environment variables or cloud secrets.
-- Refresh tokens and session tokens are stored as hashes.
-- Protected APIs require an access token and session token.
-- Resource access is protected through ownership-based repository queries.
+Run all backend tests from the backend folder:
 
----
-
-## Current Project Status
-
-```text
-✅ Core backend implemented
-✅ Auth, session, and refresh token flow implemented
-✅ Trip and activity APIs implemented
-✅ Docker setup completed
-✅ Swagger/Postman supported
-✅ Safe public seed file prepared
+```bash
+./mvnw test
 ```
 
-Next improvements:
+Windows PowerShell:
+
+```powershell
+.\mvnw test
+```
+
+Current service test status:
 
 ```text
-1. Add frontend integration
-2. Add automated tests for key flows
-3. Add deployment guide
-4. Add screenshots and demo video
-5. Improve README with final frontend screenshots
+ActivityServiceImplTest     25 passed
+DestinationServiceImplTest  31 passed
+EmailServiceImplTest         9 passed
+OtpServiceImplTest          28 passed
+SmsServiceImplTest           3 passed
+TokenServiceImplTest        33 passed
+TripServiceImplTest         39 passed
+UserServiceImplTest         29 passed
+
+Total service tests: 197 passed
 ```
+
+Note: if the default generated `TheProjectApplicationTests.contextLoads` test is present, it starts the full Spring context and requires DB env variables or a dedicated test profile. The main proof of backend business behaviour is the service-level test suite.
+
+More details: [`docs/TESTING.md`](docs/TESTING.md)
 
 ---
 
-## Documentation
+## Documentation Index
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md)
-- [`docs/API_GUIDE.md`](docs/API_GUIDE.md)
-- [`docs/DOCKER_SETUP.md`](docs/DOCKER_SETUP.md)
-- [`docs/DATABASE_SEED.md`](docs/DATABASE_SEED.md)
-- [`docs/POSTMAN_GUIDE.md`](docs/POSTMAN_GUIDE.md)
+| Document | Purpose |
+|---|---|
+| [`docs/API_GUIDE.md`](docs/API_GUIDE.md) | Endpoints, request bodies, headers, response format |
+| [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md) | Login, refresh, logout, OTP, session/token logic |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layers, domain model, ownership checks, validation rules |
+| [`docs/DATABASE_SEED.md`](docs/DATABASE_SEED.md) | Seed file purpose and safe data rules |
+| [`docs/DOCKER_SETUP.md`](docs/DOCKER_SETUP.md) | Docker setup and troubleshooting |
+| [`docs/POSTMAN_GUIDE.md`](docs/POSTMAN_GUIDE.md) | Manual API testing flow |
+| [`docs/TESTING.md`](docs/TESTING.md) | Test coverage and test commands |
+| [`docs/FRONTEND_INTEGRATION.md`](docs/FRONTEND_INTEGRATION.md) | Frontend URL, token, refresh, and warning handling |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Suggested V1/V2/V3/V4 improvement plan |

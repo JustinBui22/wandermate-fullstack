@@ -8,7 +8,7 @@ This document explains the backend structure of the WanderMate / Travelling App 
 
 ```mermaid
 flowchart TD
-    Client[Client / Swagger / Postman / Frontend] --> Security[Spring Security Filter Chain]
+    Client[Frontend / Swagger / Postman] --> Security[Spring Security Filter Chain]
     Security --> TokenFilter[TokenFilter]
     TokenFilter --> Controller[Controller Layer]
     Controller --> Service[Service Layer]
@@ -16,10 +16,38 @@ flowchart TD
     Service --> Mapper[Mapper Layer]
     Service --> Repository[Repository Layer]
     Repository --> DB[(MariaDB)]
-
     Service --> Response[CompleteResponse / ResponseBody]
     Response --> Controller
     Controller --> Client
+```
+
+The code follows this structure:
+
+```text
+Controller → Service → Validator / Mapper → Repository → Database
+```
+
+---
+
+## Package Structure
+
+```text
+com.example.travellingapp
+├── config              # Spring Security, Swagger/OpenAPI, Mail config
+├── controller          # Controller interfaces
+├── controller.impl     # Controller implementations
+├── dto                 # Request and response DTOs
+├── entity              # JPA entities
+├── enums               # Error codes, flows, email/sms enums
+├── exception_handler   # Global exception handling
+├── mapper              # Entity to response DTO mapping
+├── repository          # Spring Data JPA repositories
+├── response_template   # Standard API response wrappers
+├── security            # Token filter, authenticated user helpers, hashing
+├── service             # Service interfaces
+├── service.impl        # Business logic implementations
+├── util                # Shared helpers
+└── validator           # Validation logic
 ```
 
 ---
@@ -33,9 +61,13 @@ User
               └── Activity
 ```
 
-The backend is structured around nested itinerary data.
-
 A user owns trips. Each trip can contain multiple destinations. Each destination can contain multiple activities.
+
+The route design follows the same hierarchy:
+
+```text
+/api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}
+```
 
 ---
 
@@ -43,96 +75,169 @@ A user owns trips. Each trip can contain multiple destinations. Each destination
 
 ### Controller Layer
 
-The controller layer handles HTTP requests and responses.
-
 Responsibilities:
 
-- Receive API requests
-- Bind request body, headers, path variables, and query parameters
+- Receive HTTP requests
+- Bind request bodies, headers, path variables, and query parameters
 - Call service methods
-- Return standardized responses
+- Convert `CompleteResponse` into `ResponseEntity`
 
-The controller should not contain complex business logic.
-
----
+Controllers should not contain complex business logic.
 
 ### Security Layer
 
-The security layer protects authenticated routes before requests reach controllers.
-
 Responsibilities:
 
-- Skip token validation for public URLs
-- Extract and validate Bearer access tokens
-- Validate `Session-Token` for protected requests
-- Populate `SecurityContext` with authenticated user information
-- Reject invalid or expired authentication attempts
-
----
+- Skip token validation for public routes
+- Extract and validate Bearer access token
+- Validate `Session-Token`
+- Populate `SecurityContext` with authenticated user details
+- Reject invalid/expired token/session requests
 
 ### Service Layer
-
-The service layer contains business logic.
 
 Responsibilities:
 
 - Authentication flow
-- Token generation and validation
-- Refresh token rotation/revocation
-- Trip, destination, and activity business rules
-- OTP flow
+- Token generation, refresh, revocation, and reuse detection
+- OTP send/verify flow
+- Trip/destination/activity business rules
 - Ownership checks
 - Calling validators, mappers, and repositories
 
-This is the main layer where application behaviour is coordinated.
-
----
-
 ### Validator Layer
-
-The validator layer keeps validation logic separate from service logic.
 
 Responsibilities:
 
-- Validate required fields
-- Validate date/time rules
-- Validate OTP request type
-- Validate trip, destination, and activity rules
-- Validate business conditions before service actions continue
-
----
+- Required field validation beyond DTO annotations
+- Date/time rules
+- OTP method-specific checks
+- Format checks
+- Business preconditions before data is saved
 
 ### Mapper Layer
 
-The mapper layer converts between entities and DTOs.
-
 Responsibilities:
 
-- Convert entity to response DTO
-- Keep response formatting outside service logic
-- Avoid exposing internal entity structure directly
-
----
+- Convert entities to response DTOs
+- Avoid returning internal JPA entity objects directly
+- Keep response structure consistent
 
 ### Repository Layer
 
-The repository layer handles database access.
-
 Responsibilities:
 
-- Query entities
-- Save/update/delete records
-- Provide ownership-based lookup methods
+- Query, save, update, and delete data
+- Provide ownership-aware lookup methods
+- Support overlap and conflict checks
 
-Example ownership-based query patterns:
+---
+
+## Ownership Pattern
+
+Ownership is enforced by querying through the authenticated username.
+
+Example patterns:
 
 ```text
-findByTripIdAndUser_Username(...)
-findByDestinationIdAndTrip_TripIdAndTrip_User_Username(...)
-findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(...)
+Trip:        findByTripIdAndUser_Username(...)
+Destination: findByDestinationIdAndTrip_TripIdAndTrip_User_Username(...)
+Activity:    findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(...)
 ```
 
-This helps ensure a user can only access their own resources.
+This ensures users can only access resources connected to their own account.
+
+---
+
+## Response Pattern
+
+Service methods return:
+
+```java
+CompleteResponse<Object>
+```
+
+Controller methods return:
+
+```java
+ResponseEntity<ResponseBody<Object>>
+```
+
+Standard response shape:
+
+```json
+{
+  "code": "E000",
+  "message": "Trip created successfully",
+  "flow": "TRIP",
+  "body": {}
+}
+```
+
+Benefits:
+
+- Consistent success/error response structure
+- Business code is separated from HTTP status
+- Error messages can be database-backed through `ErrorCodeEntity`
+
+---
+
+## Authentication Components
+
+```text
+SecurityConfig
+  └── Configures public/protected routes and installs TokenFilter
+
+TokenFilter
+  └── Validates access token + session token for protected requests
+
+TokenServiceImpl
+  ├── Generates JWT access token
+  ├── Generates and hashes refresh token
+  ├── Generates and encodes session token
+  ├── Rotates refresh token
+  ├── Detects refresh token reuse
+  └── Revokes session/refresh tokens
+```
+
+---
+
+## Validation Rules
+
+### Trip Rules
+
+- Trip name is required and length-limited.
+- Destination is required.
+- Start/end dates are required.
+- Start date must be before end date.
+- Start date cannot be in the past.
+- Trip name must be unique per user.
+- Trip overlap returns warning `TRIP_OVERLAP_WARNING` unless `allowOverlap=true`.
+- Trip update cannot exclude existing destinations.
+
+### Destination Rules
+
+- Destination name is required.
+- Start/end dates are required.
+- Start date must be before end date.
+- Start date cannot be in the past.
+- Destination must stay inside parent trip range.
+- Destination overlap returns warning `DESTINATION_OVERLAP_WARNING` unless `allowOverlap=true`.
+- Destination update cannot exclude existing activities.
+
+### Activity Rules
+
+- Activity name is required.
+- Start/end date-times are required.
+- Start time must be before end time.
+- Activity must stay inside destination range.
+- Activity overlap is a hard error.
+
+Overlap logic:
+
+```text
+newStart < existingEnd AND newEnd > existingStart
+```
 
 ---
 
@@ -145,7 +250,7 @@ sequenceDiagram
     participant Controller
     participant Service as TripService
     participant Validator as TripValidator
-    participant Repo as Repository
+    participant Repo as Repositories
     participant DB as MariaDB
     participant Mapper as TripMapper
 
@@ -155,20 +260,19 @@ sequenceDiagram
     Controller->>Service: createTrip(dto)
     Service->>Validator: validateCreateInput(dto)
     Validator-->>Service: normalized trip name
-    Service->>Repo: find authenticated user
-    Repo->>DB: query user
-    DB-->>Repo: user entity
-    Repo-->>Service: user entity
-    Service->>Repo: check duplicate trip name for user
-    Service->>Repo: check trip overlap for user
-    alt Overlap exists and allowOverlap is false
+    Service->>Repo: Find authenticated user
+    Repo->>DB: Query user
+    DB-->>Repo: User entity
+    Repo-->>Service: User entity
+    Service->>Repo: Check duplicate trip name
+    Service->>Repo: Check trip overlap
+    alt Overlap and allowOverlap=false
         Service-->>Controller: TRIP_OVERLAP_WARNING
         Controller-->>Client: Warning response
-    else No overlap or allowOverlap is true
-        Service->>Repo: save trip
-        Repo->>DB: insert trip
-        DB-->>Repo: saved trip
-        Repo-->>Service: saved trip
+    else No overlap or allowOverlap=true
+        Service->>Repo: Save trip
+        Repo->>DB: Insert trip
+        DB-->>Repo: Saved trip
         Service->>Mapper: toResponseDTO(trip)
         Mapper-->>Service: TripResponseDTO
         Service-->>Controller: CompleteResponse
@@ -178,121 +282,43 @@ sequenceDiagram
 
 ---
 
-## Destination Creation Flow
+## Docker Runtime Architecture
 
 ```mermaid
-sequenceDiagram
-    actor Client
-    participant Security as TokenFilter
-    participant Controller
-    participant Service as DestinationService
-    participant Validator as DestinationValidator
-    participant Repo as Repository
-    participant DB as MariaDB
-    participant Mapper as DestinationMapper
+flowchart TD
+    Browser[Browser / Swagger / Postman] --> HostPort[localhost:8082]
+    HostPort --> Backend[Backend container :8080]
+    Backend --> Env[DB_URL / DB_USERNAME / DB_PASSWORD]
+    Backend --> MariaDB[db container :3306]
+    MariaDB --> Volume[traveling-db-data]
+    Init[docker/init/init.sql] --> MariaDB
+```
 
-    Client->>Security: POST /api/v1/trips/{tripId}/destinations
-    Security->>Security: Validate access token + session token
-    Security->>Controller: Allow request
-    Controller->>Service: createDestination(tripId, dto)
-    Service->>Repo: find trip by tripId + authenticated username
-    Repo->>DB: query trip ownership
-    DB-->>Repo: trip entity
-    Repo-->>Service: trip entity
-    Service->>Validator: validate destination date inside trip date range
-    Service->>Repo: check destination overlap inside same trip
-    alt Overlap exists and allowOverlap is false
-        Service-->>Controller: DESTINATION_OVERLAP_WARNING
-        Controller-->>Client: Warning response
-    else No overlap or allowOverlap is true
-        Service->>Repo: save destination
-        Repo->>DB: insert destination
-        Service->>Mapper: toResponseDTO(destination)
-        Service-->>Controller: CompleteResponse
-        Controller-->>Client: API response
-    end
+Important:
+
+```text
+Inside Docker: db:3306
+From host machine: localhost:3307
 ```
 
 ---
 
-## Activity Creation Flow
+## Current Design Strengths
 
-```mermaid
-sequenceDiagram
-    actor Client
-    participant Security as TokenFilter
-    participant Controller
-    participant Service as ActivityService
-    participant Validator as ActivityValidator
-    participant Repo as Repository
-    participant DB as MariaDB
-    participant Mapper as ActivityMapper
-
-    Client->>Security: POST /api/v1/trips/{tripId}/destinations/{destinationId}/activities
-    Security->>Security: Validate access token + session token
-    Security->>Controller: Allow request
-    Controller->>Service: createActivity(tripId, destinationId, dto)
-    Service->>Validator: validateCreateInput(destinationId, dto)
-    Validator-->>Service: normalized activity name
-    Service->>Repo: find destination by destinationId + tripId + authenticated username
-    Repo->>DB: query destination ownership
-    DB-->>Repo: destination entity
-    Repo-->>Service: destination entity
-    Service->>Validator: validate activity inside destination date range
-    Service->>Repo: check overlapping activity in same trip
-    Repo->>DB: existsByDestination_Trip_TripIdAndStartDateTimeLessThanAndEndDateTimeGreaterThan
-    DB-->>Repo: overlap true/false
-    Repo-->>Service: overlap result
-    alt Overlap exists
-        Service-->>Controller: ACTIVITY_OVERLAP_ERROR
-        Controller-->>Client: Error response
-    else No overlap
-        Service->>Repo: save activity
-        Repo->>DB: insert activity
-        DB-->>Repo: saved entity
-        Repo-->>Service: saved entity
-        Service->>Mapper: toResponseDTO(activity)
-        Mapper-->>Service: ActivityResponseDTO
-        Service-->>Controller: CompleteResponse
-        Controller-->>Client: API response
-    end
-```
+- Clear layered backend structure
+- Strong service-level test coverage
+- Auth design includes access token, refresh token, and session token
+- Refresh token reuse detection is implemented
+- Ownership-aware repository lookups protect user data
+- Trip/destination/activity hierarchy is modelled cleanly
+- Docker Compose gives a reproducible local backend environment
 
 ---
 
-## Important Validation Rules
+## Current Design Limitations
 
-### Trip Rules
-
-- User cannot have duplicate trip names.
-- Trip overlap is a soft warning.
-- Trip update cannot shrink the trip date range so that existing destinations fall outside it.
-- Deleting a trip deletes related destinations and activities.
-
-### Destination Rules
-
-- Destination must belong to the authenticated user's trip.
-- Destination date range must stay inside the trip date range.
-- Destination overlap inside the same trip is a soft warning.
-- Deleting a destination deletes related activities.
-
-### Activity Rules
-
-- Activity must belong to a destination.
-- Activity time must stay inside the destination date range.
-- Activity overlap is a hard error.
-- Back-to-back activities are allowed.
-
----
-
-## Why This Structure Is Useful
-
-This architecture makes the backend easier to maintain because each layer has a clear responsibility.
-
-Benefits:
-
-- Easier to debug
-- Easier to test
-- Cleaner service classes
-- Better separation of concerns
-- More professional backend structure for a portfolio project
+- SMS/phone OTP is not connected to a real SMS provider.
+- Public Docker demo does not include real email/OAuth secrets.
+- Swagger is currently part of the app; for production, it should be restricted or disabled.
+- The generated full-context Spring Boot test needs DB env variables or a dedicated test profile.
+- Frontend environment switching is currently manual through `src/constants/env.ts`.

@@ -1,591 +1,201 @@
-# WanderMate Fullstack
+# WanderMate Full Stack
 
-WanderMate is a full-stack mobile travel planning application that allows users to create trips, add destinations inside each trip, and manage activities inside each destination.
+WanderMate is a full-stack mobile travel planning application built with a Spring Boot backend and an Expo React Native frontend. Users can register/login, manage trips, organise destinations, and schedule activities with date/time validation.
 
-The project is designed as a portfolio-ready full-stack app with a React Native Expo frontend, a Spring Boot backend, MariaDB database, JWT authentication, nested CRUD flows, and real itinerary validation rules.
-
----
-
-## Project Overview
-
-WanderMate helps users organise travel plans using the following structure:
-
-```txt
-User
-  └── Trip
-        └── Destination
-              └── Activity
-```
-
-Users can manage their full itinerary from high-level trip planning down to individual activities. The app includes validation rules for date ranges, overlap warnings, activity time conflicts, ownership checks, and cascade deletion.
-
----
-
-## Tech Stack
-
-### Frontend
-
-- React Native
-- Expo
-- Expo Router
-- TypeScript
-- Axios
-- React Native DateTimePicker
-
-### Backend
-
-- Java
-- Spring Boot
-- Spring Security
-- JWT authentication
-- Spring Data JPA / Hibernate
-- Maven
-- Docker / Docker Compose
-- Swagger / OpenAPI
-
-### Database
-
-- MariaDB
-- Relational database design
-- Foreign key relationships
-- Cascade delete for nested itinerary data
-
----
-
-## Core Features
-
-### Authentication
-
-- User registration
-- User login
-- JWT-based protected routes
-- User ownership checks for trip, destination, and activity data
-
-### Trip Management
-
-- Create trip
-- View trip list
-- View trip detail
-- Edit trip
-- Delete trip
-- Prevent duplicate trip names for the same user
-- Warn when a trip overlaps another existing trip
-- Prevent updating a trip so that existing destinations fall outside the trip date range
-
-### Destination Management
-
-- Create destination inside a trip
-- View destination list inside trip detail
-- View destination detail
-- Edit destination
-- Delete destination
-- Warn when a destination overlaps another destination inside the same trip
-- Prevent destination dates from being outside the trip date range
-- Delete destination also deletes all related activities
-
-### Activity Management
-
-- Create activity inside a destination
-- View activity list inside destination detail
-- View activity detail
-- Edit activity
-- Delete activity
-- Prevent activity time from being outside the destination date range
-- Prevent activity time overlap with another activity in the same trip
-
----
-
-## Business Rules
-
-### Trip Rules
-
-| Rule | Behaviour |
-|---|---|
-| A user cannot have two trips with the same name | Hard block |
-| A trip can overlap another trip | Soft warning |
-| User can continue after trip overlap warning | Allowed with `allowOverlap: true` |
-| Trip dates must include all existing destinations | Hard block |
-| Deleting a trip deletes its destinations and activities | Cascade delete |
-
-### Destination Rules
-
-| Rule | Behaviour |
-|---|---|
-| A destination must belong to a trip | Required |
-| Destination dates must stay inside the trip date range | Hard block |
-| Destinations can overlap inside the same trip | Soft warning |
-| User can continue after destination overlap warning | Allowed with `allowOverlap: true` |
-| Deleting a destination deletes all activities inside it | Cascade delete |
-
-### Activity Rules
-
-| Rule | Behaviour |
-|---|---|
-| An activity must belong to a destination | Required |
-| Activity time must stay inside the destination date range | Hard block |
-| Activities cannot overlap with another activity in the same trip | Hard block |
-| Back-to-back activities are allowed | Allowed |
-
-Example of allowed back-to-back activities:
-
-```txt
-Existing activity: 10:00 - 12:00
-New activity:      12:00 - 13:00
-Result: allowed
-```
-
-Example of blocked overlapping activities:
-
-```txt
-Existing activity: 10:00 - 12:00
-New activity:      11:00 - 13:00
-Result: blocked
-```
-
----
-
-## Soft Warnings vs Hard Errors
-
-WanderMate separates warnings from hard validation errors.
-
-### Soft Warning
-
-Soft warnings are used when the data may still be valid depending on user intention.
-
-Current soft warnings:
-
-```txt
-TRIP_OVERLAP_WARNING
-DESTINATION_OVERLAP_WARNING
-```
-
-Flow:
-
-```txt
-Frontend sends request with allowOverlap = false
-  ↓
-Backend detects overlap
-  ↓
-Backend returns warning response
-  ↓
-Frontend shows confirmation popup
-  ↓
-User confirms
-  ↓
-Frontend sends same request again with allowOverlap = true
-  ↓
-Backend saves the data
-```
-
-### Hard Error
-
-Hard errors are used when the data would become invalid.
-
-Examples:
-
-```txt
-TRIP_NAME_ALREADY_EXISTS
-TRIP_DATE_CONFLICT_WITH_DESTINATION
-DESTINATION_DATE_OUTSIDE_TRIP_RANGE
-ACTIVITY_OUTSIDE_DESTINATION_RANGE
-ACTIVITY_OVERLAP_ERROR
-```
-
-For hard errors, the frontend shows an error alert and does not allow the user to continue.
-
----
-
-## Local Development Ports
-
-| Service | Local URL / Port |
-|---|---|
-| Spring Boot backend via IntelliJ | `http://localhost:8080` |
-| Expo Metro dev server | `http://localhost:8081` |
-| Docker backend | `http://localhost:8082` |
-| Docker MariaDB from host | `localhost:3307` |
-| MariaDB inside Docker network | `db:3306` |
-
-For Android Emulator accessing local backend:
-
-```txt
-http://10.0.2.2:8080
-```
-
-For Android Emulator accessing Docker backend:
-
-```txt
-http://10.0.2.2:8082
-```
+This repository is designed as a portfolio project that demonstrates production-style backend API design, JWT authentication, refresh/session token handling, relational data modelling, Docker setup, and mobile frontend integration.
 
 ---
 
 ## Project Structure
 
-```txt
+```text
 wandermate-fullstack/
-  backend/
-    src/
-    docs/
-    docker/
-    Dockerfile
-    docker-compose.yml
-    pom.xml
-    README.md
-
-  frontend/
-    app/
-    src/
-    assets/
-    package.json
-    README.md
-
-  README.md
-  .gitignore
+├── backend/     # Spring Boot API, MariaDB, auth, tests, Docker setup
+└── frontend/    # Expo React Native mobile app
 ```
 
 ---
 
-## Running the Backend Locally
+## Tech Stack
 
-Backend-specific setup is documented in:
-
-```txt
-backend/README.md
-```
-
-Basic local backend run:
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-Backend runs on:
-
-```txt
-http://localhost:8080
-```
-
-Swagger may be available at:
-
-```txt
-http://localhost:8080/swagger-ui/index.html
-```
-
-Depending on the backend context path, the Swagger URL may include the project path.
+| Area | Technology |
+|---|---|
+| Backend | Java 21, Spring Boot 3, Spring Security |
+| Database | MariaDB, Spring Data JPA / Hibernate |
+| Auth | JWT access token, refresh token, session token |
+| API Docs | Swagger / SpringDoc OpenAPI |
+| Testing | JUnit 5, Mockito, Maven Surefire |
+| Frontend | Expo React Native, TypeScript, Expo Router |
+| State / Storage | Zustand, Expo SecureStore |
+| Containerization | Docker, Docker Compose |
 
 ---
 
-## Running the Backend with Docker
+## Current Status
+
+```text
+✅ Backend CRUD for trips, destinations, and activities is implemented
+✅ Ownership checks protect user-specific resources
+✅ Trip, destination, and activity date/time validation is implemented
+✅ Trip and destination overlap warnings support allowOverlap confirmation
+✅ Activity overlap is blocked as a hard validation error
+✅ JWT access token + refresh token + session token flow is implemented
+✅ Refresh token rotation, revocation, and reuse detection are implemented
+✅ Logout revokes the active session and related refresh tokens
+✅ Email OTP flow is implemented and works when email OAuth/config is correctly set
+✅ Phone/SMS OTP service flow exists and is covered by mocked unit tests
+✅ Backend service-level tests are implemented and passing
+✅ Docker Compose local backend + MariaDB setup is available
+⚠️ Real SMS provider integration is not enabled yet
+⚠️ Public Docker demo values do not include real email/OAuth secrets
+```
+
+Phone/SMS OTP should be described as prepared backend logic only. The current `SmsServiceImpl` is a stub that returns success, so it does not prove real SMS delivery. Real SMS would require a provider such as Twilio, AWS SNS, Vonage, or another SMS gateway.
+
+---
+
+## Backend Quick Start with Docker
 
 From the backend folder:
 
 ```bash
 cd backend
+cp .env.example .env
 docker compose up --build
 ```
 
-Docker backend runs on:
+On Windows PowerShell, manually copy `.env.example` and rename the copy to `.env`, or run:
 
-```txt
-http://localhost:8082
+```powershell
+cd backend
+copy .env.example .env
+docker compose up --build
 ```
 
-MariaDB is exposed to the host on:
+Docker backend URL:
 
-```txt
+```text
+http://localhost:8082/The-Project
+```
+
+Swagger UI:
+
+```text
+http://localhost:8082/The-Project/swagger-ui/index.html
+```
+
+MariaDB host connection:
+
+```text
 localhost:3307
 ```
 
-Inside Docker, the backend connects to the database using:
+Inside Docker, the backend connects to MariaDB by service name:
 
-```txt
-jdbc:mariadb://db:3306/traveling_app
-```
-
-Stop Docker services:
-
-```bash
-docker compose down
+```env
+DB_URL=jdbc:mariadb://db:3306/traveling_app
 ```
 
 ---
 
-## Running the Frontend Locally
+## Frontend Quick Start
 
-Frontend-specific setup is documented in:
-
-```txt
-frontend/README.md
-```
-
-Basic frontend run:
+From the frontend folder:
 
 ```bash
 cd frontend
 npm install
-npx expo start -c
+npm run android
 ```
 
-Then press:
+Current frontend local backend setting:
 
-```txt
-a
+```ts
+export const API_BASE_URL = "http://10.0.2.2:8080/The-Project";
 ```
 
-to open the Android emulator.
+Use this when the backend is running locally from IntelliJ on port `8080` and the frontend is running on an Android emulator.
 
-Expo Metro uses:
+For Android emulator connecting to Docker backend, use:
 
-```txt
-localhost:8081
+```ts
+export const API_BASE_URL = "http://10.0.2.2:8082/The-Project";
 ```
 
-This is the React Native development server, not the backend API.
+For browser/Postman connecting to Docker backend, use:
 
----
-
-## API Route Overview
-
-### Authentication Routes
-
-```txt
-POST /api/v1/users/register
-POST /api/v1/users/login
-POST /api/v1/auth/refresh
-```
-
-### Trip Routes
-
-```txt
-GET    /api/v1/trips
-GET    /api/v1/trips/{tripId}
-POST   /api/v1/trips
-PUT    /api/v1/trips/{tripId}
-DELETE /api/v1/trips/{tripId}
-```
-
-### Destination Routes
-
-```txt
-GET    /api/v1/trips/{tripId}/destinations
-GET    /api/v1/trips/{tripId}/destinations/{destinationId}
-POST   /api/v1/trips/{tripId}/destinations
-PUT    /api/v1/trips/{tripId}/destinations/{destinationId}
-DELETE /api/v1/trips/{tripId}/destinations/{destinationId}
-```
-
-### Activity Routes
-
-```txt
-GET    /api/v1/trips/{tripId}/destinations/{destinationId}/activities
-GET    /api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}
-POST   /api/v1/trips/{tripId}/destinations/{destinationId}/activities
-PUT    /api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}
-DELETE /api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}
+```text
+http://localhost:8082/The-Project
 ```
 
 ---
 
-## Frontend Flow
+## Main Demo Flow
 
-The mobile app uses nested routing to match the itinerary structure.
-
-```txt
-Trip List
-  ↓
-Trip Detail
-  ↓
-Destination Detail
-  ↓
-Activity Detail
-```
-
-Main frontend routes:
-
-```txt
-/trips/create
-/trips/{tripId}
-/trips/{tripId}/edit
-/trips/{tripId}/destinations/create
-/trips/{tripId}/destinations/{destinationId}
-/trips/{tripId}/destinations/{destinationId}/edit
-/trips/{tripId}/destinations/{destinationId}/activities/create
-/trips/{tripId}/destinations/{destinationId}/activities/{activityId}
-/trips/{tripId}/destinations/{destinationId}/activities/{activityId}/edit
+```text
+1. Register with email OTP
+2. Login and receive accessToken, refreshToken, and sessionToken
+3. Create a trip
+4. Add destinations to the trip
+5. Add activities to a destination
+6. Trigger trip/destination overlap warning and retry with allowOverlap=true
+7. Trigger activity overlap validation error
+8. Refresh access token
+9. Logout and verify session/refresh token revocation
 ```
 
 ---
 
-## Backend Architecture
+## Key Documentation
 
-The backend follows a layered architecture:
-
-```txt
-Controller
-  ↓
-Service
-  ↓
-Validator / Mapper
-  ↓
-Repository
-  ↓
-Database
-```
-
-Main backend responsibilities:
-
-- Validate request data
-- Enforce ownership rules
-- Enforce business rules
-- Map entities to response DTOs
-- Return consistent response templates
-- Store data in MariaDB
+| Document | Purpose |
+|---|---|
+| `backend/README.md` | Backend-specific setup, architecture, tests, and API overview |
+| `backend/docs/API_GUIDE.md` | Endpoint list, headers, request examples, and response shape |
+| `backend/docs/AUTH_FLOW.md` | Login, token refresh, logout, max session, and OTP flows |
+| `backend/docs/ARCHITECTURE.md` | Layers, domain model, ownership checks, and validation rules |
+| `backend/docs/DOCKER_SETUP.md` | Docker Compose setup, ports, env variables, troubleshooting |
+| `backend/docs/DATABASE_SEED.md` | Safe local seed data rules and seed file purpose |
+| `backend/docs/POSTMAN_GUIDE.md` | Manual API testing order and sample payloads |
+| `backend/docs/TESTING.md` | Current test coverage and how to run tests |
+| `backend/docs/FRONTEND_INTEGRATION.md` | Frontend/backend URL, token, and error-handling integration notes |
+| `backend/docs/ROADMAP.md` | Suggested V1/V2/V3/V4 improvement plan |
 
 ---
 
-## Documentation
+## Test Status
 
-More backend documentation is available in:
+The current backend service test reports show:
 
-```txt
-backend/docs/
+```text
+ActivityServiceImplTest     25 passed
+DestinationServiceImplTest  31 passed
+EmailServiceImplTest         9 passed
+OtpServiceImplTest          28 passed
+SmsServiceImplTest           3 passed
+TokenServiceImplTest        33 passed
+TripServiceImplTest         39 passed
+UserServiceImplTest         29 passed
 ```
 
-Suggested documents:
+Total service tests:
 
-```txt
-backend/docs/API_GUIDE.md
-backend/docs/ARCHITECTURE.md
-backend/docs/AUTH_FLOW.md
-backend/docs/DATABASE_SEED.md
-backend/docs/DOCKER_SETUP.md
-backend/docs/POSTMAN_GUIDE.md
+```text
+197 passed, 0 failures, 0 errors
 ```
 
-Frontend setup is available in:
-
-```txt
-frontend/README.md
-```
-
-Backend setup is available in:
-
-```txt
-backend/README.md
-```
+Note: if the default generated `TheProjectApplicationTests.contextLoads` test exists, it needs real DB environment variables or a dedicated test profile because it starts the full Spring ApplicationContext.
 
 ---
 
-## Testing Checklist
+## Next Improvements
 
-### Happy Path
-
-```txt
-1. Register/login
-2. Create trip
-3. Open trip detail
-4. Edit trip
-5. Create destination
-6. Open destination detail
-7. Edit destination
-8. Create activity
-9. Open activity detail
-10. Edit activity
-11. Delete activity
-12. Delete destination
-13. Delete trip
+```text
+1. Add GitHub Actions CI for backend tests
+2. Add screenshots and short demo video/GIF
+3. Polish frontend error states and loading states
+4. Add collaborator roles: owner/editor/viewer
+5. Add trip sharing/invite links
+6. Add budgeting and cost sharing
+7. Add real SMS provider integration only if phone OTP becomes required
 ```
-
-### Validation Tests
-
-```txt
-Duplicate trip name
-→ hard error
-
-Create overlapping trip
-→ warning popup, continue allowed
-
-Edit trip to exclude existing destination
-→ hard error
-
-Create destination outside trip date range
-→ hard error
-
-Create overlapping destination
-→ warning popup, continue allowed
-
-Create activity outside destination date range
-→ hard error
-
-Create overlapping activity
-→ hard error
-
-Create back-to-back activity
-→ allowed
-```
-
----
-
-## Screenshots
-
-Screenshots will be added later.
-
-Suggested screenshots:
-
-```txt
-Trip List
-Trip Detail
-Create Trip
-Destination Detail
-Activity Detail
-Trip Overlap Warning
-Destination Overlap Warning
-Activity Validation Error
-```
-
----
-
-## Deployment Notes
-
-For local development, the app uses localhost-style URLs and Android emulator networking.
-
-For production deployment, the mobile app should use a public backend API URL such as:
-
-```txt
-https://api.wandermate.com
-```
-
-In production:
-
-```txt
-Mobile App
-  ↓
-Public Backend API URL
-  ↓
-Backend Container / Server
-  ↓
-Database
-```
-
-The database should not be accessed directly by the frontend.
-
----
-
-## Future Improvements
-
-- Add backend unit tests and integration tests
-- Add CI/CD pipeline
-- Add production deployment configuration
-- Add reusable frontend form components
-- Add reusable frontend date/time picker component
-- Improve frontend loading states and skeleton UI
-- Add map integration
-- Add AI-generated trip recommendations
-- Add image upload for trips and destinations
-- Add shared trip collaboration
-- Add push notifications
-- Add offline support
-- Add dark mode
-- Add Flyway or Liquibase for database migrations
-- Add better audit logging and monitoring
