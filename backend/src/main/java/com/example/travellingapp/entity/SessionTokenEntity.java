@@ -21,7 +21,7 @@ public class SessionTokenEntity {
     private String sessionId;
 
     @Column(name = "username", nullable = false)
-    private String userName;
+    private String username;
 
     @Column(name = "token", nullable = false, unique = true)
     private String sessionToken;
@@ -32,8 +32,8 @@ public class SessionTokenEntity {
     @Column(name = "modified_date")
     private LocalDateTime modifiedDate;
 
-    public SessionTokenEntity(String userName, String sessionToken, String sessionId, LocalDateTime createdDate) {
-        this.userName = userName;
+    public SessionTokenEntity(String username, String sessionToken, String sessionId, LocalDateTime createdDate) {
+        this.username = username;
         this.sessionToken = sessionToken;
         this.sessionId = sessionId;
         this.createdDate = createdDate;

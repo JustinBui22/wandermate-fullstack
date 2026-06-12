@@ -59,8 +59,8 @@ public class UserServiceImpl implements UserService {
     @Override
     public CompleteResponse<Object> createNewUser(CreateUserDTO registerRequest) {
         ErrorCodeEnum errorCodeEnum;
-        Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername(), true);
         try {
+            Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername(), true);
             // Check if username is taken
             if (userOptional.isPresent()) {
                 log.info("Username {} is not available!", userOptional.get().getUsername());
@@ -108,10 +108,10 @@ public class UserServiceImpl implements UserService {
     }
 
     public CompleteResponse<Object> checkUserDetails(CreateUserDTO registerRequest) {
-        Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername(), true);
         try {
             // Validate the format of username, email, password and phone number
             userValidator.validateRegisterInput(registerRequest);
+            Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername(), true);
             // Check if username is taken
             if (userOptional.isPresent()) {
                 log.info("Username {} is already taken!", userOptional.get().getUsername());

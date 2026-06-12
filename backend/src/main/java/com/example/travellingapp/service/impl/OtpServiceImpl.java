@@ -83,7 +83,7 @@ public class OtpServiceImpl implements OtpService {
     private void validateOtpRetryOrRestriction(OtpDTO otpDTO, OtpCheckEntity otpCheckEntity) {
         try {
             int maxRetrySendOtp = convertStringToInt(getConfigValue(MAX_RETRY_SEND_OTP.name(), configurationRepository, "3"));
-            long restrictedOtpDuration = convertStringToLong(getConfigValue(OTP_RESTRICTED_TIME.name(), configurationRepository, "900000L"));
+            long restrictedOtpDuration = convertStringToLong(getConfigValue(OTP_RESTRICTED_TIME.name(), configurationRepository, "900000"));
 
             // Check if the OTP record is currently blocked/restricted
             if (otpCheckEntity.isBlock()) {
@@ -176,7 +176,7 @@ public class OtpServiceImpl implements OtpService {
 
     private void sendOtpCommonFlow(OtpDTO otpDTO, OtpCheckEntity otpCheckEntity) {
         String otpCode = String.valueOf(generateVerificationOtp().getResponseBody().getBody());
-        long expirationOtpDuration = convertStringToLong(getConfigValue(OTP_EXPIRATION_TIME.name(), configurationRepository, "120000L"));
+        long expirationOtpDuration = convertStringToLong(getConfigValue(OTP_EXPIRATION_TIME.name(), configurationRepository, "120000"));
         if (otpDTO.getOtpVerificationMethod().equals(PHONE_NUM_OTP.name())) {
             sendPhoneOtp(otpDTO, otpCode, otpDTO.getSmsEnum());
             otpCheckEntity.setPhoneNumber(otpDTO.getPhoneNumber());
@@ -276,11 +276,11 @@ public class OtpServiceImpl implements OtpService {
     @Override
     public CompleteResponse<Object> verifyOtp(OtpDTO otpDTO) {
         try {
-            int maxRetryVerifyOtp = convertStringToInt(getConfigValue(MAX_RETRY_VERIFY_OTP.name(), configurationRepository, "3"));
-            long restrictedOtpDuration = convertStringToLong(getConfigValue(OTP_RESTRICTED_TIME.name(), configurationRepository, "900000L"));
-
             // Validate basic input for verifying OTP request
             otpValidator.validateVerifyOtpRequest(otpDTO);
+
+            int maxRetryVerifyOtp = convertStringToInt(getConfigValue(MAX_RETRY_VERIFY_OTP.name(), configurationRepository, "3"));
+            long restrictedOtpDuration = convertStringToLong(getConfigValue(OTP_RESTRICTED_TIME.name(), configurationRepository, "900000"));
 
             // Check if there is an active OTP record for this username
             Optional<OtpCheckEntity> otpCheckEntityOptional = otpCheckRepository.findByUsernameAndBlock(otpDTO.getUserName(), false);
