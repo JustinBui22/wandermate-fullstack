@@ -7,6 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SessionTokenRepository extends JpaRepository<SessionTokenEntity, Long> {
-    Optional<SessionTokenEntity> findByUserNameAndSessionId(String username, String sessionId);
-    List<SessionTokenEntity> findAllByUserNameOrderByCreatedDateAsc(String username);
+    Optional<SessionTokenEntity> findByUsernameAndSessionId(String username, String sessionId);
+    List<SessionTokenEntity> findAllByUsernameOrderByCreatedDateAsc(String username);
 }

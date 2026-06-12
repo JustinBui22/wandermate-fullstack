@@ -288,7 +288,7 @@ public class TokenServiceImpl implements TokenService {
 
     public boolean isSessionTokenInvalid(String username, String sessionId, String sessionToken) {
         Optional<SessionTokenEntity> sessionOptional =
-                sessionTokenRepository.findByUserNameAndSessionId(username, sessionId);
+                sessionTokenRepository.findByUsernameAndSessionId(username, sessionId);
 
         if (sessionOptional.isEmpty()) {
             log.info("No session found for user {} and sessionId {}", username, sessionId);
@@ -313,7 +313,7 @@ public class TokenServiceImpl implements TokenService {
                 log.error("Invalid max allowed sessions config: {}", maxSessionConfig);
                 throw new BusinessException(INVALID_CONFIG, COMMON.name());
             }
-            List<SessionTokenEntity> activeSessionList = sessionTokenRepository.findAllByUserNameOrderByCreatedDateAsc(username);
+            List<SessionTokenEntity> activeSessionList = sessionTokenRepository.findAllByUsernameOrderByCreatedDateAsc(username);
 
             // Check if the user has exceeded maxed number of active sessions
             if (activeSessionList.size() < maxSessionConfig) {
@@ -349,7 +349,7 @@ public class TokenServiceImpl implements TokenService {
 
     public void revokeSessionTokenBySessionId(String username, String sessionId, String sessionToken) {
         SessionTokenEntity token = sessionTokenRepository
-                .findByUserNameAndSessionId(username, sessionId)
+                .findByUsernameAndSessionId(username, sessionId)
                 .orElseThrow(
                         () -> new BusinessException(SESSION_TOKEN_INVALID, TOKEN.name()));
 

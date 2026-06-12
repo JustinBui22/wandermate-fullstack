@@ -353,7 +353,7 @@ class TokenServiceImplTest {
 
     @Test
     void isSessionTokenInvalid_shouldReturnTrue_whenSessionDoesNotExist() {
-        when(sessionTokenRepository.findByUserNameAndSessionId("JustinBo123", "session-123"))
+        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
                 .thenReturn(Optional.empty());
 
         boolean result = tokenService.isSessionTokenInvalid(
@@ -369,7 +369,7 @@ class TokenServiceImplTest {
     void isSessionTokenInvalid_shouldReturnFalse_whenSessionTokenMatches() {
         SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
 
-        when(sessionTokenRepository.findByUserNameAndSessionId("JustinBo123", "session-123"))
+        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
                 .thenReturn(Optional.of(session));
         when(passwordEncoder.matches("raw-session-token", "encoded-session-token"))
                 .thenReturn(true);
@@ -387,7 +387,7 @@ class TokenServiceImplTest {
     void isSessionTokenInvalid_shouldReturnTrue_whenSessionTokenDoesNotMatch() {
         SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
 
-        when(sessionTokenRepository.findByUserNameAndSessionId("JustinBo123", "session-123"))
+        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
                 .thenReturn(Optional.of(session));
         when(passwordEncoder.matches("wrong-token", "encoded-session-token"))
                 .thenReturn(false);
@@ -409,7 +409,7 @@ class TokenServiceImplTest {
     void revokeSessionTokenBySessionId_shouldDeleteSession_whenTokenMatches() {
         SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
 
-        when(sessionTokenRepository.findByUserNameAndSessionId("JustinBo123", "session-123"))
+        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
                 .thenReturn(Optional.of(session));
         when(passwordEncoder.matches("raw-session-token", "encoded-session-token"))
                 .thenReturn(true);
@@ -425,7 +425,7 @@ class TokenServiceImplTest {
 
     @Test
     void revokeSessionTokenBySessionId_shouldThrowSessionTokenInvalid_whenSessionDoesNotExist() {
-        when(sessionTokenRepository.findByUserNameAndSessionId("JustinBo123", "session-123"))
+        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
                 .thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -446,7 +446,7 @@ class TokenServiceImplTest {
     void revokeSessionTokenBySessionId_shouldThrowSessionTokenInvalid_whenTokenDoesNotMatch() {
         SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
 
-        when(sessionTokenRepository.findByUserNameAndSessionId("JustinBo123", "session-123"))
+        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
                 .thenReturn(Optional.of(session));
         when(passwordEncoder.matches("wrong-token", "encoded-session-token"))
                 .thenReturn(false);
@@ -505,7 +505,7 @@ class TokenServiceImplTest {
     void checkMaxActiveSessions_shouldDoNothing_whenActiveSessionsBelowMax() {
         mockConfig("MAX_ALLOWED_SESSIONS", "3");
 
-        when(sessionTokenRepository.findAllByUserNameOrderByCreatedDateAsc("JustinBo123"))
+        when(sessionTokenRepository.findAllByUsernameOrderByCreatedDateAsc("JustinBo123"))
                 .thenReturn(List.of(
                         session("JustinBo123", "session-1", "encoded-1"),
                         session("JustinBo123", "session-2", "encoded-2")
@@ -521,7 +521,7 @@ class TokenServiceImplTest {
     void checkMaxActiveSessions_shouldThrowMaxSessionsReached_whenAtMaxAndOverrideFalse() {
         mockConfig("MAX_ALLOWED_SESSIONS", "2");
 
-        when(sessionTokenRepository.findAllByUserNameOrderByCreatedDateAsc("JustinBo123"))
+        when(sessionTokenRepository.findAllByUsernameOrderByCreatedDateAsc("JustinBo123"))
                 .thenReturn(List.of(
                         session("JustinBo123", "session-1", "encoded-1"),
                         session("JustinBo123", "session-2", "encoded-2")
@@ -551,7 +551,7 @@ class TokenServiceImplTest {
                 LocalDateTime.now().plusDays(1)
         );
 
-        when(sessionTokenRepository.findAllByUserNameOrderByCreatedDateAsc("JustinBo123"))
+        when(sessionTokenRepository.findAllByUsernameOrderByCreatedDateAsc("JustinBo123"))
                 .thenReturn(new ArrayList<>(List.of(oldest, newer)));
         when(refreshTokenRepository.findAllBySessionIdAndIsRevokedFalse("session-1"))
                 .thenReturn(List.of(oldRefreshToken));
@@ -577,7 +577,7 @@ class TokenServiceImplTest {
 
         assertBusinessException(exception, INVALID_CONFIG, COMMON.name());
 
-        verify(sessionTokenRepository, never()).findAllByUserNameOrderByCreatedDateAsc(anyString());
+        verify(sessionTokenRepository, never()).findAllByUsernameOrderByCreatedDateAsc(anyString());
     }
 
     @Test
@@ -591,7 +591,7 @@ class TokenServiceImplTest {
 
         assertBusinessException(exception, INPUT_FORMAT_INVALID, COMMON.name());
 
-        verify(sessionTokenRepository, never()).findAllByUserNameOrderByCreatedDateAsc(anyString());
+        verify(sessionTokenRepository, never()).findAllByUsernameOrderByCreatedDateAsc(anyString());
     }
 
     // -------------------------------------------------------------------------
@@ -657,7 +657,7 @@ class TokenServiceImplTest {
                 .thenReturn(Optional.of(revokedToken));
         when(refreshTokenRepository.findAllBySessionIdAndIsRevokedFalse("session-123"))
                 .thenReturn(List.of(activeTokenSameSession));
-        when(sessionTokenRepository.findByUserNameAndSessionId("JustinBo123", "session-123"))
+        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
                 .thenReturn(Optional.of(session));
         when(passwordEncoder.matches("session-token", "encoded-session-token"))
                 .thenReturn(true);
@@ -696,7 +696,7 @@ class TokenServiceImplTest {
                 .thenReturn(Optional.of(expiredToken));
         when(refreshTokenRepository.findByTokenId(expiredToken.getTokenId()))
                 .thenReturn(Optional.of(expiredToken));
-        when(sessionTokenRepository.findByUserNameAndSessionId("JustinBo123", "session-123"))
+        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
                 .thenReturn(Optional.of(session));
         when(passwordEncoder.matches("session-token", "encoded-session-token"))
                 .thenReturn(true);
@@ -726,7 +726,7 @@ class TokenServiceImplTest {
                 .thenReturn("hashed-refresh-token");
         when(refreshTokenRepository.findByTokenHash("hashed-refresh-token"))
                 .thenReturn(Optional.of(activeToken));
-        when(sessionTokenRepository.findByUserNameAndSessionId("JustinBo123", "session-123"))
+        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
                 .thenReturn(Optional.of(session));
         when(passwordEncoder.matches("wrong-session-token", "encoded-session-token"))
                 .thenReturn(false);
@@ -770,7 +770,7 @@ class TokenServiceImplTest {
 
         when(refreshTokenRepository.findByTokenHash("hashed-" + oldRefreshTokenRaw))
                 .thenReturn(Optional.of(oldRefreshToken));
-        when(sessionTokenRepository.findByUserNameAndSessionId(username, sessionId))
+        when(sessionTokenRepository.findByUsernameAndSessionId(username, sessionId))
                 .thenReturn(Optional.of(session));
         when(passwordEncoder.matches(sessionTokenRaw, "encoded-session-token"))
                 .thenReturn(true);
