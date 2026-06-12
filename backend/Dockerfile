@@ -25,8 +25,3 @@ COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
-
-# docker compose up: want to start the existing containers again.
-# docker compose up --build: changed backend code, pom.xml, Dockerfile and want to rebuild the backend image.
-# docker compose down: want to stop and remove the existing containers, networks, volumes, and images created by docker compose up.
-# docker compose down -v: including the named (db) volumes.

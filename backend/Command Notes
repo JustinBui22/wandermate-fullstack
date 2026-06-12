@@ -1,0 +1,24 @@
+// This file contains notes on various commands used in the backend development process. It is intended to serve as a reference for developers working on the project.
+-------------------------------------------------------------------------
+// Identifying files that are part of the project but may not be tracked
+git ls-files | Select-String -Pattern "^backend/\.env$|^backend/target/|^frontend/node_modules/|^\.idea/|^backend/docker/init/full-init\.sql$"
+
+
+
+// Building the backend using Maven
+mvn clean install -DskipTests
+
+// Building the backend Docker image
+docker compose up: want to start the existing containers again.
+docker compose up --build: changed backend code, pom.xml, Dockerfile and want to rebuild the backend image.
+docker compose down: want to stop and remove the existing containers, networks, volumes, and images created by docker compose up.
+docker compose down -v: including the named (db) volumes.
+
+// Running the backend tests
+mvn test
+
+// Running the backend tests with a specific profile
+mvn test -Ptest-profile
+
+// Running the backend tests with a specific test class
+mvn test -Dtest=TestClassName
