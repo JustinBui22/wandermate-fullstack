@@ -20,7 +20,6 @@ HELP.md
 .env
 .env.*
 !.env.example
-backend/docker/init/full-init.sql
 backend/.env
 backend/.env.*
 !backend/.env.example
@@ -29,6 +28,12 @@ frontend/.env
 frontend/.env.*
 !frontend/.env.example
 
+target/
+build/
+node_modules/
+.expo/
+dist/
+web-build/
 
 # =========================================================
 # IDE / Editor files
