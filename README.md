@@ -1,9 +1,10 @@
 # WanderMate Full Stack
+
 [![Backend CI/CD](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/backend-ci-cd.yml/badge.svg?branch=main)](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/backend-ci-cd.yml)
 
 WanderMate is a full-stack mobile travel planning application built with a Spring Boot backend and an Expo React Native frontend. Users can register and log in, manage trips, organise destinations, and schedule activities with date/time validation.
 
-This repository is designed as a portfolio project that demonstrates production-style backend API design, JWT authentication, refresh/session token handling, OTP verification, relational data modelling, Docker setup, CI/CD deployment, and mobile frontend integration.
+This repository is designed as a portfolio project that demonstrates production-style backend API design, JWT authentication, refresh/session token handling, OTP verification, relational data modelling, Docker setup, CI/CD deployment, production profile configuration, health checks, and mobile frontend integration.
 
 ---
 
@@ -26,7 +27,7 @@ wandermate-fullstack/
 | Auth             | JWT access token, refresh token, session token                    |
 | OTP              | Email OTP implemented; SMS OTP prepared with mocked service tests |
 | API Docs         | Swagger / SpringDoc OpenAPI                                       |
-| Testing          | JUnit 5, Mockito, Maven Surefire                                  |
+| Testing          | JUnit 5, Mockito, Spring MockMvc, Maven Surefire                  |
 | Frontend         | Expo React Native, TypeScript, Expo Router                        |
 | State / Storage  | Zustand, Expo SecureStore                                         |
 | Containerization | Docker, Docker Compose                                            |
@@ -48,10 +49,12 @@ wandermate-fullstack/
 ✅ Logout revokes the active session and related refresh tokens
 ✅ Email OTP flow is implemented and verified end-to-end
 ✅ Phone/SMS OTP service flow exists and is covered by mocked unit tests
-✅ Backend service-level tests are implemented and passing
+✅ Backend service-level tests and controller/API tests are implemented and passing
 ✅ Docker Compose local backend + MariaDB setup is available
 ✅ GitHub Actions CI/CD runs backend tests before triggering Render deployment
 ✅ Backend is deployed on Render
+✅ Production Spring profile is enabled on Render
+✅ Public health check endpoint is available
 ✅ Frontend has been tested against the deployed Render backend
 ⚠️ Real SMS provider integration is not enabled yet
 ⚠️ Public Docker demo values do not include real email/OAuth secrets
@@ -69,10 +72,27 @@ Production backend on Render:
 https://wandermate-fullstack.onrender.com/The-Project
 ```
 
-Swagger UI:
+Health check endpoint:
 
 ```text
-https://wandermate-fullstack.onrender.com/The-Project/swagger-ui/index.html
+https://wandermate-fullstack.onrender.com/The-Project/api/v1/health
+```
+
+Expected health response:
+
+```json
+{
+  "status": "UP",
+  "service": "WanderMate backend"
+}
+```
+
+Swagger UI is available for local development, but it is disabled in the production profile for safer deployment.
+
+Local Swagger UI:
+
+```text
+http://localhost:8082/The-Project/swagger-ui/index.html
 ```
 
 Render free-tier services may sleep when inactive, so the first request can take around 40–60 seconds to wake up.
@@ -107,6 +127,13 @@ The Render deploy hook is stored securely in GitHub Actions secrets as:
 RENDER_DEPLOY_HOOK_URL
 ```
 
+The workflow also opts into GitHub Actions Node 24 execution for JavaScript-based actions:
+
+```yaml
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+```
+
 ---
 
 ## Backend Quick Start with Docker
@@ -131,6 +158,12 @@ Docker backend URL:
 
 ```text
 http://localhost:8082/The-Project
+```
+
+Health check:
+
+```text
+http://localhost:8082/The-Project/api/v1/health
 ```
 
 Swagger UI:
@@ -187,6 +220,12 @@ Default local backend URL when running from IntelliJ or Maven:
 http://localhost:8080/The-Project
 ```
 
+Health check:
+
+```text
+http://localhost:8080/The-Project/api/v1/health
+```
+
 Required environment variables for local backend runs include:
 
 ```env
@@ -196,6 +235,32 @@ DB_PASSWORD=your_database_password
 ```
 
 Email OTP also requires valid email/OAuth configuration when testing real email delivery.
+
+---
+
+## Production Profile
+
+The backend supports a production Spring profile.
+
+Render uses:
+
+```text
+SPRING_PROFILES_ACTIVE=prod
+```
+
+The production profile is used to reduce development-only behaviour in deployment, including:
+
+```text
+- Disable SQL debug output
+- Reduce noisy debug logging
+- Disable Swagger/OpenAPI UI in production
+```
+
+Production health should be checked through:
+
+```text
+https://wandermate-fullstack.onrender.com/The-Project/api/v1/health
+```
 
 ---
 
@@ -249,6 +314,8 @@ http://localhost:8082/The-Project
 7. Trigger activity overlap validation error
 8. Refresh access token
 9. Logout and verify session/refresh token revocation
+10. Open GitHub Actions and show backend tests/deploy workflow
+11. Open Render health endpoint
 ```
 
 The frontend and backend have been tested successfully with the frontend pointing to the deployed Render backend.
@@ -305,23 +372,37 @@ Implemented domain behaviour:
 
 ## Test Status
 
-The current backend service test reports show:
+The current backend test suite includes both service-layer business logic tests and controller/API mapping tests.
+
+Service tests:
 
 ```text
-ActivityServiceImplTest     25 passed
-DestinationServiceImplTest  31 passed
-EmailServiceImplTest         9 passed
-OtpServiceImplTest          28 passed
-SmsServiceImplTest           3 passed
-TokenServiceImplTest        33 passed
-TripServiceImplTest         39 passed
-UserServiceImplTest         29 passed
+ActivityServiceImplTest      25 passed
+DestinationServiceImplTest   31 passed
+EmailServiceImplTest          9 passed
+OtpServiceImplTest           28 passed
+SmsServiceImplTest            3 passed
+TokenServiceImplTest         33 passed
+TripServiceImplTest          39 passed
+UserServiceImplTest          29 passed
 ```
 
-Total service tests:
+Controller/API tests:
 
 ```text
-197 passed, 0 failures, 0 errors
+HealthControllerTest           1 passed
+UserControllerImplTest         1 passed
+TripControllerImplTest         1 passed
+DestinationControllerImplTest  1 passed
+ActivityControllerImplTest     1 passed
+OtpControllerImplTest          2 passed
+TokenControllerImplTest        1 passed
+```
+
+Total backend tests:
+
+```text
+205 passed, 0 failures, 0 errors, 0 skipped
 ```
 
 Run backend tests from the backend folder:
@@ -336,7 +417,7 @@ On Windows PowerShell:
 .\mvnw test
 ```
 
-Note: if the default generated `TheProjectApplicationTests.contextLoads` test exists, it needs real DB environment variables or a dedicated test profile because it starts the full Spring ApplicationContext. The main portfolio test coverage is currently service-level unit testing.
+Note: if the default generated `TheProjectApplicationTests.contextLoads` test exists, it needs real DB environment variables or a dedicated test profile because it starts the full Spring ApplicationContext. The main portfolio test coverage is currently service-level unit testing plus focused controller tests.
 
 ---
 
@@ -389,6 +470,21 @@ The backend is deployed on Render.
 
 The deployment expects required environment variables to be configured in Render, including database and email/OAuth configuration.
 
+Required Render environment variables include:
+
+```text
+SPRING_PROFILES_ACTIVE=prod
+DB_URL
+DB_USERNAME
+DB_PASSWORD
+EMAIL_OAUTH_REFRESH_ENABLED
+EMAIL_CLIENT_ID
+EMAIL_CLIENT_SECRET
+EMAIL_REFRESH_TOKEN
+EMAIL_TOKEN_URL
+EMAIL_ADDRESS_CONFIG
+```
+
 The frontend currently points to:
 
 ```text
@@ -410,6 +506,9 @@ This allows the mobile app to test against the deployed backend instead of a loc
 ✅ Frontend integration
 ✅ Docker setup
 ✅ Backend tests
+✅ Controller/API tests
+✅ Health endpoint
+✅ Production Spring profile
 ✅ Render deployment
 ✅ CI/CD backend test and deploy workflow
 ```
@@ -417,12 +516,12 @@ This allows the mobile app to test against the deployed backend instead of a loc
 ### V2 — Backend Professionalism
 
 ```text
-- Add controller/integration tests
-- Add GitHub Actions badge to README
+- Add frontend CI checks
 - Add screenshots and short demo GIF/video
-- Improve production profile configuration
-- Disable or protect Swagger in production
 - Improve frontend environment switching
+- Add controller/integration tests for more edge cases
+- Add production-safe API documentation strategy
+- Add monitoring/logging notes
 ```
 
 ### V3 — Collaboration Features
@@ -460,7 +559,8 @@ This allows the mobile app to test against the deployed backend instead of a loc
 7. Demonstrate overlap validation
 8. Logout
 9. Show GitHub Actions test/deploy workflow
-10. Show Render deployment and Swagger
+10. Show Render health endpoint
+11. Explain that Swagger is disabled in production but available locally
 ```
 
 This demonstrates both product functionality and backend engineering practices.
@@ -469,6 +569,6 @@ This demonstrates both product functionality and backend engineering practices.
 
 ## Project Summary
 
-WanderMate is a production-style full-stack travel planning app built to demonstrate backend engineering, authentication, database modelling, validation, testing, Docker deployment, and frontend integration.
+WanderMate is a production-style full-stack travel planning app built to demonstrate backend engineering, authentication, database modelling, validation, testing, Docker deployment, CI/CD, production configuration, and frontend integration.
 
-The backend is the strongest part of the project, with service-layer tests, token/session handling, OTP logic, and ownership validation. The frontend is functional and connected to the deployed backend, making the project suitable for a junior backend or full-stack portfolio.
+The backend is the strongest part of the project, with service-layer tests, focused controller tests, token/session handling, OTP logic, ownership validation, Docker deployment, Render deployment, and GitHub Actions CI/CD. The frontend is functional and connected to the deployed backend, making the project suitable for a junior backend or full-stack portfolio.
