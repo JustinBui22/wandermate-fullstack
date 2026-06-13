@@ -50,4 +50,13 @@ class TokenControllerImplTest {
 
         verify(tokenService).refreshAccessToken("refresh-token", "session-token");
     }
+
+    @Test
+    void refreshAccessToken_whenMissingRefreshTokenHeader_shouldReturnBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header("Session-Token", "session-token"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(tokenService);
+    }
 }

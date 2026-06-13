@@ -91,4 +91,33 @@ class OtpControllerImplTest {
 
         verify(otpService).verifyOtp(any(OtpDTO.class));
     }
+
+    @Test
+    void verifyOtp_whenServiceReturnsBadRequest_shouldReturnBadRequestStatus() throws Exception {
+        OtpDTO request = new OtpDTO();
+        request.setUserName("JustinBo123");
+        request.setEmail("justin@example.com");
+        request.setOtpVerificationMethod("EMAIL_OTP");
+        request.setOtp("000000");
+
+        ResponseBody<Object> responseBody = new ResponseBody<>(
+                "E040",
+                "OTP is invalid",
+                OTP.name(),
+                null
+        );
+
+        when(otpService.verifyOtp(any(OtpDTO.class)))
+                .thenReturn(new CompleteResponse<>(responseBody, 400));
+
+        mockMvc.perform(post("/api/v1/otp/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("E040"))
+                .andExpect(jsonPath("$.message").value("OTP is invalid"))
+                .andExpect(jsonPath("$.flow").value(OTP.name()));
+
+        verify(otpService).verifyOtp(any(OtpDTO.class));
+    }
 }

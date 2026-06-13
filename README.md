@@ -51,6 +51,7 @@ wandermate-fullstack/
 ✅ Email OTP flow is implemented and verified end-to-end
 ✅ Phone/SMS OTP service flow exists and is covered by mocked unit tests
 ✅ Backend service-level tests and controller/API tests are implemented and passing
+✅ Controller/API edge-case tests are implemented and passing
 ✅ Docker Compose local backend + MariaDB setup is available
 ✅ GitHub Actions CI/CD runs backend tests before triggering Render deployment
 ✅ Frontend CI runs TypeScript checks
@@ -441,17 +442,17 @@ Controller/API tests:
 ```text
 HealthControllerTest           1 passed
 UserControllerImplTest         1 passed
-TripControllerImplTest         1 passed
+TripControllerImplTest         2 passed
 DestinationControllerImplTest  1 passed
 ActivityControllerImplTest     1 passed
-OtpControllerImplTest          2 passed
-TokenControllerImplTest        1 passed
+OtpControllerImplTest          3 passed
+TokenControllerImplTest        2 passed
 ```
 
 Total backend tests:
 
 ```text
-205 passed, 0 failures, 0 errors, 0 skipped
+208 passed, 0 failures, 0 errors, 0 skipped
 ```
 
 Run backend tests from the backend folder:
@@ -583,7 +584,7 @@ This allows the mobile app to test against the deployed backend instead of a loc
 ✅ Frontend environment switching
 ✅ Production-safe API documentation strategy
 ✅ Monitoring/logging notes
-⬜ Controller/integration tests for more edge cases
+✅ Controller/API edge-case tests
 ⬜ Screenshots and short demo GIF/video
 ```
 
@@ -635,4 +636,4 @@ This demonstrates both product functionality and backend engineering practices.
 
 WanderMate is a production-style full-stack travel planning app built to demonstrate backend engineering, authentication, database modelling, validation, testing, Docker deployment, CI/CD, production configuration, production-safe documentation, operations notes, and frontend integration.
 
-The backend is the strongest part of the project, with service-layer tests, focused controller tests, token/session handling, OTP logic, ownership validation, Docker deployment, Render deployment, production profile, health endpoint, and GitHub Actions CI/CD. The frontend is functional, type-checked in CI, environment-configurable, and connected to the deployed backend, making the project suitable for a junior backend or full-stack portfolio.
+The backend is the strongest part of the project, with service-layer tests, focused controller and API edge-case tests, token/session handling, OTP logic, ownership validation, Docker deployment, Render deployment, production profile, health endpoint, and GitHub Actions CI/CD. The frontend is functional, type-checked in CI, environment-configurable, and connected to the deployed backend, making the project suitable for a junior backend or full-stack portfolio.

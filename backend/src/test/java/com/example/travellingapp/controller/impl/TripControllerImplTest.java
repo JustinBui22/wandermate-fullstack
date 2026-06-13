@@ -71,4 +71,34 @@ class TripControllerImplTest {
 
         verify(tripService).createTrip(any(CreateTripDTO.class));
     }
+
+    @Test
+    void createTrip_whenServiceReturnsConflict_shouldReturnConflictStatus() throws Exception {
+        CreateTripDTO request = new CreateTripDTO();
+        request.setTripName("Overlapping Trip");
+        request.setDestination("Adelaide");
+        request.setStartDate(LocalDateTime.of(2026, 8, 1, 9, 0));
+        request.setEndDate(LocalDateTime.of(2026, 8, 5, 18, 0));
+        request.setAllowOverlap(false);
+
+        ResponseBody<Object> responseBody = new ResponseBody<>(
+                "E051",
+                "Trip date overlaps with an existing trip",
+                TRIP.name(),
+                null
+        );
+
+        when(tripService.createTrip(any(CreateTripDTO.class)))
+                .thenReturn(new CompleteResponse<>(responseBody, 409));
+
+        mockMvc.perform(post("/api/v1/trips")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("E051"))
+                .andExpect(jsonPath("$.message").value("Trip date overlaps with an existing trip"))
+                .andExpect(jsonPath("$.flow").value(TRIP.name()));
+
+        verify(tripService).createTrip(any(CreateTripDTO.class));
+    }
 }
