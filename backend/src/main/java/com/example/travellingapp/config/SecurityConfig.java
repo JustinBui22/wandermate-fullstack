@@ -41,10 +41,14 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(publicUrls).permitAll()
-                        .anyRequest().authenticated()
-                )
+                // Allow unauthenticated access to the health endpoint and any additional public URLs
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers("/api/v1/health").permitAll();
+                    if (publicUrls.length > 0) {
+                        auth.requestMatchers(publicUrls).permitAll();
+                    }
+                    auth.anyRequest().authenticated();
+                })
                 .addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
