@@ -1,19 +1,70 @@
 # WanderMate Full Stack
 
 [![Backend CI/CD](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/backend-ci-cd.yml/badge.svg?branch=main)](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/backend-ci-cd.yml)
+[![Frontend CI](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/frontend-ci.yml/badge.svg?branch=main)](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/frontend-ci.yml)
 
-WanderMate is a full-stack mobile travel planning application built with a Spring Boot backend and an Expo React Native frontend. Users can register and log in, manage trips, organise destinations, and schedule activities with date/time validation.
+WanderMate is a full-stack mobile travel planning application built with a Spring Boot backend and an Expo React Native frontend. Users can register, verify with OTP, log in securely, manage trips, organise destinations, and schedule activities with date/time validation and overlap handling.
 
-This repository is designed as a portfolio project that demonstrates production-style backend API design, JWT authentication, refresh/session token handling, OTP verification, OTP consume-on-success behaviour, relational data modelling, Docker setup, CI/CD deployment, production profile configuration, health checks, production-safe documentation, operations notes, and mobile frontend integration.
+This repository is a portfolio project focused on production-style backend API design, secure auth/session handling, relational data modelling, Docker setup, CI/CD, cloud deployment, and mobile frontend integration.
 
 ---
 
-## Project Structure
+## Project Status
+
+```text
+Current phase: V2.5 frontend polish completed
+Next phase: V3 portfolio proof - screenshots, demo video, README media, CV summary
+```
+
+### Completed
+
+```text
+✅ Backend CRUD for trips, destinations, and activities
+✅ User ownership checks for protected resources
+✅ JWT access token + refresh token + session token auth flow
+✅ Refresh token rotation, revocation, logout, and reuse detection
+✅ Max active session handling with frontend confirmation flow
+✅ Email OTP registration and forgot-password flow
+✅ OTP expiry, retry/block handling, destination matching, and consume-on-success
+✅ Forgot-password validates new password before OTP consumption
+✅ Trip and destination overlap warning flow with allowOverlap confirmation
+✅ Activity overlap blocked as a hard validation error
+✅ Standardized backend response/error-code system
+✅ Docker Compose local backend + MariaDB setup
+✅ Render deployment with production Spring profile
+✅ Public health check endpoint
+✅ Swagger/OpenAPI available locally and disabled in production
+✅ GitHub Actions backend CI/CD with Render deploy hook
+✅ GitHub Actions frontend TypeScript CI
+✅ Expo React Native frontend integrated with deployed backend
+✅ Shared frontend UI component system
+✅ Auth, home, trip, destination, and activity screens polished
+✅ Reusable frontend date/time picker components extracted
+✅ Frontend API error messages polished
+✅ Frontend debug/console logs removed from app/src code
+✅ Frontend TypeScript check passing
+```
+
+### Not enabled yet
+
+```text
+⚠️ Real SMS provider integration is not enabled
+⚠️ Map, AI suggestions, collaboration, and cost sharing are future roadmap features
+⚠️ Final screenshots/demo video are planned for V3
+```
+
+Phone/SMS OTP should be treated as prepared logic only. The current backend SMS service is a stub/mocked service path and does not prove real SMS delivery. A real provider such as Twilio, AWS SNS, Vonage, or another SMS gateway would be required.
+
+---
+
+## Repository Structure
 
 ```text
 wandermate-fullstack/
-├── backend/     # Spring Boot API, MariaDB, auth, tests, Docker setup, docs
-└── frontend/    # Expo React Native mobile app
+├── backend/                 # Spring Boot API, auth, MariaDB, tests, Docker, docs
+├── frontend/                # Expo React Native app, routing, API integration, UI components
+├── .github/workflows/       # Backend CI/CD and frontend CI workflows
+└── README.md                # Full-stack project overview
 ```
 
 ---
@@ -22,55 +73,22 @@ wandermate-fullstack/
 
 | Area | Technology |
 |---|---|
-| Backend | Java 21, Spring Boot 3, Spring Security |
+| Backend language | Java 21 |
+| Backend framework | Spring Boot 3.5.4 |
+| Security | Spring Security, JWT, refresh tokens, session tokens |
 | Database | MariaDB, Spring Data JPA / Hibernate |
-| Auth | JWT access token, refresh token, session token |
-| OTP | Email OTP implemented; SMS OTP prepared with mocked service tests |
-| API Docs | Swagger / SpringDoc OpenAPI for local development; Markdown docs for production strategy |
-| Testing | JUnit 5, Mockito, Spring MockMvc, Maven Surefire |
-| Frontend | Expo React Native, TypeScript, Expo Router |
-| State / Storage | Zustand, Expo SecureStore |
-| Frontend Config | Expo public environment variables |
+| OTP / Email | Spring Mail, OAuth/email configuration |
+| API docs | SpringDoc OpenAPI / Swagger for local development |
+| Backend tests | JUnit 5, Mockito, Spring MockMvc, Maven Surefire |
+| Frontend framework | Expo React Native 56 |
+| Frontend language | TypeScript |
+| Routing | Expo Router |
+| State / storage | Zustand, Expo SecureStore |
+| HTTP client | Axios with auth/refresh interceptors |
+| Frontend UI | Shared custom UI components + theme constants |
 | Containerization | Docker, Docker Compose |
 | Deployment | Render |
-| CI/CD | GitHub Actions + Render Deploy Hook |
-
----
-
-## Current Status
-
-```text
-✅ Backend CRUD for trips, destinations, and activities is implemented
-✅ Ownership checks protect user-specific resources
-✅ Trip, destination, and activity date/time validation is implemented
-✅ Trip and destination overlap warnings support allowOverlap confirmation
-✅ Activity overlap is blocked as a hard validation error
-✅ JWT access token + refresh token + session token flow is implemented
-✅ Refresh token rotation, revocation, and reuse detection are implemented
-✅ Logout revokes the active session and related refresh tokens
-✅ Email OTP flow is implemented and verified end-to-end
-✅ OTP is consumed/deleted after successful verification to prevent reuse
-✅ Forgot-password password validation runs before OTP consumption
-✅ Registration and forgot-password flows are transaction-protected
-✅ Phone/SMS OTP service flow exists and is covered by mocked unit tests
-✅ Backend service-level tests and controller/API tests are implemented and passing
-✅ Controller/API edge-case tests are implemented and passing
-✅ Docker Compose local backend + MariaDB setup is available
-✅ GitHub Actions CI/CD runs backend tests before triggering Render deployment
-✅ Frontend CI runs TypeScript checks
-✅ Backend is deployed on Render
-✅ Production Spring profile is enabled on Render
-✅ Public health check endpoint is available
-✅ Swagger/OpenAPI is disabled in production
-✅ Production API documentation strategy is documented
-✅ Operations, health check, and logging notes are documented
-✅ Frontend environment switching is configured with Expo public env variables
-✅ Frontend has been tested against the deployed Render backend
-⚠️ Real SMS provider integration is not enabled yet
-⚠️ Public Docker demo values do not include real email/OAuth secrets
-```
-
-Phone/SMS OTP should be described as prepared backend logic only. The current `SmsServiceImpl` is a stub/mocked service flow and does not prove real SMS delivery. Real SMS would require a provider such as Twilio, AWS SNS, Vonage, or another SMS gateway.
+| CI/CD | GitHub Actions + Render deploy hook |
 
 ---
 
@@ -88,7 +106,7 @@ Health check endpoint:
 https://wandermate-fullstack.onrender.com/The-Project/api/v1/health
 ```
 
-Expected health response:
+Expected response:
 
 ```json
 {
@@ -97,61 +115,70 @@ Expected health response:
 }
 ```
 
-Swagger UI is available for local development, but it is disabled in the production profile for safer deployment.
+Render free-tier services may sleep when inactive, so the first request can take around 40-60 seconds to wake up.
 
-Local Swagger UI:
+Swagger UI is available locally only:
 
 ```text
 http://localhost:8082/The-Project/swagger-ui/index.html
 ```
 
-Render free-tier services may sleep when inactive, so the first request can take around 40–60 seconds to wake up.
+Swagger/OpenAPI is disabled in the production profile for safer deployment.
 
 ---
 
-## CI/CD
+## Main Features
 
-Backend CI/CD is configured with GitHub Actions.
-
-On pull requests and pushes to `main`, the backend workflow runs the backend Maven test suite. On successful pushes to `main`, GitHub Actions triggers a Render deployment through a protected Render deploy hook secret.
-
-Backend CI/CD flow:
+### Authentication and Sessions
 
 ```text
-Push to main
-→ GitHub Actions runs backend tests
-→ Tests pass
-→ Render deploy hook is triggered
-→ Backend is deployed
+- Register
+- Verify registration details before OTP
+- Send email OTP
+- Complete registration with OTP
+- Login
+- Access token authentication
+- Refresh token rotation
+- Session token tracking
+- Max active session confirmation
+- Logout/session revocation
+- Forgot password with OTP
 ```
 
-Backend workflow file:
+### Trip Planning Domain
 
 ```text
-.github/workflows/backend-ci-cd.yml
+User
+└── Trip
+    ├── Destination
+    │   └── Activity
+    └── Activity time validation within trip/destination dates
 ```
 
-The Render deploy hook is stored securely in GitHub Actions secrets as:
+Implemented behaviour:
 
 ```text
-RENDER_DEPLOY_HOOK_URL
+- Users can only access their own trips
+- Trips require valid start/end dates
+- Destinations must fit inside the parent trip date range
+- Activities must fit inside the parent destination/trip range
+- Trip overlap can trigger a warning and continue with allowOverlap=true
+- Destination overlap can trigger a warning and continue with allowOverlap=true
+- Activity overlap is blocked as a hard validation error
 ```
 
-Frontend CI is also configured.
-
-On pull requests and pushes that affect the frontend, the frontend workflow installs dependencies and runs TypeScript checks.
-
-Frontend workflow file:
+### Frontend V2.5 Polish
 
 ```text
-.github/workflows/frontend-ci.yml
-```
-
-The workflows opt into GitHub Actions Node 24 execution for JavaScript-based actions:
-
-```yaml
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+- Shared theme constants
+- Shared AppScreen, AppButton, AppInput, AppCard components
+- Shared LoadingState, EmptyState, ErrorMessage components
+- Shared DateTimeSection and DateTimePickerCard form components
+- Polished auth screens
+- Polished home and tab navigation
+- Polished trip/destination/activity CRUD screens
+- Centralized frontend API warning/error helpers
+- Removed leftover debug logs from app/src code
 ```
 
 ---
@@ -166,7 +193,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-On Windows PowerShell, manually copy `.env.example` and rename the copy to `.env`, or run:
+Windows PowerShell:
 
 ```powershell
 cd backend
@@ -204,12 +231,6 @@ Inside Docker, the backend connects to MariaDB by service name:
 DB_URL=jdbc:mariadb://db:3306/traveling_app
 ```
 
-From the host machine, database tools connect using:
-
-```text
-localhost:3307
-```
-
 ---
 
 ## Backend Local Development
@@ -221,32 +242,20 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-On Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
 cd backend
 .\mvnw spring-boot:run
 ```
 
-The backend uses the context path:
-
-```text
-/The-Project
-```
-
-Default local backend URL when running from IntelliJ or Maven:
+Default local URL:
 
 ```text
 http://localhost:8080/The-Project
 ```
 
-Health check:
-
-```text
-http://localhost:8080/The-Project/api/v1/health
-```
-
-Required environment variables for local backend runs include:
+Required local env values include:
 
 ```env
 DB_URL=jdbc:mariadb://localhost:3307/traveling_app
@@ -255,41 +264,6 @@ DB_PASSWORD=your_database_password
 ```
 
 Email OTP also requires valid email/OAuth configuration when testing real email delivery.
-
----
-
-## Production Profile
-
-The backend supports a production Spring profile.
-
-Render uses:
-
-```text
-SPRING_PROFILES_ACTIVE=prod
-```
-
-The production profile is used to reduce development-only behaviour in deployment, including:
-
-```text
-- Disable SQL debug output
-- Reduce noisy debug logging
-- Disable Swagger/OpenAPI UI in production
-```
-
-Production health should be checked through:
-
-```text
-https://wandermate-fullstack.onrender.com/The-Project/api/v1/health
-```
-
-Production API documentation is handled through markdown docs instead of public Swagger:
-
-```text
-backend/docs/PRODUCTION_API_DOCS.md
-backend/docs/API_GUIDE.md
-backend/docs/AUTH_FLOW.md
-backend/docs/POSTMAN_GUIDE.md
-```
 
 ---
 
@@ -303,13 +277,27 @@ npm install
 npx expo start
 ```
 
-Frontend TypeScript check:
+Android:
+
+```bash
+npm run android
+```
+
+TypeScript check:
 
 ```bash
 npm run typecheck
 ```
 
-The frontend API URL is configured with Expo public environment variables.
+After changing `.env`, restart Expo with cache clear:
+
+```bash
+npx expo start --clear
+```
+
+---
+
+## Frontend Environment Configuration
 
 Create a local frontend env file from the template:
 
@@ -338,14 +326,7 @@ EXPO_PUBLIC_APP_ENV=local-docker
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8082/The-Project
 ```
 
-After changing frontend `.env`, restart Expo with cache clear:
-
-```powershell
-cd frontend
-npx expo start --clear
-```
-
-For browser/Postman connecting to Docker backend, use:
+For host-machine browser/Postman testing against Docker:
 
 ```text
 http://localhost:8082/The-Project
@@ -353,160 +334,151 @@ http://localhost:8082/The-Project
 
 ---
 
-## Main Demo Flow
+## CI/CD
+
+Backend CI/CD workflow:
 
 ```text
-1. Register with email OTP
-2. Login and receive accessToken, refreshToken, and sessionToken
-3. Create a trip
-4. Add destinations to the trip
-5. Add activities to a destination
-6. Trigger trip/destination overlap warning and retry with allowOverlap=true
-7. Trigger activity overlap validation error
-8. Refresh access token
-9. Logout and verify session/refresh token revocation
-10. Open GitHub Actions and show backend tests/deploy workflow
-11. Open Frontend CI and show TypeScript check
-12. Open Render health endpoint
-13. Explain that Swagger is disabled in production but available locally
+.github/workflows/backend-ci-cd.yml
 ```
 
-The frontend and backend have been tested successfully with the frontend pointing to the deployed Render backend.
-
----
-
-## Key Backend Features
-
-### Authentication and Session Management
+Flow:
 
 ```text
-- User registration
-- Login
-- Password hashing
-- JWT access token generation
-- Refresh token generation and rotation
-- Session token storage
-- Logout/session revocation
-- Refresh token reuse detection
-- Max active session handling
+Push / PR to main
+→ GitHub Actions runs backend Maven tests
+→ Push to main triggers Render deploy hook after tests pass
+→ Render deploys backend
 ```
 
-### OTP
+Render deploy hook secret:
 
 ```text
-- Email OTP for registration/verification
-- OTP retry limit
-- OTP block/restriction time
-- OTP expiry validation
-- OTP consume-on-success to prevent OTP reuse
-- Password reset validates new password before consuming OTP
-- SMS/phone OTP service path prepared but not connected to a real SMS provider
+RENDER_DEPLOY_HOOK_URL
 ```
 
-### Trip Planning Domain
+Frontend CI workflow:
 
 ```text
-User
-└── Trip
-    ├── Destination
-    └── Activity
+.github/workflows/frontend-ci.yml
 ```
 
-Implemented domain behaviour:
+Flow:
 
 ```text
-- Users can only access their own trips
-- Trips have start/end date validation
-- Destinations must fit inside trip date range
-- Activities must fit inside destination/trip date range
-- Trip and destination overlap warnings can be bypassed with allowOverlap=true
-- Activity overlap is blocked as a hard validation error
+Push / PR to main affecting frontend
+→ npm ci
+→ npm run typecheck
+```
+
+The workflows opt into GitHub Actions Node 24 execution for JavaScript-based actions:
+
+```yaml
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 ```
 
 ---
 
-## Test Status
+## Testing Status
 
-The current backend test suite includes both service-layer business logic tests and controller/API mapping tests.
+### Backend
 
-Service tests:
-
-```text
-ActivityServiceImplTest      25 passed
-DestinationServiceImplTest   31 passed
-EmailServiceImplTest          9 passed
-OtpServiceImplTest           30 passed
-SmsServiceImplTest            3 passed
-TokenServiceImplTest         33 passed
-TripServiceImplTest          39 passed
-UserServiceImplTest          35 passed
-```
-
-Controller/API tests:
+Focused backend test suite status:
 
 ```text
-HealthControllerTest           1 passed
-UserControllerImplTest         1 passed
-TripControllerImplTest         2 passed
-DestinationControllerImplTest  1 passed
-ActivityControllerImplTest     1 passed
-OtpControllerImplTest          3 passed
-TokenControllerImplTest        2 passed
+216 passing tests
+0 failures
+0 errors
+0 skipped
 ```
 
-Total backend tests:
+Coverage includes:
 
 ```text
-216 passed, 0 failures, 0 errors, 0 skipped
+- Auth login/logout/session behaviour
+- Refresh token rotation, revocation, and reuse detection
+- User registration validation
+- OTP send/verify retry, expiry, destination mismatch, and consume-on-success
+- Forgot-password password validation before OTP consumption
+- Trip/destination/activity CRUD business rules
+- Ownership checks
+- Trip/destination overlap warning logic
+- Activity overlap blocking
+- Controller/API status mapping and edge cases
 ```
 
-Run backend tests from the backend folder:
+Run backend tests:
 
 ```bash
+cd backend
 ./mvnw test
 ```
 
-On Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
+cd backend
 .\mvnw test
 ```
 
-Run frontend TypeScript checks from the frontend folder:
+Note: a generated full Spring `contextLoads` test, if reintroduced, may require a dedicated test profile or DB environment variables because it starts the full application context. The main portfolio proof is the focused service/controller test suite.
+
+### Frontend
+
+Frontend TypeScript check:
 
 ```bash
+cd frontend
 npm run typecheck
 ```
 
-Note: if the default generated `TheProjectApplicationTests.contextLoads` test exists, it needs real DB environment variables or a dedicated test profile because it starts the full Spring ApplicationContext. The main portfolio test coverage is currently service-level unit testing plus focused controller tests.
+Current V2.5 frontend polish has been typechecked successfully.
+
+Manual regression checklist:
+
+```text
+- Register + OTP
+- Login
+- Max active session confirmation
+- Forgot password
+- Logout
+- Create/edit/delete trip
+- Create/edit/delete destination
+- Create/edit/delete activity
+- Trip/destination overlap confirmation
+- Activity overlap error display
+- App reopen while logged in
+- Logout clears session and returns to login
+```
 
 ---
 
-## Key Documentation
+## Documentation Index
 
 | Document | Purpose |
 |---|---|
-| `backend/README.md` | Backend-specific setup, architecture, tests, and API overview |
-| `backend/docs/API_GUIDE.md` | Endpoint list, headers, request examples, and response shape |
+| `backend/README.md` | Backend-specific setup, architecture, tests, deployment, and API overview |
+| `backend/docs/API_GUIDE.md` | Endpoint list, headers, request examples, response shape |
 | `backend/docs/AUTH_FLOW.md` | Login, token refresh, logout, max session, and OTP flows |
-| `backend/docs/ARCHITECTURE.md` | Layers, domain model, ownership checks, and validation rules |
+| `backend/docs/ARCHITECTURE.md` | Layers, domain model, ownership checks, validation rules |
 | `backend/docs/DOCKER_SETUP.md` | Docker Compose setup, ports, env variables, troubleshooting |
 | `backend/docs/DATABASE_SEED.md` | Safe local seed data rules and seed file purpose |
 | `backend/docs/POSTMAN_GUIDE.md` | Manual API testing order and sample payloads |
-| `backend/docs/TESTING.md` | Current test coverage and how to run tests |
+| `backend/docs/TESTING.md` | Test coverage and test commands |
 | `backend/docs/FRONTEND_INTEGRATION.md` | Frontend/backend URL, token, env switching, and error-handling notes |
-| `backend/docs/PRODUCTION_API_DOCS.md` | Explains why Swagger is local-only and how production API docs are handled |
-| `backend/docs/OPERATIONS.md` | Health check, production profile, logging, and deployment troubleshooting notes |
-| `backend/docs/ROADMAP.md` | Suggested V1/V2/V2.5/V3/V4 improvement plan |
-| `frontend/README.md` | Frontend setup and integration notes |
+| `backend/docs/PRODUCTION_API_DOCS.md` | Production-safe API documentation strategy |
+| `backend/docs/OPERATIONS.md` | Health check, production profile, logging, deployment troubleshooting |
+| `backend/docs/ROADMAP.md` | Suggested V1/V2/V2.5/V3/V4 roadmap |
+| `frontend/README.md` | Frontend setup, app structure, auth integration, and V2.5 UI notes |
 
 ---
 
 ## Environment and Secret Handling
 
-The project uses `.env.example` files as templates. Real `.env` files are ignored and should never be committed.
+The project uses `.env.example` files as templates. Real `.env` files should not be committed.
 
-Important ignored files/folders include:
+Important ignored files/folders:
 
 ```text
 backend/.env
@@ -517,145 +489,80 @@ frontend/.expo/
 .idea/
 ```
 
-For local Docker setup, copy:
-
-```text
-backend/.env.example → backend/.env
-```
-
-For frontend local environment switching, copy:
-
-```text
-frontend/.env.example → frontend/.env
-```
-
-For production deployment, environment variables should be configured directly in Render.
-
-Important: when sharing the project as a ZIP, do not include ignored local files such as `.env`, `target/`, `node_modules/`, local database dumps, or generated secrets.
-
----
-
-## Deployment Notes
-
-The backend is deployed on Render.
-
-The deployment expects required environment variables to be configured in Render, including database and email/OAuth configuration.
-
-Required Render environment variables include:
-
-```text
-SPRING_PROFILES_ACTIVE=prod
-DB_URL
-DB_USERNAME
-DB_PASSWORD
-EMAIL_OAUTH_REFRESH_ENABLED
-EMAIL_CLIENT_ID
-EMAIL_CLIENT_SECRET
-EMAIL_REFRESH_TOKEN
-EMAIL_TOKEN_URL
-EMAIL_ADDRESS_CONFIG
-```
-
-The frontend currently points to the deployed backend through:
-
-```env
-EXPO_PUBLIC_API_BASE_URL=https://wandermate-fullstack.onrender.com/The-Project
-```
-
-This allows the mobile app to test against the deployed backend instead of a local backend.
+Do not commit or share real `.env`, local DB dumps, OAuth refresh tokens, access tokens, or generated build artifacts.
 
 ---
 
 ## Roadmap
 
-### V1 — Portfolio MVP Polish
+### V1 - MVP
 
 ```text
-✅ Backend CRUD
-✅ Auth/session/refresh token flow
-✅ Email OTP
-✅ Frontend integration
+✅ Auth basics
+✅ Trip/destination/activity CRUD
+✅ Frontend/backend integration
+```
+
+### V2 - Backend professionalization
+
+```text
+✅ Refresh/session token handling
+✅ OTP hardening
 ✅ Docker setup
-✅ Backend tests
-✅ Controller/API tests
-✅ Health endpoint
-✅ Production Spring profile
 ✅ Render deployment
-✅ CI/CD backend test and deploy workflow
+✅ CI/CD
+✅ Production profile
+✅ Health check
+✅ Backend tests and docs
 ```
 
-### V2 — Backend and Portfolio Professionalism
+### V2.5 - Frontend polish
 
 ```text
-✅ Frontend CI checks
-✅ Frontend environment switching
-✅ Production-safe API documentation strategy
-✅ Monitoring/logging notes
-✅ Controller/API edge-case tests
-✅ OTP consume-on-success hardening
-✅ Forgot-password password validation hardening
-✅ Transaction protection for OTP-backed registration/password reset
+✅ Shared UI foundation
+✅ Polished mobile screens
+✅ Reusable date/time picker components
+✅ Error message cleanup
+✅ Removed leftover debug logs
+✅ TypeScript check passing
 ```
 
-### V2.5 — Frontend UX Polish
+### V3 - Portfolio proof
 
 ```text
-⬜ Extract reusable UI components
-⬜ Reduce duplicated screen styles
-⬜ Remove or centralize development console logs
-⬜ Improve loading, empty, and error states
-⬜ Polish auth, trip, destination, and activity screens
+Next:
+1. Take screenshots
+2. Record 60-90 second demo video
+3. Add screenshots/demo link to README
+4. Add architecture diagram images if desired
+5. Add final project summary to CV/GitHub portfolio
 ```
 
-### V3 — Portfolio Release and Collaboration Features
+### V4 - Future product features
 
 ```text
-⬜ Screenshots and short demo GIF/video
-⬜ CV project bullets
-⬜ GitHub project description polish
-⬜ Trip collaborators
-⬜ Owner/editor/viewer roles
-⬜ Invite links
-⬜ Shared trips screen
-⬜ Permission checks
-```
-
-### V4 — Advanced Product Features
-
-```text
-- Cost estimation
-- Cost sharing
-- Budget tracking
+- Collaborators and shared trips
+- Cost estimation and cost sharing
 - AI itinerary suggestions
-- Map/place API integration
-- Real SMS provider integration if phone OTP becomes required
+- Maps/geolocation integration
+- Real SMS provider integration
+- Push notifications
 ```
 
 ---
 
-## Suggested Portfolio Demo Script
+## Suggested Demo Flow
 
 ```text
-1. Open the mobile app
-2. Register using email OTP
-3. Login
-4. Create a trip
-5. Add a destination
-6. Add activities
-7. Demonstrate overlap validation
-8. Logout
-9. Show GitHub Actions backend test/deploy workflow
-10. Show GitHub Actions frontend TypeScript check
-11. Show Render health endpoint
-12. Explain that Swagger is disabled in production but available locally
+1. Open deployed backend health endpoint
+2. Open mobile app
+3. Register with email OTP
+4. Login
+5. Create a trip
+6. Add a destination
+7. Add an activity
+8. Edit one item
+9. Show overlap validation/warning
+10. Logout
+11. Show GitHub Actions backend/frontend CI
 ```
-
-Screenshots and demo video are intentionally kept for V3 after the frontend UX polish is complete.
-
----
-
-## Project Summary
-
-WanderMate is a production-style full-stack travel planning app built to demonstrate backend engineering, authentication, database modelling, validation, testing, Docker deployment, CI/CD, production configuration, production-safe documentation, operations notes, and frontend integration.
-
-The backend is the strongest part of the project, with service-layer tests, focused controller and API edge-case tests, token/session handling, OTP consume-on-success logic, ownership validation, Docker deployment, Render deployment, production profile, health endpoint, and GitHub Actions CI/CD. The frontend is functional, type-checked in CI, environment-configurable, and connected to the deployed backend. The current project phase is V2.5 frontend UX polish before V3 screenshots, demo material, and collaboration features.
