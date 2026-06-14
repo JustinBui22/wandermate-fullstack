@@ -627,6 +627,7 @@ class OtpServiceImplTest {
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(OTP_VERIFICATION_SUCCESS.getCode());
 
+        verify(otpCheckRepository).delete(otpRecord);
         verify(otpCheckRepository, never()).save(any());
     }
 
@@ -649,6 +650,7 @@ class OtpServiceImplTest {
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(OTP_VERIFICATION_SUCCESS.getCode());
 
+        verify(otpCheckRepository).delete(otpRecord);
         verify(otpCheckRepository, never()).save(any());
     }
 
@@ -859,6 +861,63 @@ class OtpServiceImplTest {
         );
 
         assertBusinessException(exception, OTP_VERIFICATION_FAIL, OTP.name());
+    }
+
+    @Test
+    void verifyOtp_shouldConsumeOtpRecord_whenOtpMatchesEmailRecord() {
+        OtpDTO request = verifyEmailOtpRequest("123456");
+
+        OtpCheckEntity otpRecord = otpRecordForEmail();
+        otpRecord.setNewestOtp("123456");
+        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+
+        mockVerifyConfigs();
+        mockErrorCode(OTP_VERIFICATION_SUCCESS, OTP.name());
+
+        when(otpCheckRepository.findByUsernameAndBlock(USERNAME, false))
+                .thenReturn(Optional.of(otpRecord));
+
+        CompleteResponse<Object> response = otpService.verifyOtp(request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(OTP_VERIFICATION_SUCCESS.getCode());
+
+        verify(otpCheckRepository).delete(otpRecord);
+        verify(otpCheckRepository, never()).save(any(OtpCheckEntity.class));
+    }
+
+    @Test
+    void verifyOtp_shouldThrowOtpBlockedOrNotFound_whenConsumedOtpIsVerifiedAgain() {
+        OtpDTO request = verifyEmailOtpRequest("123456");
+
+        OtpCheckEntity otpRecord = otpRecordForEmail();
+        otpRecord.setNewestOtp("123456");
+        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+
+        mockVerifyConfigs();
+        mockErrorCode(OTP_VERIFICATION_SUCCESS, OTP.name());
+
+        when(otpCheckRepository.findByUsernameAndBlock(USERNAME, false))
+                .thenReturn(Optional.of(otpRecord))
+                .thenReturn(Optional.empty());
+
+        CompleteResponse<Object> firstResponse = otpService.verifyOtp(request);
+
+        assertThat(firstResponse.getResponseBody().getCode())
+                .isEqualTo(OTP_VERIFICATION_SUCCESS.getCode());
+
+        verify(otpCheckRepository).delete(otpRecord);
+
+        BusinessException secondException = assertThrows(
+                BusinessException.class,
+                () -> otpService.verifyOtp(request)
+        );
+
+        assertBusinessException(secondException, OTP_BLOCKED_OR_NOT_FOUND, OTP.name());
+
+        verify(otpCheckRepository, times(2))
+                .findByUsernameAndBlock(USERNAME, false);
+        verify(otpCheckRepository, times(1)).delete(otpRecord);
     }
 
     // -------------------------------------------------------------------------

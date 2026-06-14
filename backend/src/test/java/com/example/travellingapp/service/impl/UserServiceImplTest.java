@@ -4,6 +4,7 @@ import com.example.travellingapp.dto.request.ForgotPasswordDTO;
 import com.example.travellingapp.dto.request.LoginDTO;
 import com.example.travellingapp.dto.request.OtpDTO;
 import com.example.travellingapp.dto.request.create.CreateUserDTO;
+import com.example.travellingapp.entity.ConfigurationEntity;
 import com.example.travellingapp.entity.ErrorCodeEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.enums.ErrorCodeEnum;
@@ -26,7 +27,9 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -218,6 +221,30 @@ class UserServiceImplTest {
     // createNewUser()
     // -------------------------------------------------------------------------
 
+
+    @Test
+    void createNewUser_shouldRethrowBusinessExceptionFromValidator_whenPasswordIsWeak() {
+        CreateUserDTO request = validRegisterRequest();
+
+        doThrow(new BusinessException(PASSWORD_NOT_QUALIFIED, REGISTER.name()))
+                .when(userValidator)
+                .validateRegisterInput(request);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.createNewUser(request)
+        );
+
+        assertBusinessException(exception, PASSWORD_NOT_QUALIFIED, REGISTER.name());
+
+        verify(userValidator).validateRegisterInput(request);
+        verify(userRepository, never()).findByUsernameAndActive(anyString(), anyBoolean());
+        verify(userRepository, never()).findByEmailAndActive(anyString(), anyBoolean());
+        verify(userRepository, never()).findByPhoneNumberAndActive(anyString(), anyBoolean());
+        verify(otpServiceImpl, never()).verifyOtp(any(OtpDTO.class));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
     @Test
     void createNewUser_shouldCreateUser_whenOtpIsValidAndPhoneNumberIsMissing() {
         CreateUserDTO request = validRegisterRequest();
@@ -405,9 +432,123 @@ class UserServiceImplTest {
         verify(userRepository, never()).save(any(User.class));
     }
 
+
+    @Test
+    void createNewUser_shouldWrapSaveFailureAsInternalServerError_afterOtpVerificationSucceeds() {
+        CreateUserDTO request = validRegisterRequest();
+
+        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+                .thenReturn(Optional.empty());
+        when(userRepository.findByEmailAndActive(request.getEmail(), true))
+                .thenReturn(Optional.empty());
+        when(userRepository.findByPhoneNumberAndActive(request.getPhoneNumber(), true))
+                .thenReturn(Optional.empty());
+        when(otpServiceImpl.verifyOtp(any(OtpDTO.class)))
+                .thenReturn(response(OTP_VERIFICATION_SUCCESS, OTP.name(), null));
+        when(passwordEncoder.encode(request.getPassword()))
+                .thenReturn("encoded-password");
+        when(userRepository.save(any(User.class)))
+                .thenThrow(new RuntimeException("Database save failed"));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.createNewUser(request)
+        );
+
+        assertBusinessException(exception, INTERNAL_SERVER_ERROR, REGISTER.name());
+
+        verify(otpServiceImpl).verifyOtp(any(OtpDTO.class));
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    void createNewUser_shouldBeTransactional_soOtpConsumptionRollsBackIfUserSaveFails() throws NoSuchMethodException {
+        assertThat(hasTransactionalAnnotation("createNewUser", CreateUserDTO.class)).isTrue();
+    }
+
     // -------------------------------------------------------------------------
     // forgotPassword()
     // -------------------------------------------------------------------------
+
+
+    @Test
+    void forgotPassword_shouldThrowPasswordNotQualified_whenNewPasswordIsWeak() {
+        ForgotPasswordDTO request = new ForgotPasswordDTO();
+        request.setUsername("JustinBo123");
+        request.setNewPassword("weak");
+        request.setOtp("123456");
+        request.setEmail("justin@example.com");
+
+        User user = activeUser("JustinBo123");
+        user.setEmail("justin@example.com");
+        user.setPassword("encoded-old-password");
+
+        mockForgotPasswordConfigs();
+
+        try (MockedStatic<Common> commonMock = mockStatic(Common.class, CALLS_REAL_METHODS)) {
+            commonMock.when(() -> Common.findUser(
+                            request.getUsername(),
+                            configurationRepository,
+                            userRepository
+                    ))
+                    .thenReturn(Optional.of(user));
+
+            BusinessException exception = assertThrows(
+                    BusinessException.class,
+                    () -> userService.forgotPassword(request)
+            );
+
+            assertBusinessException(exception, PASSWORD_NOT_QUALIFIED, FORGOT_PASSWORD.name());
+
+            verify(otpServiceImpl, never()).verifyOtp(any(OtpDTO.class));
+            verify(passwordEncoder, never()).matches(anyString(), anyString());
+            verify(passwordEncoder, never()).encode(anyString());
+            verify(userRepository, never()).save(any(User.class));
+        }
+    }
+
+    @Test
+    void forgotPassword_shouldThrowNewPasswordSameAsOld_beforeOtpVerification() {
+        ForgotPasswordDTO request = new ForgotPasswordDTO();
+        request.setUsername("JustinBo123");
+        request.setNewPassword("OldTest123!");
+        request.setOtp("123456");
+        request.setEmail("justin@example.com");
+
+        User user = activeUser("JustinBo123");
+        user.setEmail("justin@example.com");
+        user.setPassword("encoded-old-password");
+
+        mockForgotPasswordConfigs();
+
+        try (MockedStatic<Common> commonMock = mockStatic(Common.class, CALLS_REAL_METHODS)) {
+            commonMock.when(() -> Common.findUser(
+                            request.getUsername(),
+                            configurationRepository,
+                            userRepository
+                    ))
+                    .thenReturn(Optional.of(user));
+
+            when(passwordEncoder.matches(request.getNewPassword(), user.getPassword()))
+                    .thenReturn(true);
+
+            BusinessException exception = assertThrows(
+                    BusinessException.class,
+                    () -> userService.forgotPassword(request)
+            );
+
+            assertBusinessException(exception, NEW_PASSWORD_SAME_AS_OLD, FORGOT_PASSWORD.name());
+
+            verify(otpServiceImpl, never()).verifyOtp(any(OtpDTO.class));
+            verify(passwordEncoder, never()).encode(anyString());
+            verify(userRepository, never()).save(any(User.class));
+        }
+    }
+
+    @Test
+    void forgotPassword_shouldBeTransactional_soOtpConsumptionRollsBackIfPasswordSaveFails() throws NoSuchMethodException {
+        assertThat(hasTransactionalAnnotation("forgotPassword", ForgotPasswordDTO.class)).isTrue();
+    }
 
     @Test
     void forgotPassword_shouldUpdatePassword_whenUserExistsAndOtpIsValid() {
@@ -886,6 +1027,13 @@ class UserServiceImplTest {
                 .thenReturn(Optional.of(entity));
     }
 
+    private boolean hasTransactionalAnnotation(String methodName, Class<?>... parameterTypes) throws NoSuchMethodException {
+        Method method = UserServiceImpl.class.getMethod(methodName, parameterTypes);
+
+        return method.isAnnotationPresent(Transactional.class)
+                || UserServiceImpl.class.isAnnotationPresent(Transactional.class);
+    }
+
     private void assertBusinessException(
             BusinessException exception,
             ErrorCodeEnum expectedErrorCode,
@@ -893,5 +1041,33 @@ class UserServiceImplTest {
     ) {
         assertThat(exception.getErrorCodeEnum()).isEqualTo(expectedErrorCode);
         assertThat(exception.getFlow()).isEqualTo(expectedFlow);
+    }
+
+    private void mockForgotPasswordConfigs() {
+        when(configurationRepository.findByConfigCode(anyString()))
+                .thenAnswer(invocation -> {
+                    String configCode = invocation.getArgument(0);
+
+                    ConfigurationEntity entity = new ConfigurationEntity();
+                    entity.setConfigCode(configCode);
+                    entity.setCreatedDate(LocalDateTime.now());
+
+                    if (PHONE_VN_PATTERN.name().equals(configCode)) {
+                        entity.setConfigValue("^(0|\\+84)[0-9]{9,10}$");
+                        return Optional.of(entity);
+                    }
+
+                    if (EMAIL_PATTERN.name().equals(configCode)) {
+                        entity.setConfigValue("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+                        return Optional.of(entity);
+                    }
+
+                    if (PASSWORD_PATTERN.name().equals(configCode)) {
+                        entity.setConfigValue("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()\\-_=+\\[\\]{}|;:'\\\",.<>?])[^\\s<>\\\\/]{8,20}$");
+                        return Optional.of(entity);
+                    }
+
+                    return Optional.empty();
+                });
     }
 }

@@ -4,7 +4,7 @@
 
 WanderMate is a full-stack mobile travel planning application built with a Spring Boot backend and an Expo React Native frontend. Users can register and log in, manage trips, organise destinations, and schedule activities with date/time validation.
 
-This repository is designed as a portfolio project that demonstrates production-style backend API design, JWT authentication, refresh/session token handling, OTP verification, relational data modelling, Docker setup, CI/CD deployment, production profile configuration, health checks, production-safe documentation, operations notes, and mobile frontend integration.
+This repository is designed as a portfolio project that demonstrates production-style backend API design, JWT authentication, refresh/session token handling, OTP verification, OTP consume-on-success behaviour, relational data modelling, Docker setup, CI/CD deployment, production profile configuration, health checks, production-safe documentation, operations notes, and mobile frontend integration.
 
 ---
 
@@ -49,6 +49,9 @@ wandermate-fullstack/
 ✅ Refresh token rotation, revocation, and reuse detection are implemented
 ✅ Logout revokes the active session and related refresh tokens
 ✅ Email OTP flow is implemented and verified end-to-end
+✅ OTP is consumed/deleted after successful verification to prevent reuse
+✅ Forgot-password password validation runs before OTP consumption
+✅ Registration and forgot-password flows are transaction-protected
 ✅ Phone/SMS OTP service flow exists and is covered by mocked unit tests
 ✅ Backend service-level tests and controller/API tests are implemented and passing
 ✅ Controller/API edge-case tests are implemented and passing
@@ -395,6 +398,8 @@ The frontend and backend have been tested successfully with the frontend pointin
 - OTP retry limit
 - OTP block/restriction time
 - OTP expiry validation
+- OTP consume-on-success to prevent OTP reuse
+- Password reset validates new password before consuming OTP
 - SMS/phone OTP service path prepared but not connected to a real SMS provider
 ```
 
@@ -430,11 +435,11 @@ Service tests:
 ActivityServiceImplTest      25 passed
 DestinationServiceImplTest   31 passed
 EmailServiceImplTest          9 passed
-OtpServiceImplTest           28 passed
+OtpServiceImplTest           30 passed
 SmsServiceImplTest            3 passed
 TokenServiceImplTest         33 passed
 TripServiceImplTest          39 passed
-UserServiceImplTest          29 passed
+UserServiceImplTest          35 passed
 ```
 
 Controller/API tests:
@@ -452,7 +457,7 @@ TokenControllerImplTest        2 passed
 Total backend tests:
 
 ```text
-208 passed, 0 failures, 0 errors, 0 skipped
+216 passed, 0 failures, 0 errors, 0 skipped
 ```
 
 Run backend tests from the backend folder:
@@ -492,7 +497,7 @@ Note: if the default generated `TheProjectApplicationTests.contextLoads` test ex
 | `backend/docs/FRONTEND_INTEGRATION.md` | Frontend/backend URL, token, env switching, and error-handling notes |
 | `backend/docs/PRODUCTION_API_DOCS.md` | Explains why Swagger is local-only and how production API docs are handled |
 | `backend/docs/OPERATIONS.md` | Health check, production profile, logging, and deployment troubleshooting notes |
-| `backend/docs/ROADMAP.md` | Suggested V1/V2/V3/V4 improvement plan |
+| `backend/docs/ROADMAP.md` | Suggested V1/V2/V2.5/V3/V4 improvement plan |
 | `frontend/README.md` | Frontend setup and integration notes |
 
 ---
@@ -525,6 +530,8 @@ frontend/.env.example → frontend/.env
 ```
 
 For production deployment, environment variables should be configured directly in Render.
+
+Important: when sharing the project as a ZIP, do not include ignored local files such as `.env`, `target/`, `node_modules/`, local database dumps, or generated secrets.
 
 ---
 
@@ -585,17 +592,32 @@ This allows the mobile app to test against the deployed backend instead of a loc
 ✅ Production-safe API documentation strategy
 ✅ Monitoring/logging notes
 ✅ Controller/API edge-case tests
-⬜ Screenshots and short demo GIF/video
+✅ OTP consume-on-success hardening
+✅ Forgot-password password validation hardening
+✅ Transaction protection for OTP-backed registration/password reset
 ```
 
-### V3 — Collaboration Features
+### V2.5 — Frontend UX Polish
 
 ```text
-- Trip collaborators
-- Owner/editor/viewer roles
-- Invite links
-- Shared trips screen
-- Permission checks
+⬜ Extract reusable UI components
+⬜ Reduce duplicated screen styles
+⬜ Remove or centralize development console logs
+⬜ Improve loading, empty, and error states
+⬜ Polish auth, trip, destination, and activity screens
+```
+
+### V3 — Portfolio Release and Collaboration Features
+
+```text
+⬜ Screenshots and short demo GIF/video
+⬜ CV project bullets
+⬜ GitHub project description polish
+⬜ Trip collaborators
+⬜ Owner/editor/viewer roles
+⬜ Invite links
+⬜ Shared trips screen
+⬜ Permission checks
 ```
 
 ### V4 — Advanced Product Features
@@ -628,7 +650,7 @@ This allows the mobile app to test against the deployed backend instead of a loc
 12. Explain that Swagger is disabled in production but available locally
 ```
 
-This demonstrates both product functionality and backend engineering practices.
+Screenshots and demo video are intentionally kept for V3 after the frontend UX polish is complete.
 
 ---
 
@@ -636,4 +658,4 @@ This demonstrates both product functionality and backend engineering practices.
 
 WanderMate is a production-style full-stack travel planning app built to demonstrate backend engineering, authentication, database modelling, validation, testing, Docker deployment, CI/CD, production configuration, production-safe documentation, operations notes, and frontend integration.
 
-The backend is the strongest part of the project, with service-layer tests, focused controller and API edge-case tests, token/session handling, OTP logic, ownership validation, Docker deployment, Render deployment, production profile, health endpoint, and GitHub Actions CI/CD. The frontend is functional, type-checked in CI, environment-configurable, and connected to the deployed backend, making the project suitable for a junior backend or full-stack portfolio.
+The backend is the strongest part of the project, with service-layer tests, focused controller and API edge-case tests, token/session handling, OTP consume-on-success logic, ownership validation, Docker deployment, Render deployment, production profile, health endpoint, and GitHub Actions CI/CD. The frontend is functional, type-checked in CI, environment-configurable, and connected to the deployed backend. The current project phase is V2.5 frontend UX polish before V3 screenshots, demo material, and collaboration features.

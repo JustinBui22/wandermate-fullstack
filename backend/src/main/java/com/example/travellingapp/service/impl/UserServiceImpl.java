@@ -31,6 +31,7 @@ import static com.example.travellingapp.enums.ErrorCodeEnum.*;
 import static com.example.travellingapp.response_template.CompleteResponse.getCompleteResponse;
 import static com.example.travellingapp.util.Common.findUser;
 import static com.example.travellingapp.util.DateTimeFormatter.toLocalDate;
+import static com.example.travellingapp.validator.CommonInputValidator.validatePassword;
 
 @Service
 @Log4j2
@@ -56,10 +57,14 @@ public class UserServiceImpl implements UserService {
         this.userValidator = userValidator;
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> createNewUser(CreateUserDTO registerRequest) {
         ErrorCodeEnum errorCodeEnum;
         try {
+            // Validate the format of username, email, password and phone number
+            userValidator.validateRegisterInput(registerRequest);
+
             Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername(), true);
             // Check if username is taken
             if (userOptional.isPresent()) {
@@ -133,6 +138,7 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> forgotPassword(ForgotPasswordDTO forgotPasswordDTO) {
         //Check if email/phone existed
@@ -145,6 +151,18 @@ public class UserServiceImpl implements UserService {
         User user = userOptional.get();
         // If user entered email/phone, convert it back to real username.
         username = user.getUsername();
+
+        // Check if the new password matches the required pattern
+        if (!validatePassword(forgotPasswordDTO.getNewPassword(), configurationRepository.findByConfigCode(PASSWORD_PATTERN.name()))) {
+            log.info("New password is weak!");
+            throw new BusinessException(PASSWORD_NOT_QUALIFIED, FORGOT_PASSWORD.name());
+        }
+        // Check if the new password is the same as the old password
+        if (passwordEncoder.matches(forgotPasswordDTO.getNewPassword(), user.getPassword())) {
+            log.error("New password cannot be the same as the old password for user {}!", username);
+            throw new BusinessException(NEW_PASSWORD_SAME_AS_OLD, FORGOT_PASSWORD.name());
+        }
+
         //Verify otp
         OtpDTO verifyOtpDTO = new OtpDTO(username, forgotPasswordDTO.getOtp());
         verifyOtpDTO.setEmail(forgotPasswordDTO.getEmail());

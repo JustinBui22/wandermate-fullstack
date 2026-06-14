@@ -1,8 +1,8 @@
 # Travelling App Backend
 
-Spring Boot backend for the WanderMate travel planning application. The backend provides authentication, token/session management, OTP verification, trip/destination/activity management, Swagger API documentation, service-level tests, and Docker-based local setup.
+Spring Boot backend for the WanderMate travel planning application. The backend provides authentication, token/session management, OTP verification, trip/destination/activity management, local Swagger API documentation, service/controller tests, production-safe deployment configuration, and Docker-based local setup.
 
-This project is designed as a backend portfolio project with real-world backend concerns such as JWT authentication, refresh token handling, session revocation, database-backed configuration, request validation, ownership checks, safe environment variable usage, and a Dockerized demo environment.
+This project is designed as a backend portfolio project with real-world backend concerns such as JWT authentication, refresh token rotation, session revocation, database-backed configuration, request validation, ownership checks, OTP consume-on-success behaviour, safe environment variable usage, production profile configuration, CI/CD, and a Dockerized demo environment.
 
 ---
 
@@ -15,10 +15,12 @@ This project is designed as a backend portfolio project with real-world backend 
 | Database | MariaDB |
 | ORM | Spring Data JPA / Hibernate |
 | Security | Spring Security, JWT, refresh tokens, session tokens |
-| API Documentation | Swagger / SpringDoc OpenAPI |
+| API Documentation | Swagger / SpringDoc OpenAPI for local development; Markdown docs for production |
 | Build Tool | Maven |
-| Testing | JUnit 5, Mockito, Maven Surefire |
+| Testing | JUnit 5, Mockito, Spring MockMvc, Maven Surefire |
 | Containerization | Docker, Docker Compose |
+| Deployment | Render |
+| CI/CD | GitHub Actions + Render Deploy Hook |
 
 ---
 
@@ -31,6 +33,9 @@ This project is designed as a backend portfolio project with real-world backend 
 ✅ Session token handling for active login sessions implemented
 ✅ Max active session enforcement implemented
 ✅ Email OTP implemented end-to-end when email OAuth/config is correctly set
+✅ OTP is consumed/deleted after successful verification to prevent reuse
+✅ Forgot-password password validation runs before OTP consumption
+✅ Registration and forgot-password flows are transaction-protected
 ✅ Phone/SMS OTP service flow exists and is unit-tested with mocks
 ✅ Trip, destination, and activity CRUD implemented
 ✅ Trip/destination/activity date and time validation implemented
@@ -38,9 +43,13 @@ This project is designed as a backend portfolio project with real-world backend 
 ✅ Activity overlap is blocked as a hard validation error
 ✅ Ownership checks protect user-specific data
 ✅ Standardized response wrapper and error code system implemented
-✅ Swagger UI available for manual testing
+✅ Swagger UI available for local/manual testing
+✅ Swagger/OpenAPI disabled in production profile
 ✅ Docker Compose local backend + MariaDB setup available
-✅ 197 service-level backend tests are passing
+✅ Production profile available for Render deployment
+✅ Public health endpoint implemented
+✅ Backend CI/CD runs tests before triggering Render deployment
+✅ 216 backend tests are passing
 ⚠️ Real SMS provider integration is not enabled yet
 ⚠️ Public Docker demo values do not include real email/OAuth secrets
 ```
@@ -99,11 +108,25 @@ Docker backend:
 http://localhost:8082/The-Project
 ```
 
+Render backend:
+
+```text
+https://wandermate-fullstack.onrender.com/The-Project
+```
+
+Health check:
+
+```text
+/api/v1/health
+```
+
 Docker Swagger UI:
 
 ```text
 http://localhost:8082/The-Project/swagger-ui/index.html
 ```
+
+Swagger UI is local-development only and is disabled in the production Spring profile.
 
 ---
 
@@ -200,6 +223,35 @@ EMAIL_ADDRESS_CONFIG=demo@example.com
 
 For private local testing or deployment, real values should be provided through `.env` or the cloud provider environment variable settings.
 
+Do not commit or share real `.env`, local DB dumps, OAuth refresh tokens, access tokens, or generated `target/` files.
+
+---
+
+## Production Profile
+
+Render uses:
+
+```text
+SPRING_PROFILES_ACTIVE=prod
+```
+
+The production profile is used to reduce development-only behaviour in deployment:
+
+```text
+- Disable SQL debug output
+- Reduce noisy debug logging
+- Disable Swagger/OpenAPI UI in production
+```
+
+Production API documentation is handled through markdown docs instead of public Swagger:
+
+```text
+docs/PRODUCTION_API_DOCS.md
+docs/API_GUIDE.md
+docs/AUTH_FLOW.md
+docs/POSTMAN_GUIDE.md
+```
+
 ---
 
 ## Authentication Overview
@@ -227,6 +279,34 @@ Session-Token: <sessionToken>
 ```
 
 More details: [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md)
+
+---
+
+## OTP and Password Reset Behaviour
+
+OTP behaviour:
+
+```text
+- OTP is generated for email or prepared phone/SMS flows
+- OTP destination is bound to the original email or phone number
+- OTP has expiry validation
+- Incorrect/expired OTP attempts increase retry count
+- OTP record can be blocked after max retry attempts
+- Successful OTP verification deletes the OTP record to prevent reuse
+```
+
+Password reset behaviour:
+
+```text
+1. Find user by username/email/phone
+2. Validate new password pattern
+3. Reject password if it matches the old password
+4. Verify OTP only after password checks pass
+5. Consume OTP on successful verification
+6. Save encoded new password
+```
+
+`forgotPassword()` is transaction-protected so OTP consumption and password update stay consistent if a later database operation fails.
 
 ---
 
@@ -262,19 +342,54 @@ Windows PowerShell:
 Current service test status:
 
 ```text
-ActivityServiceImplTest     25 passed
-DestinationServiceImplTest  31 passed
-EmailServiceImplTest         9 passed
-OtpServiceImplTest          28 passed
-SmsServiceImplTest           3 passed
-TokenServiceImplTest        33 passed
-TripServiceImplTest         39 passed
-UserServiceImplTest         29 passed
+ActivityServiceImplTest      25 passed
+DestinationServiceImplTest   31 passed
+EmailServiceImplTest          9 passed
+OtpServiceImplTest           30 passed
+SmsServiceImplTest            3 passed
+TokenServiceImplTest         33 passed
+TripServiceImplTest          39 passed
+UserServiceImplTest          35 passed
 
-Total service tests: 197 passed
+Total service tests: 205 passed
 ```
 
-Note: if the default generated `TheProjectApplicationTests.contextLoads` test is present, it starts the full Spring context and requires DB env variables or a dedicated test profile. The main proof of backend business behaviour is the service-level test suite.
+Controller/API tests:
+
+```text
+HealthControllerTest           1 passed
+UserControllerImplTest         1 passed
+TripControllerImplTest         2 passed
+DestinationControllerImplTest  1 passed
+ActivityControllerImplTest     1 passed
+OtpControllerImplTest          3 passed
+TokenControllerImplTest        2 passed
+
+Total controller/API tests: 11 passed
+```
+
+Total backend tests:
+
+```text
+216 passed, 0 failures, 0 errors, 0 skipped
+```
+
+Current test coverage includes:
+
+```text
+- Auth login/logout/session behaviour
+- Refresh token rotation, revocation, and reuse detection
+- User registration validation
+- OTP send/verify retry, expiry, destination mismatch, and consume-on-success behaviour
+- Forgot-password password validation before OTP consumption
+- Trip/destination/activity CRUD business rules
+- Ownership checks
+- Trip/destination overlap warnings
+- Activity overlap blocking
+- Controller/API status mapping and edge cases
+```
+
+Note: if the default generated `TheProjectApplicationTests.contextLoads` test is present, it starts the full Spring context and requires DB env variables or a dedicated test profile. The main proof of backend business behaviour is the service-level test suite plus focused controller/API tests.
 
 More details: [`docs/TESTING.md`](docs/TESTING.md)
 
@@ -292,4 +407,22 @@ More details: [`docs/TESTING.md`](docs/TESTING.md)
 | [`docs/POSTMAN_GUIDE.md`](docs/POSTMAN_GUIDE.md) | Manual API testing flow |
 | [`docs/TESTING.md`](docs/TESTING.md) | Test coverage and test commands |
 | [`docs/FRONTEND_INTEGRATION.md`](docs/FRONTEND_INTEGRATION.md) | Frontend URL, token, refresh, and warning handling |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Suggested V1/V2/V3/V4 improvement plan |
+| [`docs/PRODUCTION_API_DOCS.md`](docs/PRODUCTION_API_DOCS.md) | Production-safe API documentation strategy |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Health check, production profile, logging, deployment troubleshooting |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Suggested V1/V2/V2.5/V3/V4 improvement plan |
+
+---
+
+## Current Next Phase
+
+The backend is now in a strong V2 state. The next project phase is frontend UX polish before screenshots/demo material.
+
+Suggested next work:
+
+```text
+1. Extract reusable frontend UI components
+2. Centralize or remove development console logs
+3. Improve loading, empty, and error states
+4. Polish auth/trip/destination/activity screens
+5. Take screenshots and create demo video later in V3
+```

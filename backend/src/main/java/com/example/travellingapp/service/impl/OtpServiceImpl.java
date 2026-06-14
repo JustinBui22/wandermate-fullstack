@@ -319,6 +319,9 @@ public class OtpServiceImpl implements OtpService {
                 verifyOtpFailed(maxRetryVerifyOtp, restrictedOtpDuration, otpCheckEntity);
                 throw new BusinessException(OTP_CODE_NOT_CORRECT, OTP.name());
             }
+
+            // Invalidate/delete the OTP record after successful verification to prevent reuse
+            otpCheckRepository.delete(otpCheckEntity);
             return getCompleteResponse(
                     errorCodeRepository,
                     OTP_VERIFICATION_SUCCESS,

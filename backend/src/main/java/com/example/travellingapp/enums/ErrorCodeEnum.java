@@ -104,6 +104,8 @@ public enum ErrorCodeEnum {
     OTP_METHOD_MISSING("E060", "OTP verification method is missing", OTP, HttpStatusCodeEnum.BAD_REQUEST),
     EMAIL_ENUM_MISSING("E061", "Email enum is missing", OTP, HttpStatusCodeEnum.BAD_REQUEST),
     SMS_ENUM_MISSING("E062", "SMS enum is missing", OTP, HttpStatusCodeEnum.BAD_REQUEST),
+    NEW_PASSWORD_SAME_AS_OLD("E063", "New password cannot be the same as the old password", FORGOT_PASSWORD, HttpStatusCodeEnum.BAD_REQUEST),
+
 
 
     
