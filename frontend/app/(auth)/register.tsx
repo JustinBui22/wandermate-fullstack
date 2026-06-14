@@ -1,25 +1,24 @@
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-    ActivityIndicator,
     Alert,
-    KeyboardAvoidingView,
     Platform,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     View,
 } from "react-native";
-import {SafeAreaView} from "react-native-safe-area-context";
-import {LinearGradient} from "expo-linear-gradient";
-import {Ionicons} from "@expo/vector-icons";
-import {useRouter} from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
-import {register, sendOtp, verifyRegisterDetails} from "@/src/api/authApi";
-import {colors, radius, shadow, spacing} from "@/src/theme/theme";
-import type {OtpVerificationMethod} from "@/src/types/auth";
+import { register, sendOtp, verifyRegisterDetails } from "@/src/api/authApi";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppInput } from "@/src/components/ui/AppInput";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import type { OtpVerificationMethod } from "@/src/types/auth";
 
 const OTP_EXPIRY_SECONDS = 120;
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -35,9 +34,11 @@ function formatTimer(seconds: number) {
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
+
     if (typeof data?.body === "string" && data.body.trim()) {
         return data.body;
     }
+
     return data?.message || error.message || "Something went wrong. Please try again.";
 }
 
@@ -46,8 +47,39 @@ function isOtpRestricted(error: any) {
     return code === OTP_BLOCKED_OR_NOT_FOUND_CODE || code === MAX_OTP_RETRY_CODE;
 }
 
+function formatDateForDisplay(date: Date) {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}/${month}/${year}`;
+}
+
+function getMaximumDobDate() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+}
+
+function getMinimumDobDate() {
+    return new Date(1900, 0, 1);
+}
+
+function getDefaultDobDate() {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 18);
+    date.setHours(0, 0, 0, 0);
+
+    return date;
+}
+
+function getStepTitle(step: 1 | 2) {
+    return step === 1 ? "Account information" : "Verify your account";
+}
+
 export default function RegisterScreen() {
     const router = useRouter();
+
     const [step, setStep] = useState<1 | 2>(1);
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
@@ -90,15 +122,14 @@ export default function RegisterScreen() {
         };
     }
 
-    function getDefaultDobDate() {
-        const date = new Date();
-        date.setFullYear(date.getFullYear() - 18);
-        date.setHours(0, 0, 0, 0);
+    function handleDobValueChange(_event: unknown, selectedDate?: Date) {
+        if (!selectedDate) {
+            if (Platform.OS === "android") {
+                setShowDobPicker(false);
+            }
+            return;
+        }
 
-        return date;
-    }
-
-    function handleDobValueChange(_event: unknown, selectedDate: Date) {
         setDobDate(selectedDate);
         setDob(formatDateForDisplay(selectedDate));
 
@@ -126,31 +157,12 @@ export default function RegisterScreen() {
     async function handleContinueToOtpStep() {
         setError(null);
 
-        const values = getTrimmedValues();
-
-        if (
-            !values.username ||
-            !values.email ||
-            !values.dob ||
-            !values.password ||
-            !values.confirmPassword
-        ) {
-            Alert.alert("Missing details", "Please fill in all required fields.");
-            return;
-        }
-
-        if (values.password !== values.confirmPassword) {
-            Alert.alert("Password mismatch", "Password and confirm password do not match.");
-            return;
-        }
+        const values = validateAccountFields();
+        if (!values) return;
 
         try {
             setIsSendingOtp(true);
 
-            if (values.password !== values.confirmPassword) {
-                Alert.alert("Password mismatch", "Password and confirm password do not match.");
-                return;
-            }
             await verifyRegisterDetails({
                 username: values.username,
                 email: values.email,
@@ -187,6 +199,7 @@ export default function RegisterScreen() {
 
         try {
             setIsSendingOtp(true);
+
             if (otpMethod === "EMAIL_OTP") {
                 await sendOtp({
                     userName: values.username,
@@ -207,13 +220,19 @@ export default function RegisterScreen() {
             setOtp("");
             setOtpExpiresIn(OTP_EXPIRY_SECONDS);
             setResendCooldown(RESEND_COOLDOWN_SECONDS);
-            Alert.alert("OTP sent", otpMethod === "EMAIL_OTP" ? "Please check your email." : "Please check your phone messages.");
+            Alert.alert(
+                "OTP sent",
+                otpMethod === "EMAIL_OTP" ? "Please check your email." : "Please check your phone messages."
+            );
         } catch (error: any) {
             const message = getApiMessage(error);
             setError(message);
 
             if (isOtpRestricted(error)) {
-                Alert.alert("OTP temporarily blocked", `Please wait about ${OTP_RESTRICTED_MINUTES} minutes before trying again.`);
+                Alert.alert(
+                    "OTP temporarily blocked",
+                    `Please wait about ${OTP_RESTRICTED_MINUTES} minutes before trying again.`
+                );
             } else {
                 Alert.alert("Cannot send OTP", message);
             }
@@ -258,7 +277,7 @@ export default function RegisterScreen() {
             Alert.alert("Account created", "You can now sign in.", [
                 {
                     text: "Go to login",
-                    onPress: () => router.replace("/login"),
+                    onPress: () => router.replace("/login" as any),
                 },
             ]);
         } catch (error: any) {
@@ -271,289 +290,222 @@ export default function RegisterScreen() {
     }
 
     return (
-        <LinearGradient colors={["#EAF2FF", "#F6F8FB", "#FFFFFF"]} style={styles.gradient}>
-            <SafeAreaView style={styles.safeArea}>
-                <KeyboardAvoidingView style={styles.keyboardView}
-                                      behavior={Platform.OS === "ios" ? "padding" : undefined}>
-                    <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled"
-                                showsVerticalScrollIndicator={false}>
-                        <Pressable onPress={() => router.replace("/login")} style={styles.backButton}>
-                            <Ionicons name="chevron-back" size={20} color={colors.primary}/>
-                            <Text style={styles.backText}>Back to login</Text>
-                        </Pressable>
+        <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
+            <Pressable onPress={() => router.replace("/login" as any)} style={styles.backButton}>
+                <Ionicons name="chevron-back" size={20} color={colors.primary} />
+                <Text style={styles.backText}>Back to login</Text>
+            </Pressable>
 
-                        <View style={styles.header}>
-                            <Text style={styles.title}>Create account</Text>
-                            <Text style={styles.subtitle}>
-                                Create your account in a few quick steps.
-                            </Text>
-                            <Text style={styles.requiredNote}>* Fields are required. Phone number is optional unless you choose phone OTP.</Text>
-                        </View>
-
-                        <View style={styles.card}>
-                            <View style={styles.stepHeader}>
-                                <Text style={styles.stepText}>Step {step} of 2</Text>
-                                <Text style={styles.stepTitle}>
-                                    {step === 1 ? "Account information" : "Verify your account"}
-                                </Text>
-                            </View>
-
-                            {step === 1 ? (
-                                <>
-                                    <AuthInput
-                                        label="Username"
-                                        required
-                                        icon="person-outline"
-                                        value={username}
-                                        onChangeText={setUsername}
-                                        placeholder="3-20 characters"
-                                    />
-
-                                    <AuthInput
-                                        label="Email"
-                                        required
-                                        icon="mail-outline"
-                                        value={email}
-                                        onChangeText={setEmail}
-                                        placeholder="name@example.com"
-                                        keyboardType="email-address"
-                                    />
-
-                                    <AuthInput
-                                        label="Phone number"
-                                        icon="call-outline"
-                                        value={phoneNumber}
-                                        onChangeText={setPhoneNumber}
-                                        placeholder="Phone number"
-                                        keyboardType="phone-pad"
-                                    />
-
-                                    <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>
-                                            Date of birth
-                                            <Text style={styles.requiredMark}> *</Text>
-                                        </Text>
-
-                                        <Pressable
-                                            onPress={() => setShowDobPicker(true)}
-                                            style={styles.inputWrapper}
-                                        >
-                                            <Ionicons name="calendar-outline" size={20} color={colors.mutedText} />
-
-                                            <Text
-                                                style={[
-                                                    styles.datePickerText,
-                                                    !dob ? styles.datePickerPlaceholder : null,
-                                                ]}
-                                            >
-                                                {dob || "Select your date of birth"}
-                                            </Text>
-                                        </Pressable>
-
-                                        {showDobPicker ? (
-                                            <>
-                                                <DateTimePicker
-                                                    value={dobDate ?? getDefaultDobDate()}
-                                                    mode="date"
-                                                    display="spinner"
-                                                    // display={Platform.OS === "ios" ? "spinner" : "default"}
-                                                    maximumDate={getMaximumDobDate()}
-                                                    minimumDate={getMinimumDobDate()}
-                                                    onValueChange={handleDobValueChange}
-                                                />
-
-                                                {Platform.OS === "ios" ? (
-                                                    <View style={styles.pickerActionRow}>
-                                                        <Pressable
-                                                            onPress={() => setShowDobPicker(false)}
-                                                            style={styles.pickerDoneButton}
-                                                        >
-                                                            <Text style={styles.pickerDoneText}>Done</Text>
-                                                        </Pressable>
-                                                    </View>
-                                                ) : null}
-                                            </>
-                                        ) : null}
-                                    </View>
-
-                                    <AuthInput
-                                        label="Password"
-                                        required
-                                        icon="lock-closed-outline"
-                                        value={password}
-                                        onChangeText={setPassword}
-                                        placeholder="8-20 characters"
-                                        secureTextEntry={!isPasswordVisible}
-                                        rightIcon={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
-                                        onRightIconPress={() => setIsPasswordVisible((current) => !current)}
-                                    />
-
-                                    <AuthInput
-                                        label="Confirm password"
-                                        required
-                                        icon="lock-closed-outline"
-                                        value={confirmPassword}
-                                        onChangeText={setConfirmPassword}
-                                        placeholder="Repeat password"
-                                        secureTextEntry={!isPasswordVisible}
-                                    />
-
-                                    {error ? <ErrorBox message={error}/> : null}
-
-                                    <Pressable
-                                        onPress={handleContinueToOtpStep}
-                                        disabled={isSendingOtp}
-                                        style={({pressed}) => [
-                                            styles.primaryButton,
-                                            pressed && !isSendingOtp ? styles.buttonPressed : null,
-                                            isSendingOtp ? styles.buttonDisabled : null,
-                                        ]}
-                                    >
-                                        {isSendingOtp ? (
-                                            <ActivityIndicator color="#FFFFFF"/>
-                                        ) : (
-                                            <Text style={styles.primaryButtonText}>Continue</Text>
-                                        )}
-                                    </Pressable>
-                                </>
-                            ) : null}
-
-                            {step === 2 ? (
-                                <>
-                                    <Text style={styles.helperText}>
-                                        Choose where you want to receive your verification code.
-                                    </Text>
-
-                                    <Text style={styles.sectionLabel}>OTP method</Text>
-                                    <View style={styles.methodRow}>
-                                        <MethodButton
-                                            label="Email"
-                                            icon="mail-outline"
-                                            selected={otpMethod === "EMAIL_OTP"}
-                                            onPress={() => setOtpMethod("EMAIL_OTP")}
-                                        />
-                                        <MethodButton
-                                            label="Phone"
-                                            icon="call-outline"
-                                            selected={otpMethod === "PHONE_NUM_OTP"}
-                                            onPress={() => setOtpMethod("PHONE_NUM_OTP")}
-                                        />
-                                    </View>
-
-                                    <Pressable
-                                        onPress={handleSendOtp}
-                                        disabled={isSendingOtp || resendCooldown > 0}
-                                        style={({pressed}) => [
-                                            styles.secondaryButton,
-                                            pressed && !isSendingOtp && resendCooldown <= 0
-                                                ? styles.buttonPressed
-                                                : null,
-                                            isSendingOtp || resendCooldown > 0 ? styles.buttonDisabled : null,
-                                        ]}
-                                    >
-                                        {isSendingOtp ? (
-                                            <ActivityIndicator color={colors.primary}/>
-                                        ) : (
-                                            <Text style={styles.secondaryButtonText}>
-                                                {otpSent ? "Resend OTP" : "Send OTP"}
-                                            </Text>
-                                        )}
-                                    </Pressable>
-
-                                    {otpSent ? (
-                                        <Text style={styles.timerText}>
-                                            OTP expires in {formatTimer(otpExpiresIn)}{" "}
-                                            {resendCooldown > 0 ? `• Resend in ${formatTimer(resendCooldown)}` : ""}
-                                        </Text>
-                                    ) : null}
-
-                                    <AuthInput
-                                        label="OTP code"
-                                        required
-                                        icon="key-outline"
-                                        value={otp}
-                                        onChangeText={setOtp}
-                                        placeholder="Enter 6-digit OTP"
-                                        keyboardType="number-pad"
-                                    />
-
-                                    {error ? <ErrorBox message={error}/> : null}
-
-                                    <Pressable
-                                        onPress={handleRegister}
-                                        disabled={isRegistering}
-                                        style={({pressed}) => [
-                                            styles.primaryButton,
-                                            pressed && !isRegistering ? styles.buttonPressed : null,
-                                            isRegistering ? styles.buttonDisabled : null,
-                                        ]}
-                                    >
-                                        {isRegistering ? (
-                                            <ActivityIndicator color="#FFFFFF"/>
-                                        ) : (
-                                            <Text style={styles.primaryButtonText}>Create account</Text>
-                                        )}
-                                    </Pressable>
-
-                                    <Pressable
-                                        onPress={() => setStep(1)}
-                                        style={styles.textButton}
-                                    >
-                                        <Text style={styles.textButtonText}>Back to account information</Text>
-                                    </Pressable>
-                                </>
-                            ) : null}
-                        </View>
-                    </ScrollView>
-                </KeyboardAvoidingView>
-            </SafeAreaView>
-        </LinearGradient>
-    );
-}
-
-type AuthInputProps = Readonly<{
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    value: string;
-    onChangeText: (value: string) => void;
-    placeholder: string;
-    keyboardType?: "default" | "email-address" | "phone-pad" | "number-pad";
-    secureTextEntry?: boolean;
-    rightIcon?: keyof typeof Ionicons.glyphMap;
-    onRightIconPress?: () => void;
-    required?: boolean;
-}>;
-
-function AuthInput({
-                       label,
-                       icon,
-                       value,
-                       onChangeText,
-                       placeholder,
-                       keyboardType = "default",
-                       secureTextEntry,
-                       rightIcon,
-                       onRightIconPress,
-                       required = false,
-                   }: AuthInputProps) {
-    return (
-        <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-                {label}
-                {required ? <Text style={styles.requiredMark}> *</Text> : null}
-            </Text>
-            <View style={styles.inputWrapper}>
-                <Ionicons name={icon} size={20} color={colors.mutedText}/>
-                <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder}
-                           placeholderTextColor="#9CA3AF" autoCapitalize="none" autoCorrect={false}
-                           keyboardType={keyboardType} secureTextEntry={secureTextEntry} style={styles.input}/>
-                {rightIcon ? (
-                    <Pressable onPress={onRightIconPress} hitSlop={10}>
-                        <Ionicons name={rightIcon} size={20} color={colors.mutedText}/>
-                    </Pressable>
-                ) : null}
+            <View style={styles.header}>
+                <View style={styles.logoBadge}>
+                    <Ionicons name="person-add-outline" size={26} color={colors.primary} />
+                </View>
+                <Text style={styles.title}>Create account</Text>
+                <Text style={styles.subtitle}>Create your account in a few quick steps.</Text>
+                <Text style={styles.requiredNote}>
+                    * Fields are required. Phone number is optional unless you choose phone OTP.
+                </Text>
             </View>
-        </View>
+
+            <AppCard style={styles.card} contentStyle={styles.cardContent}>
+                <View style={styles.stepHeader}>
+                    <Text style={styles.stepText}>Step {step} of 2</Text>
+                    <Text style={styles.stepTitle}>{getStepTitle(step)}</Text>
+                </View>
+
+                {step === 1 ? (
+                    <View style={styles.section}>
+                        <AppInput
+                            label="Username"
+                            required
+                            value={username}
+                            onChangeText={setUsername}
+                            placeholder="3-20 characters"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            leftIcon={<Ionicons name="person-outline" size={20} color={colors.textMuted} />}
+                        />
+
+                        <AppInput
+                            label="Email"
+                            required
+                            value={email}
+                            onChangeText={setEmail}
+                            placeholder="name@example.com"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            leftIcon={<Ionicons name="mail-outline" size={20} color={colors.textMuted} />}
+                        />
+
+                        <AppInput
+                            label="Phone number"
+                            value={phoneNumber}
+                            onChangeText={setPhoneNumber}
+                            placeholder="Phone number"
+                            keyboardType="phone-pad"
+                            leftIcon={<Ionicons name="call-outline" size={20} color={colors.textMuted} />}
+                        />
+
+                        <View style={styles.dateField}>
+                            <Text style={styles.label}>
+                                Date of birth <Text style={styles.requiredMark}>*</Text>
+                            </Text>
+
+                            <Pressable
+                                accessibilityRole="button"
+                                onPress={() => setShowDobPicker(true)}
+                                style={({ pressed }) => [
+                                    styles.dateButton,
+                                    pressed && styles.dateButtonPressed,
+                                ]}
+                            >
+                                <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
+                                <Text style={[styles.dateText, !dob && styles.datePlaceholder]}>
+                                    {dob || "Select your date of birth"}
+                                </Text>
+                            </Pressable>
+
+                            {showDobPicker ? (
+                                <View style={styles.pickerContainer}>
+                                    <DateTimePicker
+                                        value={dobDate ?? getDefaultDobDate()}
+                                        mode="date"
+                                        display="spinner"
+                                        maximumDate={getMaximumDobDate()}
+                                        minimumDate={getMinimumDobDate()}
+                                        onChange={handleDobValueChange}
+                                    />
+
+                                    {Platform.OS === "ios" ? (
+                                        <View style={styles.pickerActionRow}>
+                                            <AppButton
+                                                title="Done"
+                                                onPress={() => setShowDobPicker(false)}
+                                                fullWidth={false}
+                                                size="sm"
+                                            />
+                                        </View>
+                                    ) : null}
+                                </View>
+                            ) : null}
+                        </View>
+
+                        <AppInput
+                            label="Password"
+                            required
+                            value={password}
+                            onChangeText={setPassword}
+                            placeholder="8-20 characters"
+                            secureTextEntry={!isPasswordVisible}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            leftIcon={<Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />}
+                            rightIcon={
+                                <Pressable
+                                    onPress={() => setIsPasswordVisible((current) => !current)}
+                                    hitSlop={10}
+                                >
+                                    <Ionicons
+                                        name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
+                                        size={20}
+                                        color={colors.textMuted}
+                                    />
+                                </Pressable>
+                            }
+                        />
+
+                        <AppInput
+                            label="Confirm password"
+                            required
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            placeholder="Repeat password"
+                            secureTextEntry={!isPasswordVisible}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            leftIcon={<Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />}
+                        />
+
+                        <ErrorMessage message={error} title="Registration check failed" />
+
+                        <AppButton
+                            title="Continue"
+                            onPress={handleContinueToOtpStep}
+                            loading={isSendingOtp}
+                            rightIcon={<Ionicons name="arrow-forward" size={18} color={colors.textLight} />}
+                        />
+                    </View>
+                ) : null}
+
+                {step === 2 ? (
+                    <View style={styles.section}>
+                        <Text style={styles.helperText}>
+                            Choose where you want to receive your verification code.
+                        </Text>
+
+                        <View style={styles.methodSection}>
+                            <Text style={styles.sectionLabel}>OTP method</Text>
+                            <View style={styles.methodRow}>
+                                <MethodButton
+                                    label="Email"
+                                    icon="mail-outline"
+                                    selected={otpMethod === "EMAIL_OTP"}
+                                    onPress={() => setOtpMethod("EMAIL_OTP")}
+                                />
+                                <MethodButton
+                                    label="Phone"
+                                    icon="call-outline"
+                                    selected={otpMethod === "PHONE_NUM_OTP"}
+                                    onPress={() => setOtpMethod("PHONE_NUM_OTP")}
+                                />
+                            </View>
+                        </View>
+
+                        <AppButton
+                            title={otpSent ? "Resend OTP" : "Send OTP"}
+                            onPress={handleSendOtp}
+                            loading={isSendingOtp}
+                            disabled={resendCooldown > 0}
+                            variant="secondary"
+                        />
+
+                        {otpSent ? (
+                            <Text style={styles.timerText}>
+                                OTP expires in {formatTimer(otpExpiresIn)}{" "}
+                                {resendCooldown > 0 ? `• Resend in ${formatTimer(resendCooldown)}` : ""}
+                            </Text>
+                        ) : resendCooldown > 0 ? (
+                            <Text style={styles.timerText}>You can resend in {formatTimer(resendCooldown)}</Text>
+                        ) : null}
+
+                        <AppInput
+                            label="OTP code"
+                            required
+                            value={otp}
+                            onChangeText={setOtp}
+                            placeholder="Enter 6-digit OTP"
+                            keyboardType="number-pad"
+                            leftIcon={<Ionicons name="key-outline" size={20} color={colors.textMuted} />}
+                        />
+
+                        <ErrorMessage message={error} title="Registration failed" />
+
+                        <AppButton
+                            title="Create account"
+                            onPress={handleRegister}
+                            loading={isRegistering}
+                        />
+
+                        <AppButton
+                            title="Back to account information"
+                            onPress={() => setStep(1)}
+                            variant="ghost"
+                        />
+                    </View>
+                ) : null}
+            </AppCard>
+        </AppScreen>
     );
 }
 
@@ -564,196 +516,195 @@ type MethodButtonProps = Readonly<{
     onPress: () => void;
 }>;
 
-function MethodButton({label, icon, selected, onPress}: MethodButtonProps) {
+function MethodButton({ label, icon, selected, onPress }: MethodButtonProps) {
     return (
-        <Pressable onPress={onPress} style={[styles.methodButton, selected ? styles.methodButtonSelected : null]}>
-            <Ionicons name={icon} size={18} color={selected ? colors.primary : colors.mutedText}/>
-            <Text style={[styles.methodText, selected ? styles.methodTextSelected : null]}>{label}</Text>
+        <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            onPress={onPress}
+            style={({ pressed }) => [
+                styles.methodButton,
+                selected && styles.methodButtonSelected,
+                pressed && styles.methodButtonPressed,
+            ]}
+        >
+            <Ionicons name={icon} size={18} color={selected ? colors.primary : colors.textMuted} />
+            <Text style={[styles.methodText, selected && styles.methodTextSelected]}>{label}</Text>
         </Pressable>
     );
 }
 
-type ErrorBoxProps = Readonly<{
-    message: string;
-}>;
-
-function ErrorBox({message}: ErrorBoxProps) {
-    return (
-        <View style={styles.errorBox}>
-            <Ionicons name="alert-circle-outline" size={18} color={colors.error}/>
-            <Text style={styles.errorText}>{message}</Text>
-        </View>
-    );
-}
-
-function formatDateForDisplay(date: Date) {
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-
-    return `${day}/${month}/${year}`;
-}
-
-function getMaximumDobDate() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-}
-
-function getMinimumDobDate() {
-    return new Date(1900, 0, 1);
-}
-
 const styles = StyleSheet.create({
-    gradient: {flex: 1},
-    safeArea: {flex: 1},
-    keyboardView: {flex: 1},
-    scrollContent: {padding: spacing.lg, paddingBottom: spacing.xl},
-    backButton: {flexDirection: "row", alignItems: "center", gap: 4, marginBottom: spacing.lg},
-    backText: {color: colors.primary, fontWeight: "700"},
-    header: {marginBottom: spacing.lg},
-    title: {fontSize: 32, fontWeight: "800", color: colors.text},
-    subtitle: {fontSize: 15, color: colors.mutedText, marginTop: spacing.sm, lineHeight: 22},
-    card: {backgroundColor: colors.card, borderRadius: radius.xl, padding: spacing.lg, ...shadow.card},
-    inputGroup: {marginBottom: spacing.md},
-    label: {fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: spacing.sm},
-    sectionLabel: {fontSize: 14, fontWeight: "800", color: colors.text, marginBottom: spacing.sm},
-    inputWrapper: {
-        minHeight: 54,
+    screenContent: {
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.xxl,
+        gap: spacing.lg,
+    },
+    backButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        alignSelf: "flex-start",
+        gap: spacing.xs,
+    },
+    backText: {
+        color: colors.primary,
+        fontWeight: fontWeight.semibold,
+    },
+    header: {
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    logoBadge: {
+        width: 58,
+        height: 58,
+        borderRadius: radius.xl,
+        backgroundColor: colors.primarySoft,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: spacing.xs,
+    },
+    title: {
+        color: colors.text,
+        fontSize: typography.hero,
+        fontWeight: fontWeight.bold,
+        textAlign: "center",
+    },
+    subtitle: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 21,
+        textAlign: "center",
+        maxWidth: 320,
+    },
+    requiredNote: {
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.semibold,
+        lineHeight: 18,
+        textAlign: "center",
+        maxWidth: 330,
+    },
+    card: {
+        marginTop: spacing.sm,
+    },
+    cardContent: {
+        gap: spacing.lg,
+    },
+    stepHeader: {
+        gap: spacing.xs,
+    },
+    stepText: {
+        color: colors.primary,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    stepTitle: {
+        color: colors.text,
+        fontSize: typography.title,
+        fontWeight: fontWeight.bold,
+    },
+    section: {
+        gap: spacing.md,
+    },
+    label: {
+        color: colors.text,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.semibold,
+    },
+    requiredMark: {
+        color: colors.danger,
+    },
+    dateField: {
+        gap: spacing.sm,
+    },
+    dateButton: {
+        minHeight: 52,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: radius.md,
-        backgroundColor: "#FFFFFF",
-        paddingHorizontal: spacing.md,
+        backgroundColor: colors.surface,
         flexDirection: "row",
         alignItems: "center",
-        gap: spacing.sm
+        paddingHorizontal: spacing.md,
+        gap: spacing.sm,
     },
-    input: {flex: 1, fontSize: 16, color: colors.text, paddingVertical: Platform.OS === "ios" ? 14 : 10},
-    methodRow: {flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md},
+    dateButtonPressed: {
+        opacity: 0.86,
+    },
+    dateText: {
+        flex: 1,
+        color: colors.text,
+        fontSize: typography.body,
+        fontWeight: fontWeight.medium,
+    },
+    datePlaceholder: {
+        color: colors.textMuted,
+    },
+    pickerContainer: {
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: radius.md,
+        backgroundColor: colors.surface,
+        overflow: "hidden",
+    },
+    pickerActionRow: {
+        alignItems: "flex-end",
+        padding: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
+    helperText: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+        fontWeight: fontWeight.semibold,
+    },
+    methodSection: {
+        gap: spacing.sm,
+    },
+    sectionLabel: {
+        color: colors.text,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
+    },
+    methodRow: {
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
     methodButton: {
         flex: 1,
         minHeight: 48,
         borderRadius: radius.md,
         borderWidth: 1,
         borderColor: colors.border,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: colors.surface,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
-        gap: spacing.sm
-    },
-    methodButtonSelected: {borderColor: colors.primary, backgroundColor: colors.softBlue},
-    methodText: {color: colors.mutedText, fontWeight: "800"},
-    methodTextSelected: {color: colors.primary},
-    primaryButton: {
-        height: 56,
-        borderRadius: radius.md,
-        backgroundColor: colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-        marginTop: spacing.sm
-    },
-    primaryButtonText: {color: "#FFFFFF", fontWeight: "800", fontSize: 16},
-    secondaryButton: {
-        height: 52,
-        borderRadius: radius.md,
-        backgroundColor: colors.softBlue,
-        borderWidth: 1,
-        borderColor: "#BFDBFE",
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: spacing.sm
-    },
-    secondaryButtonText: {color: colors.primary, fontWeight: "800", fontSize: 15},
-    buttonPressed: {transform: [{scale: 0.99}]},
-    buttonDisabled: {opacity: 0.65},
-    timerText: {
-        color: colors.mutedText,
-        fontSize: 13,
-        fontWeight: "700",
-        marginBottom: spacing.md,
-        textAlign: "center"
-    },
-    errorBox: {
-        backgroundColor: "#FEF2F2",
-        borderWidth: 1,
-        borderColor: "#FECACA",
-        borderRadius: radius.md,
-        padding: spacing.md,
-        flexDirection: "row",
-        alignItems: "center",
         gap: spacing.sm,
-        marginBottom: spacing.md
     },
-    errorText: {flex: 1, color: colors.error, fontSize: 14, lineHeight: 20, fontWeight: "600"},
-
-    requiredNote: {
-        marginTop: spacing.sm,
-        color: colors.mutedText,
-        fontSize: 13,
-        fontWeight: "700",
+    methodButtonSelected: {
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySoft,
     },
-    requiredMark: {
-        color: colors.error,
-        fontWeight: "900",
+    methodButtonPressed: {
+        opacity: 0.85,
+        transform: [{ scale: 0.99 }],
     },
-    stepHeader: {
-        marginBottom: spacing.lg,
+    methodText: {
+        color: colors.textMuted,
+        fontWeight: fontWeight.bold,
     },
-    stepText: {
-        fontSize: 13,
+    methodTextSelected: {
         color: colors.primary,
-        fontWeight: "800",
-        marginBottom: 4,
     },
-    stepTitle: {
-        fontSize: 20,
-        color: colors.text,
-        fontWeight: "800",
-    },
-    helperText: {
-        color: colors.mutedText,
-        fontSize: 14,
-        lineHeight: 20,
-        fontWeight: "600",
-        marginBottom: spacing.md,
-    },
-    textButton: {
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: spacing.sm,
-        marginTop: spacing.sm,
-    },
-    textButtonText: {
-        color: colors.primary,
-        fontWeight: "800",
-        fontSize: 14,
-    },
-    datePickerText: {
-        flex: 1,
-        color: colors.text,
-        fontSize: 15,
-        fontWeight: "600",
-    },
-    datePickerPlaceholder: {
-        color: colors.mutedText,
-    },
-    pickerActionRow: {
-        alignItems: "flex-end",
-        marginTop: spacing.sm,
-    },
-
-    pickerDoneButton: {
-        backgroundColor: colors.primary,
-        borderRadius: 12,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.sm,
-    },
-
-    pickerDoneText: {
-        color: "#FFFFFF",
-        fontWeight: "800",
-        fontSize: 14,
+    timerText: {
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.semibold,
+        lineHeight: 18,
+        textAlign: "center",
     },
 });
