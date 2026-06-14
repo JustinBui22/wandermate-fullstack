@@ -1,61 +1,75 @@
 import { useCallback, useState } from "react";
-import { getActivitiesByDestination } from "@/src/api/activityApi";
-import type { Activity } from "@/src/types/activity";
 import {
-    ActivityIndicator,
     Alert,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+
+import { getActivitiesByDestination } from "@/src/api/activityApi";
 import {
     deleteDestination,
     getDestinationById,
 } from "@/src/api/destinationApi";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { EmptyState } from "@/src/components/ui/EmptyState";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
+import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import type { Activity } from "@/src/types/activity";
 import type { Destination } from "@/src/types/destination";
-import { colors, radius, shadow, spacing } from "@/src/theme/theme";
+import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
 import { logger } from "@/src/utils/logger";
+
+function getApiMessage(error: any) {
+    const data = error.response?.data;
+
+    if (typeof data?.body === "string" && data.body.trim()) {
+        return data.body;
+    }
+
+    return data?.message || error.message || "Failed to load destination detail.";
+}
 
 export default function DestinationDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const [activities, setActivities] = useState<Activity[]>([]);
-    const tripIdParam = Array.isArray(params.tripId)
-        ? params.tripId[0]
-        : params.tripId;
 
+    const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const destinationIdParam = Array.isArray(params.destinationId)
         ? params.destinationId[0]
         : params.destinationId;
 
+    const tripNumberId = Number(tripIdParam);
+    const destinationNumberId = Number(destinationIdParam);
+    const hasValidRouteIds = Boolean(tripIdParam)
+        && Boolean(destinationIdParam)
+        && !Number.isNaN(tripNumberId)
+        && !Number.isNaN(destinationNumberId);
+
     const [destination, setDestination] = useState<Destination | null>(null);
+    const [activities, setActivities] = useState<Activity[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     async function loadDestinationDetail() {
-        const tripNumberId = Number(tripIdParam);
-        const destinationNumberId = Number(destinationIdParam);
-
-        if (
-            !tripIdParam ||
-            !destinationIdParam ||
-            Number.isNaN(tripNumberId) ||
-            Number.isNaN(destinationNumberId)
-        ) {
-            setError("Trip ID or destination ID is missing.");
+        if (!hasValidRouteIds) {
+            setError("Trip ID or destination ID is missing or invalid.");
             setIsLoading(false);
             return;
         }
 
         try {
+            setIsLoading(true);
+            setError(null);
+
             const [destinationData, activityData] = await Promise.all([
                 getDestinationById(tripNumberId, destinationNumberId),
                 getActivitiesByDestination(tripNumberId, destinationNumberId),
@@ -67,15 +81,8 @@ export default function DestinationDetailScreen() {
             setDestination(destinationData);
             setActivities(Array.isArray(activityData) ? activityData : []);
         } catch (error: any) {
-            logger.debug(
-                "Load destination detail failed:",
-                error.response?.data || error.message
-            );
-
-            setError(
-                error.response?.data?.message ||
-                "Failed to load destination detail. Please try again."
-            );
+            logger.debug("Load destination detail failed:", error.response?.data || error.message);
+            setError(getApiMessage(error));
         } finally {
             setIsLoading(false);
         }
@@ -88,74 +95,60 @@ export default function DestinationDetailScreen() {
     );
 
     function handleEditDestination() {
-        if (!tripIdParam || !destinationIdParam) {
-            Alert.alert("Missing destination", "Destination ID is missing.");
+        if (!hasValidRouteIds) {
+            Alert.alert("Missing destination", "Trip ID or destination ID is missing or invalid.");
             return;
         }
 
-        router.push(
-            `/trips/${tripIdParam}/destinations/${destinationIdParam}/edit`
-        );
+        router.push(`/trips/${tripNumberId}/destinations/${destinationNumberId}/edit` as any);
+    }
+
+    function handleAddActivity() {
+        if (!hasValidRouteIds) {
+            Alert.alert("Missing destination", "Trip ID or destination ID is missing or invalid.");
+            return;
+        }
+
+        router.push(`/trips/${tripNumberId}/destinations/${destinationNumberId}/activities/create` as any);
+    }
+
+    function handleOpenActivity(activityId: number) {
+        if (!hasValidRouteIds) {
+            Alert.alert("Missing activity", "Trip ID or destination ID is missing or invalid.");
+            return;
+        }
+
+        router.push(`/trips/${tripNumberId}/destinations/${destinationNumberId}/activities/${activityId}` as any);
     }
 
     function handleDeleteDestination() {
-        if (!tripIdParam || !destinationIdParam) {
-            Alert.alert("Missing destination", "Trip ID or destination ID is missing.");
+        if (!hasValidRouteIds) {
+            Alert.alert("Missing destination", "Trip ID or destination ID is missing or invalid.");
             return;
         }
 
         Alert.alert(
             "Delete destination",
-            "Are you sure you want to delete this destination? All activities inside this destination will also be deleted.",
+            "This will delete this destination and all activities inside it. Are you sure?",
             [
-                {
-                    text: "Cancel",
-                    style: "cancel",
-                },
+                { text: "Cancel", style: "cancel" },
                 {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
-                        const tripNumberId = Number(tripIdParam);
-                        const destinationNumberId = Number(destinationIdParam);
-
-                        if (
-                            Number.isNaN(tripNumberId) ||
-                            Number.isNaN(destinationNumberId)
-                        ) {
-                            Alert.alert(
-                                "Missing destination",
-                                "Trip ID or destination ID is invalid."
-                            );
-                            return;
-                        }
-
                         try {
                             setIsDeleting(true);
 
-                            await deleteDestination(
-                                tripNumberId,
-                                destinationNumberId
-                            );
+                            await deleteDestination(tripNumberId, destinationNumberId);
 
-                            Alert.alert(
-                                "Destination deleted",
-                                "Destination has been deleted."
-                            );
-
+                            Alert.alert("Destination deleted", "Destination has been deleted.");
                             router.back();
                         } catch (error: any) {
-                            logger.debug(
-                                "Delete destination failed:",
-                                error.response?.data || error.message
-                            );
+                            logger.debug("Delete destination failed:", error.response?.data || error.message);
 
                             Alert.alert(
                                 "Delete destination failed",
-                                getApiErrorMessage(
-                                    error,
-                                    "Please try again."
-                                )
+                                getApiErrorMessage(error, "Please try again.")
                             );
                         } finally {
                             setIsDeleting(false);
@@ -166,90 +159,60 @@ export default function DestinationDetailScreen() {
         );
     }
 
-    function handleAddActivity() {
-        if (!tripIdParam || !destinationIdParam) {
-            Alert.alert("Missing destination", "Trip ID or destination ID is missing.");
-            return;
-        }
-
-        router.push(
-            `/trips/${tripIdParam}/destinations/${destinationIdParam}/activities/create`
-        );
-    }
-
-    function handleOpenActivity(activityId: number) {
-        if (!tripIdParam || !destinationIdParam) {
-            Alert.alert("Missing activity", "Trip ID or destination ID is missing.");
-            return;
-        }
-
-        router.push(
-            `/trips/${tripIdParam}/destinations/${destinationIdParam}/activities/${activityId}`
-        );
-    }
-
     if (isLoading) {
         return (
-            <SafeAreaView style={styles.centerContainer}>
-                <ActivityIndicator color={colors.primary} />
-                <Text style={styles.loadingText}>Loading destination...</Text>
-            </SafeAreaView>
+            <AppScreen scroll={false} centerContent>
+                <LoadingState
+                    title="Loading destination..."
+                    subtitle="Getting activities and destination details."
+                    fullScreen
+                />
+            </AppScreen>
         );
     }
 
     if (error || !destination) {
         return (
-            <SafeAreaView style={styles.centerContainer}>
-                <View style={styles.errorIcon}>
-                    <Ionicons
-                        name="alert-circle-outline"
-                        size={34}
-                        color={colors.error}
-                    />
+            <AppScreen scroll={false} centerContent contentContainerStyle={styles.centerContent}>
+                <View style={styles.errorIconBadge}>
+                    <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
                 </View>
 
-                <Text style={styles.errorTitle}>Unable to load destination</Text>
-                <Text style={styles.errorText}>
-                    {error ?? "Destination not found."}
-                </Text>
+                <View style={styles.centerTextGroup}>
+                    <Text style={styles.centerTitle}>Unable to load destination</Text>
+                    <Text style={styles.centerSubtitle}>{error ?? "Destination not found."}</Text>
+                </View>
 
-                <Pressable onPress={loadDestinationDetail} style={styles.retryButton}>
-                    <Text style={styles.retryButtonText}>Try again</Text>
-                </Pressable>
-
-                <Pressable onPress={() => router.back()} style={styles.backTextButton}>
-                    <Text style={styles.backText}>Go back</Text>
-                </Pressable>
-            </SafeAreaView>
+                <AppButton title="Try again" onPress={loadDestinationDetail} />
+                <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
+            </AppScreen>
         );
     }
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <ScrollView
-                contentContainerStyle={styles.container}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.header}>
-                    <Pressable onPress={() => router.back()} style={styles.iconButton}>
-                        <Ionicons name="chevron-back" size={24} color={colors.text} />
-                    </Pressable>
+        <AppScreen contentContainerStyle={styles.screenContent}>
+            <View style={styles.header}>
+                <HeaderIconButton
+                    icon="chevron-back"
+                    accessibilityLabel="Go back"
+                    onPress={() => router.back()}
+                />
 
-                    <Pressable onPress={handleEditDestination} style={styles.iconButton}>
-                        <Ionicons name="create-outline" size={23} color={colors.text} />
-                    </Pressable>
+                <HeaderIconButton
+                    icon="create-outline"
+                    accessibilityLabel="Edit destination"
+                    onPress={handleEditDestination}
+                />
+            </View>
+
+            <AppCard style={styles.heroCard} contentStyle={styles.heroCardContent}>
+                <View style={styles.heroIconBadge}>
+                    <Ionicons name="location" size={28} color={colors.textLight} />
                 </View>
 
-                <View style={styles.heroCard}>
-                    <View style={styles.heroIcon}>
-                        <Ionicons name="location" size={30} color="#FFFFFF" />
-                    </View>
-
+                <View style={styles.heroTextGroup}>
                     <Text style={styles.destinationLabel}>Destination</Text>
-
-                    <Text style={styles.destinationName}>
-                        {destination.destinationName}
-                    </Text>
+                    <Text style={styles.destinationName}>{destination.destinationName || "Untitled destination"}</Text>
 
                     {destination.notes ? (
                         <Text style={styles.notes}>{destination.notes}</Text>
@@ -257,421 +220,351 @@ export default function DestinationDetailScreen() {
                         <Text style={styles.notesMuted}>No notes added yet.</Text>
                     )}
                 </View>
+            </AppCard>
 
-                <View style={styles.infoGrid}>
-                    <View style={styles.infoCard}>
-                        <View style={styles.infoIcon}>
-                            <Ionicons
-                                name="calendar-outline"
-                                size={20}
-                                color={colors.primary}
-                            />
-                        </View>
+            <View style={styles.infoGrid}>
+                <InfoCard
+                    icon="calendar-outline"
+                    label="Start"
+                    value={formatDateTime(destination.startDate)}
+                />
+                <InfoCard
+                    icon="flag-outline"
+                    label="End"
+                    value={formatDateTime(destination.endDate)}
+                />
+                <InfoCard
+                    icon="swap-vertical-outline"
+                    label="Order"
+                    value={destination.destinationOrder?.toString() ?? "Not set"}
+                />
+            </View>
 
-                        <Text style={styles.infoLabel}>Start</Text>
-                        <Text style={styles.infoValue}>
-                            {formatDateTime(destination.startDate)}
-                        </Text>
-                    </View>
+            <ErrorMessage message={error} title="Destination detail error" />
 
-                    <View style={styles.infoCard}>
-                        <View style={styles.infoIcon}>
-                            <Ionicons
-                                name="flag-outline"
-                                size={20}
-                                color={colors.primary}
-                            />
-                        </View>
-
-                        <Text style={styles.infoLabel}>End</Text>
-                        <Text style={styles.infoValue}>
-                            {formatDateTime(destination.endDate)}
-                        </Text>
-                    </View>
-
-                    <View style={styles.infoCard}>
-                        <View style={styles.infoIcon}>
-                            <Ionicons
-                                name="swap-vertical-outline"
-                                size={20}
-                                color={colors.primary}
-                            />
-                        </View>
-
-                        <Text style={styles.infoLabel}>Order</Text>
-                        <Text style={styles.infoValue}>
-                            {destination.destinationOrder ?? "Not set"}
-                        </Text>
-                    </View>
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionTextGroup}>
+                    <Text style={styles.sectionTitle}>Activities</Text>
+                    <Text style={styles.sectionSubtitle}>Add plans inside this destination.</Text>
                 </View>
 
-                <View style={styles.sectionHeader}>
-                    <View>
-                        <Text style={styles.sectionTitle}>Activities</Text>
-                        <Text style={styles.sectionSubtitle}>
-                            Add plans inside this destination
-                        </Text>
-                    </View>
+                <AppButton
+                    title=""
+                    onPress={handleAddActivity}
+                    fullWidth={false}
+                    style={styles.addButton}
+                    leftIcon={<Ionicons name="add" size={23} color={colors.textLight} />}
+                    testID="add-activity-button"
+                />
+            </View>
 
-                    <Pressable onPress={handleAddActivity} style={styles.smallAddButton}>
-                        <Ionicons name="add" size={22} color="#FFFFFF" />
-                    </Pressable>
+            {activities.length === 0 ? (
+                <EmptyState
+                    title="No activities yet"
+                    message="Add sightseeing, meals, transport, check-ins, or other plans for this destination."
+                    icon={<Ionicons name="walk-outline" size={30} color={colors.primary} />}
+                    actionLabel="Add first activity"
+                    onActionPress={handleAddActivity}
+                />
+            ) : (
+                <View style={styles.activityList}>
+                    {activities.map((activity) => (
+                        <ActivityCard
+                            key={activity.activityId}
+                            activity={activity}
+                            onPress={() => handleOpenActivity(activity.activityId)}
+                        />
+                    ))}
                 </View>
+            )}
 
-                {activities.length === 0 ? (
-                    <View style={styles.emptyCard}>
-                        <View style={styles.emptyIcon}>
-                            <Ionicons name="walk-outline" size={34} color={colors.primary} />
-                        </View>
+            <AppButton
+                title="Delete Destination"
+                onPress={handleDeleteDestination}
+                loading={isDeleting}
+                variant="danger"
+                leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
+                style={styles.deleteButton}
+            />
+        </AppScreen>
+    );
+}
 
-                        <Text style={styles.emptyTitle}>No activities yet</Text>
-                        <Text style={styles.emptyText}>
-                            Add activities such as sightseeing, meals, transport, or hotel check-ins.
-                        </Text>
+type HeaderIconButtonProps = Readonly<{
+    icon: keyof typeof Ionicons.glyphMap;
+    accessibilityLabel: string;
+    onPress: () => void;
+}>;
 
-                        <Pressable onPress={handleAddActivity} style={styles.activityButton}>
-                            <Text style={styles.activityButtonText}>Add first activity</Text>
-                        </Pressable>
-                    </View>
-                ) : (
-                    <View style={styles.activityList}>
-                        {activities.map((activity) => (
-                            <Pressable
-                                key={activity.activityId}
-                                style={styles.activityCard}
-                                onPress={() => handleOpenActivity(activity.activityId)}
-                            >
-                                <View style={styles.activityIcon}>
-                                    <Ionicons name="walk" size={22} color={colors.primary} />
-                                </View>
+function HeaderIconButton({ icon, accessibilityLabel, onPress }: HeaderIconButtonProps) {
+    return (
+        <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel}
+            onPress={onPress}
+            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
+        >
+            <Ionicons name={icon} size={23} color={colors.text} />
+        </Pressable>
+    );
+}
 
-                                <View style={styles.activityContent}>
-                                    <Text style={styles.activityTitle}>
-                                        {activity.activityName}
-                                    </Text>
+type InfoCardProps = Readonly<{
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    value: string;
+}>;
 
-                                    {activity.location ? (
-                                        <Text style={styles.activityLocation} numberOfLines={1}>
-                                            {activity.location}
-                                        </Text>
-                                    ) : null}
+function InfoCard({ icon, label, value }: InfoCardProps) {
+    return (
+        <AppCard variant="soft" contentStyle={styles.infoCardContent}>
+            <View style={styles.infoIconBadge}>
+                <Ionicons name={icon} size={20} color={colors.primary} />
+            </View>
+            <View style={styles.infoTextGroup}>
+                <Text style={styles.infoLabel}>{label}</Text>
+                <Text style={styles.infoValue}>{value}</Text>
+            </View>
+        </AppCard>
+    );
+}
 
-                                    <Text style={styles.activityTime}>
-                                        {formatDateTime(activity.startDateTime)} - {formatDateTime(activity.endDateTime)}
-                                    </Text>
+type ActivityCardProps = Readonly<{
+    activity: Activity;
+    onPress: () => void;
+}>;
 
-                                    {activity.description ? (
-                                        <Text style={styles.activityDescription} numberOfLines={2}>
-                                            {activity.description}
-                                        </Text>
-                                    ) : null}
-                                </View>
+function ActivityCard({ activity, onPress }: ActivityCardProps) {
+    return (
+        <AppCard onPress={onPress} contentStyle={styles.activityCardContent}>
+            <View style={styles.activityIconBadge}>
+                <Ionicons name="walk" size={22} color={colors.primary} />
+            </View>
 
-                                <Ionicons
-                                    name="chevron-forward"
-                                    size={22}
-                                    color={colors.mutedText}
-                                />
-                            </Pressable>
-                        ))}
-                    </View>
-                )}
-                <Pressable
-                    onPress={handleDeleteDestination}
-                    disabled={isDeleting}
-                    style={[
-                        styles.deleteButton,
-                        isDeleting && styles.disabledButton,
-                    ]}
-                >
-                    {isDeleting ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <>
-                            <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-                            <Text style={styles.deleteButtonText}>Delete Destination</Text>
-                        </>
-                    )}
-                </Pressable>
-            </ScrollView>
-        </SafeAreaView>
+            <View style={styles.activityContent}>
+                <Text style={styles.activityTitle} numberOfLines={1}>
+                    {activity.activityName || "Untitled activity"}
+                </Text>
+
+                {activity.location ? (
+                    <Text style={styles.activityLocation} numberOfLines={1}>
+                        {activity.location}
+                    </Text>
+                ) : null}
+
+                <Text style={styles.activityTime} numberOfLines={2}>
+                    {formatDateTime(activity.startDateTime)} → {formatDateTime(activity.endDateTime)}
+                </Text>
+
+                {activity.description ? (
+                    <Text style={styles.activityDescription} numberOfLines={2}>
+                        {activity.description}
+                    </Text>
+                ) : null}
+            </View>
+
+            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+        </AppCard>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: colors.background,
+    screenContent: {
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.xxl,
+        gap: spacing.lg,
     },
-    container: {
-        padding: spacing.lg,
-        paddingBottom: 120,
+    centerContent: {
+        gap: spacing.lg,
     },
-    centerContainer: {
-        flex: 1,
-        backgroundColor: colors.background,
+    centerTextGroup: {
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    centerTitle: {
+        color: colors.text,
+        fontSize: typography.title,
+        fontWeight: fontWeight.bold,
+        textAlign: "center",
+    },
+    centerSubtitle: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 21,
+        textAlign: "center",
+    },
+    errorIconBadge: {
+        width: 72,
+        height: 72,
+        borderRadius: radius.xl,
+        backgroundColor: colors.dangerSoft,
         alignItems: "center",
         justifyContent: "center",
-        padding: spacing.lg,
-    },
-    loadingText: {
-        marginTop: spacing.sm,
-        color: colors.mutedText,
-        fontWeight: "700",
     },
     header: {
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: spacing.lg,
+        justifyContent: "space-between",
+        gap: spacing.md,
     },
-    iconButton: {
+    headerIconButton: {
         width: 44,
         height: 44,
-        borderRadius: 16,
-        backgroundColor: colors.card,
+        borderRadius: radius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
         alignItems: "center",
         justifyContent: "center",
-        ...shadow.card,
+    },
+    pressed: {
+        opacity: 0.86,
+        transform: [{ scale: 0.99 }],
     },
     heroCard: {
         backgroundColor: colors.primary,
-        borderRadius: radius.xl,
-        padding: spacing.xl,
-        marginBottom: spacing.lg,
-        ...shadow.card,
     },
-    heroIcon: {
+    heroCardContent: {
+        padding: spacing.xl,
+        gap: spacing.lg,
+    },
+    heroIconBadge: {
         width: 58,
         height: 58,
-        borderRadius: 20,
+        borderRadius: radius.xl,
         backgroundColor: "rgba(255,255,255,0.18)",
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: spacing.lg,
+    },
+    heroTextGroup: {
+        gap: spacing.sm,
     },
     destinationLabel: {
         color: "#DBEAFE",
-        fontSize: 15,
-        fontWeight: "800",
-        marginBottom: spacing.sm,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
     },
     destinationName: {
-        color: "#FFFFFF",
-        fontSize: 30,
-        lineHeight: 36,
-        fontWeight: "900",
+        color: colors.textLight,
+        fontSize: typography.heading,
+        lineHeight: 32,
+        fontWeight: fontWeight.bold,
     },
     notes: {
         color: "#E0F2FE",
-        fontSize: 15,
+        fontSize: typography.bodySmall,
         lineHeight: 22,
-        marginTop: spacing.md,
-        fontWeight: "600",
+        fontWeight: fontWeight.semibold,
     },
     notesMuted: {
         color: "#BFDBFE",
-        fontSize: 15,
+        fontSize: typography.bodySmall,
         lineHeight: 22,
-        marginTop: spacing.md,
-        fontWeight: "600",
+        fontWeight: fontWeight.semibold,
     },
     infoGrid: {
         gap: spacing.md,
-        marginBottom: spacing.xl,
     },
-    infoCard: {
-        backgroundColor: colors.card,
-        borderRadius: radius.lg,
-        padding: spacing.md,
-        ...shadow.card,
+    infoCardContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
     },
-    infoIcon: {
+    infoIconBadge: {
         width: 42,
         height: 42,
-        borderRadius: 14,
-        backgroundColor: colors.softBlue,
+        borderRadius: radius.md,
+        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: spacing.sm,
+    },
+    infoTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
     },
     infoLabel: {
-        color: colors.mutedText,
-        fontSize: 13,
-        fontWeight: "700",
-        marginBottom: 4,
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
     },
     infoValue: {
         color: colors.text,
-        fontSize: 16,
-        fontWeight: "800",
-        lineHeight: 22,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+        fontWeight: fontWeight.bold,
     },
     sectionHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: spacing.md,
+        gap: spacing.md,
+    },
+    sectionTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
     },
     sectionTitle: {
-        fontSize: 23,
-        fontWeight: "900",
         color: colors.text,
+        fontSize: typography.title,
+        fontWeight: fontWeight.bold,
     },
     sectionSubtitle: {
-        fontSize: 14,
-        color: colors.mutedText,
-        marginTop: 3,
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
     },
-    smallAddButton: {
-        width: 46,
-        height: 46,
-        borderRadius: 17,
-        backgroundColor: colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-        ...shadow.card,
-    },
-    emptyCard: {
-        backgroundColor: colors.card,
-        borderRadius: radius.xl,
-        padding: spacing.xl,
-        alignItems: "center",
-        ...shadow.card,
-    },
-    emptyIcon: {
-        width: 72,
-        height: 72,
-        borderRadius: 24,
-        backgroundColor: colors.softBlue,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: spacing.md,
-    },
-    emptyTitle: {
-        fontSize: 21,
-        fontWeight: "900",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    emptyText: {
-        textAlign: "center",
-        color: colors.mutedText,
-        lineHeight: 21,
-    },
-    errorIcon: {
-        width: 72,
-        height: 72,
-        borderRadius: 24,
-        backgroundColor: "#FEF2F2",
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: spacing.md,
-    },
-    errorTitle: {
-        fontSize: 22,
-        fontWeight: "900",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    errorText: {
-        textAlign: "center",
-        color: colors.mutedText,
-        lineHeight: 21,
-        marginBottom: spacing.lg,
-    },
-    retryButton: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        borderRadius: radius.md,
-        marginBottom: spacing.md,
-    },
-    retryButtonText: {
-        color: "#FFFFFF",
-        fontWeight: "900",
-    },
-    backTextButton: {
-        padding: spacing.sm,
-    },
-    backText: {
-        color: colors.primary,
-        fontWeight: "800",
-    },
-    activityButton: {
-        marginTop: spacing.lg,
-        backgroundColor: colors.primary,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        borderRadius: radius.md,
-    },
-    activityButtonText: {
-        color: "#FFFFFF",
-        fontWeight: "900",
-        fontSize: 15,
+    addButton: {
+        width: 48,
+        height: 48,
+        minHeight: 48,
+        borderRadius: radius.lg,
+        paddingHorizontal: 0,
     },
     activityList: {
         gap: spacing.md,
     },
-    activityCard: {
-        backgroundColor: colors.card,
-        borderRadius: radius.lg,
-        padding: spacing.md,
+    activityCardContent: {
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.md,
-        ...shadow.card,
     },
-    activityIcon: {
+    activityIconBadge: {
         width: 44,
         height: 44,
-        borderRadius: 16,
-        backgroundColor: colors.softBlue,
+        borderRadius: radius.lg,
+        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
     },
     activityContent: {
         flex: 1,
+        gap: spacing.xs,
     },
     activityTitle: {
-        fontSize: 16,
-        fontWeight: "900",
         color: colors.text,
-        marginBottom: 4,
+        fontSize: typography.body,
+        fontWeight: fontWeight.bold,
     },
     activityLocation: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: colors.mutedText,
-        marginBottom: 4,
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        lineHeight: 18,
+        fontWeight: fontWeight.bold,
     },
     activityTime: {
-        fontSize: 12,
-        fontWeight: "700",
-        color: colors.mutedText,
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        lineHeight: 18,
+        fontWeight: fontWeight.semibold,
     },
     activityDescription: {
-        marginTop: 6,
-        fontSize: 13,
-        color: colors.mutedText,
-        lineHeight: 18,
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 19,
     },
     deleteButton: {
-        marginTop: spacing.xl,
-        backgroundColor: colors.error,
-        borderRadius: radius.lg,
-        paddingVertical: 16,
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "row",
-        gap: spacing.sm,
-    },
-    disabledButton: {
-        opacity: 0.6,
-    },
-    deleteButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "900",
+        marginTop: spacing.sm,
     },
 });
