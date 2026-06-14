@@ -1,42 +1,55 @@
-import {useCallback, useState} from "react";
+import { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
     Alert,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     View,
 } from "react-native";
-import {SafeAreaView} from "react-native-safe-area-context";
-import {useFocusEffect, useLocalSearchParams, useRouter} from "expo-router";
-import {Ionicons} from "@expo/vector-icons";
-import {getDestinationsByTrip} from "@/src/api/destinationApi";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+
+import { getDestinationsByTrip } from "@/src/api/destinationApi";
+import { deleteTrip, getTripById } from "@/src/api/tripApi";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { EmptyState } from "@/src/components/ui/EmptyState";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
+import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import type { Destination } from "@/src/types/destination";
+import type { Trip } from "@/src/types/trip";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
-import {deleteTrip, getTripById} from "@/src/api/tripApi";
-import type {Trip} from "@/src/types/trip";
-import {colors, radius, shadow, spacing} from "@/src/theme/theme";
-import {formatDateTime} from "@/src/utils/dateFormat";
-import type {Destination} from "@/src/types/destination";
-import { logger } from "@/src/utils/logger";
+import { formatDateTime } from "@/src/utils/dateFormat";
+
+function getApiMessage(error: any) {
+    const data = error.response?.data;
+
+    if (typeof data?.body === "string" && data.body.trim()) {
+        return data.body;
+    }
+
+    return data?.message || error.message || "Failed to load trip detail.";
+}
 
 export default function TripDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const tripIdParam = Array.isArray(params.tripId)
-        ? params.tripId[0]
-        : params.tripId;
-    const [isDeleting, setIsDeleting] = useState(false);
+    const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
+
     const [trip, setTrip] = useState<Trip | null>(null);
     const [destinations, setDestinations] = useState<Destination[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    async function loadTripDetail() {
-        const tripNumberId = Number(tripIdParam);
+    const tripNumberId = Number(tripIdParam);
+    const hasValidTripId = Boolean(tripIdParam) && !Number.isNaN(tripNumberId);
 
-        if (!tripIdParam || Number.isNaN(tripNumberId)) {
-            setError("Trip ID is missing.");
+    async function loadTripDetail() {
+        if (!hasValidTripId) {
+            setError("Trip ID is missing or invalid.");
             setIsLoading(false);
             return;
         }
@@ -50,18 +63,10 @@ export default function TripDetailScreen() {
                 getDestinationsByTrip(tripNumberId),
             ]);
 
-            logger.debug("Trip detail:", tripData);
-            logger.debug("Destinations loaded:", destinationData);
-
             setTrip(tripData);
             setDestinations(Array.isArray(destinationData) ? destinationData : []);
         } catch (error: any) {
-            logger.debug("Load trip detail failed:", error.response?.data || error.message);
-
-            setError(
-                error.response?.data?.message ||
-                "Failed to load trip detail. Please try again."
-            );
+            setError(getApiMessage(error));
         } finally {
             setIsLoading(false);
         }
@@ -74,26 +79,35 @@ export default function TripDetailScreen() {
     );
 
     function handleAddDestination() {
-        if (!tripIdParam) {
-            Alert.alert("Missing trip", "Trip ID is missing.");
+        if (!hasValidTripId) {
+            Alert.alert("Missing trip", "Trip ID is missing or invalid.");
             return;
         }
 
-        router.push(`/trips/${tripIdParam}/destinations/create`);
+        router.push(`/trips/${tripNumberId}/destinations/create` as any);
     }
 
     function handleOpenDestination(destinationId: number) {
-        if (!tripIdParam) {
-            Alert.alert("Missing trip", "Trip ID is missing.");
+        if (!hasValidTripId) {
+            Alert.alert("Missing trip", "Trip ID is missing or invalid.");
             return;
         }
 
-        router.push(`/trips/${tripIdParam}/destinations/${destinationId}`);
+        router.push(`/trips/${tripNumberId}/destinations/${destinationId}` as any);
+    }
+
+    function handleEditTrip() {
+        if (!hasValidTripId) {
+            Alert.alert("Missing trip", "Trip ID is missing or invalid.");
+            return;
+        }
+
+        router.push(`/trips/${tripNumberId}/edit` as any);
     }
 
     function handleDeleteTrip() {
-        if (!tripIdParam) {
-            Alert.alert("Missing trip", "Trip ID is missing.");
+        if (!hasValidTripId) {
+            Alert.alert("Missing trip", "Trip ID is missing or invalid.");
             return;
         }
 
@@ -101,34 +115,18 @@ export default function TripDetailScreen() {
             "Delete trip",
             "This will delete this trip, all destinations, and all activities inside it. Are you sure?",
             [
-                {
-                    text: "Cancel",
-                    style: "cancel",
-                },
+                { text: "Cancel", style: "cancel" },
                 {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
-                        const tripNumberId = Number(tripIdParam);
-
-                        if (Number.isNaN(tripNumberId)) {
-                            Alert.alert("Missing trip", "Trip ID is invalid.");
-                            return;
-                        }
-
                         try {
                             setIsDeleting(true);
-
                             await deleteTrip(tripNumberId);
 
                             Alert.alert("Trip deleted", "Trip has been deleted.");
                             router.back();
                         } catch (error: any) {
-                            logger.debug(
-                                "Delete trip failed:",
-                                error.response?.data || error.message
-                            );
-
                             Alert.alert(
                                 "Delete trip failed",
                                 getApiErrorMessage(error, "Please try again.")
@@ -144,429 +142,384 @@ export default function TripDetailScreen() {
 
     if (isLoading) {
         return (
-            <SafeAreaView style={styles.centerContainer}>
-                <ActivityIndicator color={colors.primary}/>
-                <Text style={styles.loadingText}>Loading trip...</Text>
-            </SafeAreaView>
+            <AppScreen scroll={false} centerContent>
+                <LoadingState
+                    title="Loading trip..."
+                    subtitle="Getting your destinations and trip details."
+                    fullScreen
+                />
+            </AppScreen>
         );
     }
 
     if (error || !trip) {
         return (
-            <SafeAreaView style={styles.centerContainer}>
-                <View style={styles.errorIcon}>
-                    <Ionicons name="alert-circle-outline" size={34} color={colors.error}/>
+            <AppScreen scroll={false} centerContent contentContainerStyle={styles.centerContent}>
+                <View style={styles.errorIconBadge}>
+                    <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
                 </View>
 
-                <Text style={styles.errorTitle}>Unable to load trip</Text>
-                <Text style={styles.errorText}>{error ?? "Trip not found."}</Text>
+                <View style={styles.centerTextGroup}>
+                    <Text style={styles.centerTitle}>Unable to load trip</Text>
+                    <Text style={styles.centerSubtitle}>{error ?? "Trip not found."}</Text>
+                </View>
 
-                <Pressable onPress={loadTripDetail} style={styles.retryButton}>
-                    <Text style={styles.retryButtonText}>Try again</Text>
-                </Pressable>
-
-                <Pressable onPress={() => router.back()} style={styles.backTextButton}>
-                    <Text style={styles.backText}>Go back</Text>
-                </Pressable>
-            </SafeAreaView>
+                <AppButton title="Try again" onPress={loadTripDetail} />
+                <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
+            </AppScreen>
         );
     }
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <ScrollView
-                contentContainerStyle={styles.container}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.header}>
-                    <Pressable onPress={() => router.back()} style={styles.iconButton}>
-                        <Ionicons name="chevron-back" size={24} color={colors.text}/>
-                    </Pressable>
+        <AppScreen contentContainerStyle={styles.screenContent}>
+            <View style={styles.header}>
+                <HeaderIconButton
+                    icon="chevron-back"
+                    accessibilityLabel="Go back"
+                    onPress={() => router.back()}
+                />
 
-                    <Pressable
-                        onPress={() => {
-                            if (!tripIdParam) {
-                                Alert.alert("Missing trip", "Trip ID is missing.");
-                                return;
-                            }
-                            router.push(`/trips/${tripIdParam}/edit`);
-                        }}
-                        style={styles.iconButton}
-                    >
-                        <Ionicons name="create-outline" size={23} color={colors.text} />
-                    </Pressable>
+                <View style={styles.headerActions}>
+                    <HeaderIconButton
+                        icon="create-outline"
+                        accessibilityLabel="Edit trip"
+                        onPress={handleEditTrip}
+                    />
+                </View>
+            </View>
+
+            <AppCard style={styles.heroCard} contentStyle={styles.heroCardContent}>
+                <View style={styles.heroIconBadge}>
+                    <Ionicons name="map" size={28} color={colors.textLight} />
                 </View>
 
-                <View style={styles.heroCard}>
-                    <View style={styles.heroIcon}>
-                        <Ionicons name="map" size={28} color="#FFFFFF"/>
-                    </View>
-
-                    <Text style={styles.destination}>
-                        {trip.destination ?? "No destinations"}
+                <View style={styles.heroTextGroup}>
+                    <Text style={styles.destinationText} numberOfLines={1}>
+                        {trip.destination || "No destination"}
                     </Text>
+                    <Text style={styles.tripNameText}>{trip.tripName || "Untitled trip"}</Text>
+                </View>
+            </AppCard>
 
-                    <Text style={styles.tripName}>
-                        {trip.tripName ?? "Untitled trip"}
+            <View style={styles.infoGrid}>
+                <InfoCard
+                    icon="calendar-outline"
+                    label="Start"
+                    value={formatDateTime(trip.startDate)}
+                />
+                <InfoCard
+                    icon="flag-outline"
+                    label="End"
+                    value={formatDateTime(trip.endDate)}
+                />
+            </View>
+
+            <ErrorMessage message={error} title="Trip detail error" />
+
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionTextGroup}>
+                    <Text style={styles.sectionTitle}>Destinations</Text>
+                    <Text style={styles.sectionSubtitle}>Add each city or place for this trip.</Text>
+                </View>
+
+                <AppButton
+                    title=""
+                    onPress={handleAddDestination}
+                    fullWidth={false}
+                    style={styles.addButton}
+                    leftIcon={<Ionicons name="add" size={23} color={colors.textLight} />}
+                    testID="add-destination-button"
+                />
+            </View>
+
+            {destinations.length === 0 ? (
+                <EmptyState
+                    title="No destinations yet"
+                    message="Add cities or places first. Activities will be added inside each destination."
+                    icon={<Ionicons name="location-outline" size={30} color={colors.primary} />}
+                    actionLabel="Add first destination"
+                    onActionPress={handleAddDestination}
+                />
+            ) : (
+                <View style={styles.destinationList}>
+                    {destinations.map((destination) => (
+                        <DestinationCard
+                            key={destination.destinationId}
+                            destination={destination}
+                            onPress={() => handleOpenDestination(destination.destinationId)}
+                        />
+                    ))}
+                </View>
+            )}
+
+            <AppButton
+                title="Delete Trip"
+                onPress={handleDeleteTrip}
+                loading={isDeleting}
+                variant="danger"
+                leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
+                style={styles.deleteButton}
+            />
+        </AppScreen>
+    );
+}
+
+type HeaderIconButtonProps = Readonly<{
+    icon: keyof typeof Ionicons.glyphMap;
+    accessibilityLabel: string;
+    onPress: () => void;
+}>;
+
+function HeaderIconButton({ icon, accessibilityLabel, onPress }: HeaderIconButtonProps) {
+    return (
+        <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel}
+            onPress={onPress}
+            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
+        >
+            <Ionicons name={icon} size={23} color={colors.text} />
+        </Pressable>
+    );
+}
+
+type InfoCardProps = Readonly<{
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    value: string;
+}>;
+
+function InfoCard({ icon, label, value }: InfoCardProps) {
+    return (
+        <AppCard variant="soft" contentStyle={styles.infoCardContent}>
+            <View style={styles.infoIconBadge}>
+                <Ionicons name={icon} size={20} color={colors.primary} />
+            </View>
+            <View style={styles.infoTextGroup}>
+                <Text style={styles.infoLabel}>{label}</Text>
+                <Text style={styles.infoValue}>{value}</Text>
+            </View>
+        </AppCard>
+    );
+}
+
+type DestinationCardProps = Readonly<{
+    destination: Destination;
+    onPress: () => void;
+}>;
+
+function DestinationCard({ destination, onPress }: DestinationCardProps) {
+    return (
+        <AppCard onPress={onPress} contentStyle={styles.destinationCardContent}>
+            <View style={styles.destinationIconBadge}>
+                <Ionicons name="location" size={22} color={colors.primary} />
+            </View>
+
+            <View style={styles.destinationContent}>
+                <Text style={styles.destinationTitle} numberOfLines={1}>
+                    {destination.destinationName || "Untitled destination"}
+                </Text>
+
+                <Text style={styles.destinationDate} numberOfLines={2}>
+                    {formatDateTime(destination.startDate)} → {formatDateTime(destination.endDate)}
+                </Text>
+
+                {destination.notes ? (
+                    <Text style={styles.destinationNotes} numberOfLines={2}>
+                        {destination.notes}
                     </Text>
-                </View>
+                ) : null}
+            </View>
 
-                <View style={styles.infoGrid}>
-                    <View style={styles.infoCard}>
-                        <View style={styles.infoIcon}>
-                            <Ionicons name="calendar-outline" size={20} color={colors.primary}/>
-                        </View>
-                        <Text style={styles.infoLabel}>Start</Text>
-                        <Text style={styles.infoValue}>{formatDateTime(trip.startDate)}</Text>
-                    </View>
-
-                    <View style={styles.infoCard}>
-                        <View style={styles.infoIcon}>
-                            <Ionicons name="flag-outline" size={20} color={colors.primary}/>
-                        </View>
-                        <Text style={styles.infoLabel}>End</Text>
-                        <Text style={styles.infoValue}>{formatDateTime(trip.endDate)}</Text>
-                    </View>
-                </View>
-
-                <View style={styles.sectionHeader}>
-                    <View>
-                        <Text style={styles.sectionTitle}>Destinations</Text>
-                        <Text style={styles.sectionSubtitle}>
-                            Add each city or place for this trip
-                        </Text>
-                    </View>
-
-                    <Pressable onPress={handleAddDestination} style={styles.smallAddButton}>
-                        <Ionicons name="add" size={22} color="#FFFFFF"/>
-                    </Pressable>
-                </View>
-
-                {destinations.length === 0 ? (
-                    <View style={styles.emptyActivityCard}>
-                        <View style={styles.emptyActivityIcon}>
-                            <Ionicons name="location-outline" size={34} color={colors.primary}/>
-                        </View>
-
-                        <Text style={styles.emptyActivityTitle}>No destinations yet</Text>
-                        <Text style={styles.emptyActivityText}>
-                            Add cities or places first. Activities will be added inside each destination.
-                        </Text>
-
-                        <Pressable onPress={handleAddDestination} style={styles.activityButton}>
-                            <Text style={styles.activityButtonText}>Add first destination</Text>
-                        </Pressable>
-                    </View>
-                ) : (
-                    <View style={styles.destinationList}>
-                        {destinations.map((destination) => (
-                            <Pressable
-                                key={destination.destinationId}
-                                style={styles.destinationCard}
-                                onPress={() => handleOpenDestination(destination.destinationId)}
-                            >
-                                <View style={styles.destinationIcon}>
-                                    <Ionicons name="location" size={22} color={colors.primary}/>
-                                </View>
-
-                                <View style={styles.destinationContent}>
-                                    <Text style={styles.destinationCardTitle}>
-                                        {destination.destinationName}
-                                    </Text>
-
-                                    <Text style={styles.destinationCardDate}>
-                                        {formatDateTime(destination.startDate)} - {formatDateTime(destination.endDate)}
-                                    </Text>
-
-                                    {destination.notes ? (
-                                        <Text style={styles.destinationCardNotes} numberOfLines={2}>
-                                            {destination.notes}
-                                        </Text>
-                                    ) : null}
-                                </View>
-
-                                <Ionicons name="chevron-forward" size={22} color={colors.mutedText}/>
-                            </Pressable>
-                        ))}
-                    </View>
-                )
-                }
-                <Pressable
-                    onPress={handleDeleteTrip}
-                    disabled={isDeleting}
-                    style={[
-                        styles.deleteButton,
-                        isDeleting && styles.disabledButton,
-                    ]}
-                >
-                    {isDeleting ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <>
-                            <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-                            <Text style={styles.deleteButtonText}>Delete Trip</Text>
-                        </>
-                    )}
-                </Pressable>
-            </ScrollView>
-        </SafeAreaView>
+            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+        </AppCard>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: colors.background,
+    screenContent: {
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.xxl,
+        gap: spacing.lg,
     },
-    container: {
-        padding: spacing.lg,
-        paddingBottom: 120,
+    centerContent: {
+        gap: spacing.lg,
     },
-    centerContainer: {
-        flex: 1,
-        backgroundColor: colors.background,
+    centerTextGroup: {
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    centerTitle: {
+        color: colors.text,
+        fontSize: typography.title,
+        fontWeight: fontWeight.bold,
+        textAlign: "center",
+    },
+    centerSubtitle: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 21,
+        textAlign: "center",
+    },
+    errorIconBadge: {
+        width: 72,
+        height: 72,
+        borderRadius: radius.xl,
+        backgroundColor: colors.dangerSoft,
         alignItems: "center",
         justifyContent: "center",
-        padding: spacing.lg,
-    },
-    loadingText: {
-        marginTop: spacing.sm,
-        color: colors.mutedText,
-        fontWeight: "700",
     },
     header: {
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: spacing.lg,
+        justifyContent: "space-between",
+        gap: spacing.md,
     },
-    iconButton: {
+    headerActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    headerIconButton: {
         width: 44,
         height: 44,
-        borderRadius: 16,
-        backgroundColor: colors.card,
+        borderRadius: radius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
         alignItems: "center",
         justifyContent: "center",
-        ...shadow.card,
+    },
+    pressed: {
+        opacity: 0.86,
+        transform: [{ scale: 0.99 }],
     },
     heroCard: {
         backgroundColor: colors.primary,
-        borderRadius: radius.xl,
-        padding: spacing.xl,
-        marginBottom: spacing.lg,
-        ...shadow.card,
     },
-    heroIcon: {
+    heroCardContent: {
+        padding: spacing.xl,
+        gap: spacing.lg,
+    },
+    heroIconBadge: {
         width: 58,
         height: 58,
-        borderRadius: 20,
+        borderRadius: radius.xl,
         backgroundColor: "rgba(255,255,255,0.18)",
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: spacing.lg,
     },
-    destination: {
+    heroTextGroup: {
+        gap: spacing.sm,
+    },
+    destinationText: {
         color: "#DBEAFE",
-        fontSize: 15,
-        fontWeight: "800",
-        marginBottom: spacing.sm,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
     },
-    tripName: {
-        color: "#FFFFFF",
-        fontSize: 30,
-        lineHeight: 36,
-        fontWeight: "900",
+    tripNameText: {
+        color: colors.textLight,
+        fontSize: typography.heading,
+        lineHeight: 32,
+        fontWeight: fontWeight.bold,
     },
     infoGrid: {
         gap: spacing.md,
-        marginBottom: spacing.xl,
     },
-    infoCard: {
-        backgroundColor: colors.card,
-        borderRadius: radius.lg,
-        padding: spacing.md,
-        ...shadow.card,
+    infoCardContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
     },
-    infoIcon: {
+    infoIconBadge: {
         width: 42,
         height: 42,
-        borderRadius: 14,
-        backgroundColor: colors.softBlue,
+        borderRadius: radius.md,
+        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: spacing.sm,
+    },
+    infoTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
     },
     infoLabel: {
-        color: colors.mutedText,
-        fontSize: 13,
-        fontWeight: "700",
-        marginBottom: 4,
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
     },
     infoValue: {
         color: colors.text,
-        fontSize: 16,
-        fontWeight: "800",
-        lineHeight: 22,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+        fontWeight: fontWeight.bold,
     },
     sectionHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: spacing.md,
+        gap: spacing.md,
+    },
+    sectionTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
     },
     sectionTitle: {
-        fontSize: 23,
-        fontWeight: "900",
         color: colors.text,
+        fontSize: typography.title,
+        fontWeight: fontWeight.bold,
     },
     sectionSubtitle: {
-        fontSize: 14,
-        color: colors.mutedText,
-        marginTop: 3,
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
     },
-    smallAddButton: {
-        width: 46,
-        height: 46,
-        borderRadius: 17,
-        backgroundColor: colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-        ...shadow.card,
-    },
-    emptyActivityCard: {
-        backgroundColor: colors.card,
-        borderRadius: radius.xl,
-        padding: spacing.xl,
-        alignItems: "center",
-        ...shadow.card,
-    },
-    emptyActivityIcon: {
-        width: 72,
-        height: 72,
-        borderRadius: 24,
-        backgroundColor: colors.softBlue,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: spacing.md,
-    },
-    emptyActivityTitle: {
-        fontSize: 21,
-        fontWeight: "900",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    emptyActivityText: {
-        textAlign: "center",
-        color: colors.mutedText,
-        lineHeight: 21,
-        marginBottom: spacing.lg,
-    },
-    activityButton: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        borderRadius: radius.md,
-    },
-    activityButtonText: {
-        color: "#FFFFFF",
-        fontWeight: "900",
-        fontSize: 15,
-    },
-    errorIcon: {
-        width: 72,
-        height: 72,
-        borderRadius: 24,
-        backgroundColor: "#FEF2F2",
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: spacing.md,
-    },
-    errorTitle: {
-        fontSize: 22,
-        fontWeight: "900",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    errorText: {
-        textAlign: "center",
-        color: colors.mutedText,
-        lineHeight: 21,
-        marginBottom: spacing.lg,
-    },
-    retryButton: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        borderRadius: radius.md,
-        marginBottom: spacing.md,
-    },
-    retryButtonText: {
-        color: "#FFFFFF",
-        fontWeight: "900",
-    },
-    backTextButton: {
-        padding: spacing.sm,
-    },
-    backText: {
-        color: colors.primary,
-        fontWeight: "800",
+    addButton: {
+        width: 48,
+        height: 48,
+        minHeight: 48,
+        borderRadius: radius.lg,
+        paddingHorizontal: 0,
     },
     destinationList: {
         gap: spacing.md,
     },
-    destinationCard: {
-        backgroundColor: colors.card,
-        borderRadius: radius.lg,
-        padding: spacing.md,
+    destinationCardContent: {
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.md,
-        ...shadow.card,
     },
-    destinationIcon: {
+    destinationIconBadge: {
         width: 44,
         height: 44,
-        borderRadius: 16,
-        backgroundColor: colors.softBlue,
+        borderRadius: radius.lg,
+        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
     },
     destinationContent: {
         flex: 1,
+        gap: spacing.xs,
     },
-    destinationCardTitle: {
-        fontSize: 16,
-        fontWeight: "900",
+    destinationTitle: {
         color: colors.text,
-        marginBottom: 4,
+        fontSize: typography.body,
+        fontWeight: fontWeight.bold,
     },
-    destinationCardDate: {
-        fontSize: 12,
-        fontWeight: "700",
-        color: colors.mutedText,
-    },
-    destinationCardNotes: {
-        marginTop: 6,
-        fontSize: 13,
-        color: colors.mutedText,
+    destinationDate: {
+        color: colors.textMuted,
+        fontSize: typography.caption,
         lineHeight: 18,
+        fontWeight: fontWeight.semibold,
+    },
+    destinationNotes: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 19,
     },
     deleteButton: {
-        marginTop: spacing.xl,
-        backgroundColor: colors.error,
-        borderRadius: radius.lg,
-        paddingVertical: 16,
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "row",
-        gap: spacing.sm,
-    },
-    disabledButton: {
-        opacity: 0.6,
-    },
-    deleteButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "900",
+        marginTop: spacing.sm,
     },
 });

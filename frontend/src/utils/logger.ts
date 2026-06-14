@@ -1,7 +1,7 @@
 export const logger = {
     debug: (...args: unknown[]) => {
         if (__DEV__) {
-            logger.debug(...args);
+            console.log(...args);
         }
     },
 
