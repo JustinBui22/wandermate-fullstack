@@ -25,7 +25,6 @@ import type { Activity } from "@/src/types/activity";
 import type { Destination } from "@/src/types/destination";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
-import { logger } from "@/src/utils/logger";
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
@@ -75,13 +74,9 @@ export default function DestinationDetailScreen() {
                 getActivitiesByDestination(tripNumberId, destinationNumberId),
             ]);
 
-            logger.debug("Destination detail:", destinationData);
-            logger.debug("Activities loaded:", activityData);
-
             setDestination(destinationData);
             setActivities(Array.isArray(activityData) ? activityData : []);
         } catch (error: any) {
-            logger.debug("Load destination detail failed:", error.response?.data || error.message);
             setError(getApiMessage(error));
         } finally {
             setIsLoading(false);
@@ -144,7 +139,6 @@ export default function DestinationDetailScreen() {
                             Alert.alert("Destination deleted", "Destination has been deleted.");
                             router.back();
                         } catch (error: any) {
-                            logger.debug("Delete destination failed:", error.response?.data || error.message);
 
                             Alert.alert(
                                 "Delete destination failed",

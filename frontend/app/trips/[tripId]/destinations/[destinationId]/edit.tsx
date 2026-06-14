@@ -1,13 +1,11 @@
-import { useCallback, useState, type ComponentProps } from "react";
+import { useCallback, useState } from "react";
 import {
     Alert,
-    Platform,
     Pressable,
     StyleSheet,
     Text,
     View,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
@@ -15,6 +13,8 @@ import {
     getDestinationById,
     updateDestination,
 } from "@/src/api/destinationApi";
+import { DateTimePickerCard } from "@/src/components/forms/DateTimePickerCard";
+import { DateTimeSection } from "@/src/components/forms/DateTimeSection";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
@@ -28,26 +28,11 @@ import {
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
 import {
-    formatDisplayDate,
-    formatDisplayTime,
     formatForBackend,
     type PickerTarget,
     updateDatePart,
     updateTimePart,
 } from "@/src/utils/dateTimePickerUtils";
-import { logger } from "@/src/utils/logger";
-
-type DateTimePickerValueChange = NonNullable<
-    ComponentProps<typeof DateTimePicker>["onValueChange"]
->;
-
-function getPickerTitle(activePicker: PickerTarget) {
-    if (activePicker === "startDate") return "Choose start date";
-    if (activePicker === "startTime") return "Choose start time";
-    if (activePicker === "endDate") return "Choose end date";
-    if (activePicker === "endTime") return "Choose end time";
-    return "Choose date/time";
-}
 
 function parseDateOrFallback(value: string | undefined, fallback: Date) {
     if (!value) return fallback;
@@ -129,7 +114,6 @@ export default function EditDestinationScreen() {
             setStartDateTime(parseDateOrFallback(data.startDate, fallbackStart));
             setEndDateTime(parseDateOrFallback(data.endDate, fallbackEnd));
         } catch (error: any) {
-            logger.debug("Load destination for edit failed:", error.response?.data || error.message);
 
             setError(getApiErrorMessage(error, "Failed to load destination. Please try again."));
         } finally {
@@ -163,16 +147,11 @@ export default function EditDestinationScreen() {
             setEndDateTime((current) => updateTimePart(current, selectedDate));
         }
     }
-
-    const handlePickerValueChange: DateTimePickerValueChange = (_event, selectedDate) => {
+    function handlePickerValueChange(selectedDate: Date) {
         if (!activePicker) return;
 
         applySelectedDateTime(selectedDate);
-
-        if (Platform.OS === "android") {
-            setActivePicker(null);
-        }
-    };
+    }
 
     function handlePickerDismiss() {
         setActivePicker(null);
@@ -220,7 +199,6 @@ export default function EditDestinationScreen() {
             Alert.alert("Destination updated", "Destination has been updated.");
             router.back();
         } catch (error: any) {
-            logger.debug("Update destination failed:", error.response?.data || error.message);
 
             if (hasApiWarning(error, "DESTINATION_OVERLAP_WARNING")) {
                 Alert.alert(
@@ -244,10 +222,6 @@ export default function EditDestinationScreen() {
                                     Alert.alert("Destination updated", "Destination has been updated.");
                                     router.back();
                                 } catch (confirmError: any) {
-                                    logger.debug(
-                                        "Update destination after confirmation failed:",
-                                        confirmError.response?.data || confirmError.message
-                                    );
 
                                     setError(
                                         getApiErrorMessage(
@@ -284,14 +258,6 @@ export default function EditDestinationScreen() {
             setIsSubmitting(false);
         }
     }
-
-    const pickerValue =
-        activePicker === "startDate" || activePicker === "startTime"
-            ? startDateTime
-            : endDateTime;
-
-    const pickerMode =
-        activePicker === "startTime" || activePicker === "endTime" ? "time" : "date";
 
     if (isLoading) {
         return (
@@ -371,16 +337,14 @@ export default function EditDestinationScreen() {
 
                 <DateTimeSection
                     title="Start"
-                    dateValue={formatDisplayDate(startDateTime)}
-                    timeValue={formatDisplayTime(startDateTime)}
+                    dateTime={startDateTime}
                     onDatePress={() => setActivePicker("startDate")}
                     onTimePress={() => setActivePicker("startTime")}
                 />
 
                 <DateTimeSection
                     title="End"
-                    dateValue={formatDisplayDate(endDateTime)}
-                    timeValue={formatDisplayTime(endDateTime)}
+                    dateTime={endDateTime}
                     onDatePress={() => setActivePicker("endDate")}
                     onTimePress={() => setActivePicker("endTime")}
                 />
@@ -396,88 +360,15 @@ export default function EditDestinationScreen() {
             </AppCard>
 
             {activePicker ? (
-                <AppCard variant="outline" contentStyle={styles.pickerCardContent}>
-                    <View style={styles.pickerHeader}>
-                        <Text style={styles.pickerTitle}>{getPickerTitle(activePicker)}</Text>
-
-                        {Platform.OS === "ios" ? (
-                            <Pressable onPress={handlePickerDismiss} hitSlop={10}>
-                                <Text style={styles.doneText}>Done</Text>
-                            </Pressable>
-                        ) : null}
-                    </View>
-
-                    <DateTimePicker
-                        value={pickerValue}
-                        mode={pickerMode}
-                        display={Platform.OS === "ios" ? "spinner" : "default"}
-                        onValueChange={handlePickerValueChange}
-                        onDismiss={handlePickerDismiss}
-                    />
-                </AppCard>
+                <DateTimePickerCard
+                    activePicker={activePicker}
+                    startDateTime={startDateTime}
+                    endDateTime={endDateTime}
+                    onChangeDate={handlePickerValueChange}
+                    onClose={handlePickerDismiss}
+                />
             ) : null}
         </AppScreen>
-    );
-}
-
-type DateTimeSectionProps = Readonly<{
-    title: string;
-    dateValue: string;
-    timeValue: string;
-    onDatePress: () => void;
-    onTimePress: () => void;
-}>;
-
-function DateTimeSection({
-                             title,
-                             dateValue,
-                             timeValue,
-                             onDatePress,
-                             onTimePress,
-                         }: DateTimeSectionProps) {
-    return (
-        <View style={styles.dateSection}>
-            <Text style={styles.sectionTitle}>{title}</Text>
-            <View style={styles.pickerRow}>
-                <PickerButton
-                    icon="calendar-outline"
-                    label="Date"
-                    value={dateValue}
-                    onPress={onDatePress}
-                />
-                <PickerButton
-                    icon="time-outline"
-                    label="Time"
-                    value={timeValue}
-                    onPress={onTimePress}
-                />
-            </View>
-        </View>
-    );
-}
-
-type PickerButtonProps = Readonly<{
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    value: string;
-    onPress: () => void;
-}>;
-
-function PickerButton({ icon, label, value, onPress }: PickerButtonProps) {
-    return (
-        <Pressable
-            accessibilityRole="button"
-            onPress={onPress}
-            style={({ pressed }) => [styles.pickerButton, pressed && styles.pickerButtonPressed]}
-        >
-            <View style={styles.pickerIconBadge}>
-                <Ionicons name={icon} size={19} color={colors.primary} />
-            </View>
-            <View style={styles.pickerTextGroup}>
-                <Text style={styles.pickerLabel}>{label}</Text>
-                <Text style={styles.pickerValue} numberOfLines={1}>{value}</Text>
-            </View>
-        </Pressable>
     );
 }
 
@@ -559,74 +450,5 @@ const styles = StyleSheet.create({
     divider: {
         height: 1,
         backgroundColor: colors.border,
-    },
-    dateSection: {
-        gap: spacing.sm,
-    },
-    sectionTitle: {
-        color: colors.text,
-        fontSize: typography.body,
-        fontWeight: fontWeight.bold,
-    },
-    pickerRow: {
-        gap: spacing.sm,
-    },
-    pickerButton: {
-        minHeight: 64,
-        borderRadius: radius.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
-        paddingHorizontal: spacing.md,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.md,
-    },
-    pickerButtonPressed: {
-        opacity: 0.86,
-        transform: [{ scale: 0.99 }],
-    },
-    pickerIconBadge: {
-        width: 38,
-        height: 38,
-        borderRadius: radius.md,
-        backgroundColor: colors.primarySoft,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    pickerTextGroup: {
-        flex: 1,
-        gap: 2,
-    },
-    pickerLabel: {
-        color: colors.textMuted,
-        fontSize: typography.caption,
-        fontWeight: fontWeight.bold,
-        textTransform: "uppercase",
-        letterSpacing: 0.4,
-    },
-    pickerValue: {
-        color: colors.text,
-        fontSize: typography.bodySmall,
-        fontWeight: fontWeight.bold,
-    },
-    pickerCardContent: {
-        gap: spacing.md,
-    },
-    pickerHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: spacing.md,
-    },
-    pickerTitle: {
-        color: colors.text,
-        fontSize: typography.body,
-        fontWeight: fontWeight.bold,
-    },
-    doneText: {
-        color: colors.primary,
-        fontSize: typography.bodySmall,
-        fontWeight: fontWeight.bold,
     },
 });

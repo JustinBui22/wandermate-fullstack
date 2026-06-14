@@ -1,13 +1,9 @@
 export const logger = {
-    debug: (...args: unknown[]) => {
-        if (__DEV__) {
-            console.log(...args);
-        }
+    debug: (..._args: unknown[]) => {
+        // Intentionally disabled. Keep this wrapper so old imports do not break.
     },
 
-    error: (...args: unknown[]) => {
-        if (__DEV__) {
-            console.error(...args);
-        }
+    error: (..._args: unknown[]) => {
+        // Intentionally disabled. User-facing screens handle errors with clean messages.
     },
 };

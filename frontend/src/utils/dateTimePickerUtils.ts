@@ -47,3 +47,25 @@ export function updateTimePart(current: Date, selected: Date) {
     updated.setMilliseconds(0);
     return updated;
 }
+
+export function getPickerTitle(activePicker: PickerTarget) {
+    if (activePicker === "startDate") return "Choose start date";
+    if (activePicker === "startTime") return "Choose start time";
+    if (activePicker === "endDate") return "Choose end date";
+    if (activePicker === "endTime") return "Choose end time";
+    return "Choose date/time";
+}
+
+export function getPickerMode(activePicker: PickerTarget) {
+    return activePicker === "startTime" || activePicker === "endTime" ? "time" : "date";
+}
+
+export function getPickerValue(
+    activePicker: PickerTarget,
+    startDateTime: Date,
+    endDateTime: Date
+) {
+    return activePicker === "startDate" || activePicker === "startTime"
+        ? startDateTime
+        : endDateTime;
+}

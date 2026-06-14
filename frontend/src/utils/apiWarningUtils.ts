@@ -1,5 +1,73 @@
-export function hasApiWarning(error: any, warningCode: string) {
-    const responseData = error?.response?.data;
+type ApiErrorLike = {
+    response?: {
+        data?: unknown;
+    };
+    message?: string;
+};
+
+const FRIENDLY_ERROR_MESSAGES: Record<string, string> = {
+    E022: "Too many active sessions. Continue only if you want to remove the oldest session.",
+    E026: "Too many OTP attempts. Please wait before trying again.",
+    E028: "OTP is unavailable or temporarily blocked. Please request a new code later.",
+    E046: "Activity start time must be before activity end time.",
+    E047: "Trip start date cannot be in the past.",
+    E048: "Destination start date cannot be in the past.",
+    E049: "Trip dates must include all existing destinations.",
+    E050: "Destination dates must include all existing activities.",
+    E051: "This activity overlaps with another activity in the same trip.",
+    E052: "Activity start and end time are required.",
+    E053: "Activity name is required.",
+    E054: "Destination name is required.",
+    E055: "Destination start and end date are required.",
+    E056: "Destination start date must be before destination end date.",
+    E057: "Trip name is required.",
+    E058: "Trip start and end date are required.",
+    E059: "Trip start date must be before trip end date.",
+    E060: "Please choose an OTP verification method.",
+    E061: "Email OTP configuration is missing. Please try again later.",
+    E062: "SMS OTP configuration is missing. Please try again later.",
+};
+
+const FRIENDLY_ERROR_TITLES: Record<string, string> = {
+    E022: "Too many sessions",
+    E026: "OTP temporarily blocked",
+    E028: "OTP unavailable",
+    E046: "Invalid activity time",
+    E047: "Invalid trip date",
+    E048: "Invalid destination date",
+    E049: "Trip date conflict",
+    E050: "Destination date conflict",
+    E051: "Activity time conflict",
+    E052: "Missing activity time",
+    E053: "Missing activity name",
+    E054: "Missing destination name",
+    E055: "Missing destination time",
+    E056: "Invalid destination time",
+    E057: "Missing trip name",
+    E058: "Missing trip time",
+    E059: "Invalid trip time",
+    E060: "Missing OTP method",
+    E061: "Missing email config",
+    E062: "Missing SMS config",
+};
+
+function getResponseData(error: ApiErrorLike) {
+    return error?.response?.data as any;
+}
+
+function getNestedBody(error: ApiErrorLike) {
+    return getResponseData(error)?.body;
+}
+
+export function getApiErrorCode(error: ApiErrorLike) {
+    const responseData = getResponseData(error);
+    const body = getNestedBody(error);
+
+    return responseData?.code || body?.code || null;
+}
+
+export function hasApiWarning(error: ApiErrorLike, warningCode: string) {
+    const responseData = getResponseData(error);
 
     if (!responseData) {
         return false;
@@ -7,9 +75,11 @@ export function hasApiWarning(error: any, warningCode: string) {
 
     const responseText = JSON.stringify(responseData).toLowerCase();
     const warningCodeText = warningCode.toLowerCase();
+
     if (responseText.includes(warningCodeText)) {
         return true;
     }
+
     if (
         warningCode === "TRIP_OVERLAP_WARNING" &&
         responseText.includes("trip") &&
@@ -17,16 +87,21 @@ export function hasApiWarning(error: any, warningCode: string) {
     ) {
         return true;
     }
+
     return warningCode === "DESTINATION_OVERLAP_WARNING" &&
         responseText.includes("destination") &&
         responseText.includes("overlap");
-
-
 }
 
-export function getApiErrorMessage(error: any, fallbackMessage: string) {
-    const responseData = error?.response?.data;
-    const body = responseData?.body;
+export function getApiErrorMessage(error: ApiErrorLike, fallbackMessage: string) {
+    const code = getApiErrorCode(error);
+
+    if (code && FRIENDLY_ERROR_MESSAGES[code]) {
+        return FRIENDLY_ERROR_MESSAGES[code];
+    }
+
+    const responseData = getResponseData(error);
+    const body = getNestedBody(error);
 
     if (typeof body === "string" && body.trim()) {
         return body;
@@ -43,64 +118,17 @@ export function getApiErrorMessage(error: any, fallbackMessage: string) {
         body?.error_message ||
         body?.errorDescription ||
         body?.error_description ||
+        error?.message ||
         fallbackMessage
     );
 }
 
-export function getApiErrorCode(error: any) {
-    return error?.response?.data?.code;
-}
-
-export function getApiErrorTitle(error: any, fallbackTitle: string) {
+export function getApiErrorTitle(error: ApiErrorLike, fallbackTitle: string) {
     const code = getApiErrorCode(error);
 
-    switch (code) {
-        case "E049":
-            return "Trip date conflict";
-
-        case "E050":
-            return "Destination date conflict";
-
-        case "E051":
-            return "Activity time conflict";
-
-        case "E046":
-            return "Invalid activity time";
-
-        case "E052":
-            return "Missing activity time";
-
-        case "E053":
-            return "Missing activity name";
-
-        case "E054":
-            return "Missing destination name";
-
-        case "E055":
-            return "Missing destination time";
-
-        case "E056":
-            return "Invalid destination time";
-
-        case "E057":
-            return "Missing trip name";
-
-        case "E058":
-            return "Missing trip time";
-
-        case "E059":
-            return "Invalid trip time";
-
-        case "E060":
-            return "Missing OTP method";
-
-        case "E061":
-            return "Missing email config";
-
-        case "E062":
-            return "Missing SMS config";
-
-        default:
-            return fallbackTitle;
+    if (code && FRIENDLY_ERROR_TITLES[code]) {
+        return FRIENDLY_ERROR_TITLES[code];
     }
+
+    return fallbackTitle;
 }

@@ -22,7 +22,6 @@ import { colors, fontWeight, radius, spacing, typography } from "@/src/constants
 import type { Activity } from "@/src/types/activity";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
-import { logger } from "@/src/utils/logger";
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
@@ -80,7 +79,6 @@ export default function ActivityDetailScreen() {
 
             setActivity(data);
         } catch (error: any) {
-            logger.debug("Load activity detail failed:", error.response?.data || error.message);
             setError(getApiMessage(error));
         } finally {
             setIsLoading(false);
@@ -131,7 +129,6 @@ export default function ActivityDetailScreen() {
                             Alert.alert("Activity deleted", "Activity has been deleted.");
                             router.back();
                         } catch (error: any) {
-                            logger.debug("Delete activity failed:", error.response?.data || error.message);
 
                             Alert.alert(
                                 "Delete activity failed",

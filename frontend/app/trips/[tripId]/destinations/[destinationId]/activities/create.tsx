@@ -1,17 +1,17 @@
-import { useState, type ComponentProps } from "react";
+import { useState } from "react";
 import {
     Alert,
-    Platform,
     Pressable,
     StyleSheet,
     Text,
     View,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { createActivity } from "@/src/api/activityApi";
+import { DateTimePickerCard } from "@/src/components/forms/DateTimePickerCard";
+import { DateTimeSection } from "@/src/components/forms/DateTimeSection";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
@@ -23,18 +23,11 @@ import {
     getApiErrorTitle,
 } from "@/src/utils/apiWarningUtils";
 import {
-    formatDisplayDate,
-    formatDisplayTime,
     formatForBackend,
     type PickerTarget,
     updateDatePart,
     updateTimePart,
 } from "@/src/utils/dateTimePickerUtils";
-import { logger } from "@/src/utils/logger";
-
-type DateTimePickerValueChange = NonNullable<
-    ComponentProps<typeof DateTimePicker>["onValueChange"]
->;
 
 function getDefaultStartDateTime() {
     const date = new Date();
@@ -46,14 +39,6 @@ function getDefaultEndDateTime() {
     const date = new Date();
     date.setHours(10, 0, 0, 0);
     return date;
-}
-
-function getPickerTitle(activePicker: PickerTarget) {
-    if (activePicker === "startDate") return "Choose start date";
-    if (activePicker === "startTime") return "Choose start time";
-    if (activePicker === "endDate") return "Choose end date";
-    if (activePicker === "endTime") return "Choose end time";
-    return "Choose date/time";
 }
 
 export default function CreateActivityScreen() {
@@ -101,16 +86,11 @@ export default function CreateActivityScreen() {
             setEndDateTime((current) => updateTimePart(current, selectedDate));
         }
     }
-
-    const handlePickerValueChange: DateTimePickerValueChange = (_event, selectedDate) => {
+    function handlePickerValueChange(selectedDate: Date) {
         if (!activePicker) return;
 
         applySelectedDateTime(selectedDate);
-
-        if (Platform.OS === "android") {
-            setActivePicker(null);
-        }
-    };
+    }
 
     function handlePickerDismiss() {
         setActivePicker(null);
@@ -148,7 +128,6 @@ export default function CreateActivityScreen() {
             Alert.alert("Activity created", "Activity has been added.");
             router.back();
         } catch (error: any) {
-            logger.debug("Create activity failed:", error.response?.data || error.message);
 
             setError(
                 getApiErrorMessage(
@@ -168,14 +147,6 @@ export default function CreateActivityScreen() {
             setIsSubmitting(false);
         }
     }
-
-    const pickerValue =
-        activePicker === "startDate" || activePicker === "startTime"
-            ? startDateTime
-            : endDateTime;
-
-    const pickerMode =
-        activePicker === "startTime" || activePicker === "endTime" ? "time" : "date";
 
     return (
         <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
@@ -223,16 +194,14 @@ export default function CreateActivityScreen() {
 
                 <DateTimeSection
                     title="Start"
-                    dateValue={formatDisplayDate(startDateTime)}
-                    timeValue={formatDisplayTime(startDateTime)}
+                    dateTime={startDateTime}
                     onDatePress={() => setActivePicker("startDate")}
                     onTimePress={() => setActivePicker("startTime")}
                 />
 
                 <DateTimeSection
                     title="End"
-                    dateValue={formatDisplayDate(endDateTime)}
-                    timeValue={formatDisplayTime(endDateTime)}
+                    dateTime={endDateTime}
                     onDatePress={() => setActivePicker("endDate")}
                     onTimePress={() => setActivePicker("endTime")}
                 />
@@ -248,91 +217,15 @@ export default function CreateActivityScreen() {
             </AppCard>
 
             {activePicker ? (
-                <AppCard variant="outline" contentStyle={styles.pickerCardContent}>
-                    <View style={styles.pickerHeader}>
-                        <Text style={styles.pickerTitle}>{getPickerTitle(activePicker)}</Text>
-
-                        {Platform.OS === "ios" ? (
-                            <Pressable onPress={handlePickerDismiss} hitSlop={10}>
-                                <Text style={styles.doneText}>Done</Text>
-                            </Pressable>
-                        ) : null}
-                    </View>
-
-                    <DateTimePicker
-                        value={pickerValue}
-                        mode={pickerMode}
-                        display={Platform.OS === "ios" ? "spinner" : "default"}
-                        onValueChange={handlePickerValueChange}
-                        onDismiss={handlePickerDismiss}
-                    />
-                </AppCard>
+                <DateTimePickerCard
+                    activePicker={activePicker}
+                    startDateTime={startDateTime}
+                    endDateTime={endDateTime}
+                    onChangeDate={handlePickerValueChange}
+                    onClose={handlePickerDismiss}
+                />
             ) : null}
         </AppScreen>
-    );
-}
-
-type DateTimeSectionProps = Readonly<{
-    title: string;
-    dateValue: string;
-    timeValue: string;
-    onDatePress: () => void;
-    onTimePress: () => void;
-}>;
-
-function DateTimeSection({
-                             title,
-                             dateValue,
-                             timeValue,
-                             onDatePress,
-                             onTimePress,
-                         }: DateTimeSectionProps) {
-    return (
-        <View style={styles.dateSection}>
-            <Text style={styles.sectionTitle}>{title}</Text>
-            <View style={styles.pickerRow}>
-                <PickerButton
-                    icon="calendar-outline"
-                    label="Date"
-                    value={dateValue}
-                    onPress={onDatePress}
-                />
-                <PickerButton
-                    icon="time-outline"
-                    label="Time"
-                    value={timeValue}
-                    onPress={onTimePress}
-                />
-            </View>
-        </View>
-    );
-}
-
-type PickerButtonProps = Readonly<{
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    value: string;
-    onPress: () => void;
-}>;
-
-function PickerButton({ icon, label, value, onPress }: PickerButtonProps) {
-    return (
-        <Pressable
-            accessibilityRole="button"
-            onPress={onPress}
-            style={({ pressed }) => [styles.pickerButton, pressed && styles.pickerButtonPressed]}
-        >
-            <View style={styles.pickerIconBadge}>
-                <Ionicons name={icon} size={19} color={colors.primary} />
-            </View>
-
-            <View style={styles.pickerTextGroup}>
-                <Text style={styles.pickerLabel}>{label}</Text>
-                <Text style={styles.pickerValue} numberOfLines={1}>
-                    {value}
-                </Text>
-            </View>
-        </Pressable>
     );
 }
 
@@ -387,74 +280,5 @@ const styles = StyleSheet.create({
     divider: {
         height: 1,
         backgroundColor: colors.border,
-    },
-    dateSection: {
-        gap: spacing.sm,
-    },
-    sectionTitle: {
-        color: colors.text,
-        fontSize: typography.body,
-        fontWeight: fontWeight.bold,
-    },
-    pickerRow: {
-        gap: spacing.sm,
-    },
-    pickerButton: {
-        minHeight: 64,
-        borderRadius: radius.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
-        paddingHorizontal: spacing.md,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.md,
-    },
-    pickerButtonPressed: {
-        opacity: 0.86,
-        transform: [{ scale: 0.99 }],
-    },
-    pickerIconBadge: {
-        width: 38,
-        height: 38,
-        borderRadius: radius.md,
-        backgroundColor: colors.primarySoft,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    pickerTextGroup: {
-        flex: 1,
-        gap: 2,
-    },
-    pickerLabel: {
-        color: colors.textMuted,
-        fontSize: typography.caption,
-        fontWeight: fontWeight.bold,
-        textTransform: "uppercase",
-        letterSpacing: 0.4,
-    },
-    pickerValue: {
-        color: colors.text,
-        fontSize: typography.bodySmall,
-        fontWeight: fontWeight.bold,
-    },
-    pickerCardContent: {
-        gap: spacing.md,
-    },
-    pickerHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: spacing.md,
-    },
-    pickerTitle: {
-        color: colors.text,
-        fontSize: typography.body,
-        fontWeight: fontWeight.bold,
-    },
-    doneText: {
-        color: colors.primary,
-        fontSize: typography.bodySmall,
-        fontWeight: fontWeight.bold,
     },
 });
