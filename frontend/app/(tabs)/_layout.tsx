@@ -1,6 +1,25 @@
-import {Tabs} from "expo-router";
-import {Ionicons} from "@expo/vector-icons";
-import {colors} from "@/src/theme/theme";
+import { type ComponentProps } from "react";
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+
+import { colors, fontWeight, radius, shadows, spacing, typography } from "@/src/constants/theme";
+
+type TabIconProps = Readonly<{
+    focused: boolean;
+    color: ComponentProps<typeof Ionicons>["color"];
+    activeIcon: keyof typeof Ionicons.glyphMap;
+    inactiveIcon: keyof typeof Ionicons.glyphMap;
+}>;
+
+function TabIcon({ focused, color, activeIcon, inactiveIcon }: TabIconProps) {
+    return (
+        <Ionicons
+            name={focused ? activeIcon : inactiveIcon}
+            size={24}
+            color={color}
+        />
+    );
+}
 
 export default function TabLayout() {
     return (
@@ -8,22 +27,26 @@ export default function TabLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarActiveTintColor: colors.primary,
-                tabBarInactiveTintColor: "#9CA3AF",
+                tabBarInactiveTintColor: colors.textMuted,
+                tabBarHideOnKeyboard: true,
                 tabBarStyle: {
-                    height: 72,
-                    paddingTop: 8,
-                    paddingBottom: 12,
-                    borderTopWidth: 0,
-                    backgroundColor: "#FFFFFF",
-                    elevation: 12,
-                    shadowColor: "#0F172A",
-                    shadowOpacity: 0.08,
-                    shadowRadius: 16,
-                    shadowOffset: {width: 0, height: -4},
+                    minHeight: 76,
+                    paddingTop: spacing.sm,
+                    paddingBottom: spacing.md,
+                    paddingHorizontal: spacing.md,
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border,
+                    backgroundColor: colors.surface,
+                    ...shadows.card,
+                },
+                tabBarItemStyle: {
+                    borderRadius: radius.lg,
+                    paddingVertical: spacing.xs,
                 },
                 tabBarLabelStyle: {
-                    fontSize: 12,
-                    fontWeight: "700",
+                    fontSize: typography.caption,
+                    fontWeight: fontWeight.bold,
+                    marginTop: spacing.xs,
                 },
             }}
         >
@@ -31,11 +54,12 @@ export default function TabLayout() {
                 name="index"
                 options={{
                     title: "Home",
-                    tabBarIcon: ({color, focused}) => (
-                        <Ionicons
-                            name={focused ? "home" : "home-outline"}
-                            size={24}
+                    tabBarIcon: ({ color, focused }) => (
+                        <TabIcon
+                            focused={focused}
                             color={color}
+                            activeIcon="home"
+                            inactiveIcon="home-outline"
                         />
                     ),
                 }}
@@ -45,11 +69,12 @@ export default function TabLayout() {
                 name="trips"
                 options={{
                     title: "Trips",
-                    tabBarIcon: ({color, focused}) => (
-                        <Ionicons
-                            name={focused ? "map" : "map-outline"}
-                            size={24}
+                    tabBarIcon: ({ color, focused }) => (
+                        <TabIcon
+                            focused={focused}
                             color={color}
+                            activeIcon="map"
+                            inactiveIcon="map-outline"
                         />
                     ),
                 }}
