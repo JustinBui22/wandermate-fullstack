@@ -1,26 +1,32 @@
 import { useCallback, useState, type ComponentProps } from "react";
 import {
-    ActivityIndicator,
     Alert,
-    KeyboardAvoidingView,
     Platform,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import {
     getDestinationById,
     updateDestination,
 } from "@/src/api/destinationApi";
-import { colors, radius, shadow, spacing } from "@/src/theme/theme";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppInput } from "@/src/components/ui/AppInput";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
+import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import {
+    getApiErrorMessage,
+    getApiErrorTitle,
+    hasApiWarning,
+} from "@/src/utils/apiWarningUtils";
 import {
     formatDisplayDate,
     formatDisplayTime,
@@ -29,51 +35,77 @@ import {
     updateDatePart,
     updateTimePart,
 } from "@/src/utils/dateTimePickerUtils";
-import {
-    getApiErrorMessage,
-    getApiErrorTitle,
-    hasApiWarning,
-} from "@/src/utils/apiWarningUtils";
 import { logger } from "@/src/utils/logger";
 
 type DateTimePickerValueChange = NonNullable<
     ComponentProps<typeof DateTimePicker>["onValueChange"]
 >;
 
+function getPickerTitle(activePicker: PickerTarget) {
+    if (activePicker === "startDate") return "Choose start date";
+    if (activePicker === "startTime") return "Choose start time";
+    if (activePicker === "endDate") return "Choose end date";
+    if (activePicker === "endTime") return "Choose end time";
+    return "Choose date/time";
+}
+
+function parseDateOrFallback(value: string | undefined, fallback: Date) {
+    if (!value) return fallback;
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return fallback;
+    }
+
+    return date;
+}
+
+function parseDestinationOrder(value: string) {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+        return null;
+    }
+
+    const parsedValue = Number(trimmedValue);
+
+    if (Number.isNaN(parsedValue)) {
+        return null;
+    }
+
+    return parsedValue;
+}
+
 export default function EditDestinationScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
 
-    const tripIdParam = Array.isArray(params.tripId)
-        ? params.tripId[0]
-        : params.tripId;
-
+    const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const destinationIdParam = Array.isArray(params.destinationId)
         ? params.destinationId[0]
         : params.destinationId;
+
+    const tripNumberId = Number(tripIdParam);
+    const destinationNumberId = Number(destinationIdParam);
+    const hasValidRouteIds = Boolean(tripIdParam)
+        && Boolean(destinationIdParam)
+        && !Number.isNaN(tripNumberId)
+        && !Number.isNaN(destinationNumberId);
 
     const [destinationName, setDestinationName] = useState("");
     const [destinationOrder, setDestinationOrder] = useState("");
     const [notes, setNotes] = useState("");
     const [startDateTime, setStartDateTime] = useState(new Date());
     const [endDateTime, setEndDateTime] = useState(new Date());
-
     const [activePicker, setActivePicker] = useState<PickerTarget>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    async function loadDestination() {
-        const tripNumberId = Number(tripIdParam);
-        const destinationNumberId = Number(destinationIdParam);
-
-        if (
-            !tripIdParam ||
-            !destinationIdParam ||
-            Number.isNaN(tripNumberId) ||
-            Number.isNaN(destinationNumberId)
-        ) {
-            setError("Trip ID or destination ID is missing.");
+    async function loadDestinationForEdit() {
+        if (!hasValidRouteIds) {
+            setError("Trip ID or destination ID is missing or invalid.");
             setIsLoading(false);
             return;
         }
@@ -82,33 +114,24 @@ export default function EditDestinationScreen() {
             setIsLoading(true);
             setError(null);
 
-            const data = await getDestinationById(
-                tripNumberId,
-                destinationNumberId
-            );
+            const data = await getDestinationById(tripNumberId, destinationNumberId);
+            const fallbackStart = new Date();
+            const fallbackEnd = new Date(fallbackStart);
+            fallbackEnd.setDate(fallbackEnd.getDate() + 1);
 
             setDestinationName(data.destinationName ?? "");
             setDestinationOrder(
-                data.destinationOrder !== null &&
-                data.destinationOrder !== undefined
+                data.destinationOrder !== null && data.destinationOrder !== undefined
                     ? String(data.destinationOrder)
                     : ""
             );
             setNotes(data.notes ?? "");
-            setStartDateTime(new Date(data.startDate));
-            setEndDateTime(new Date(data.endDate));
+            setStartDateTime(parseDateOrFallback(data.startDate, fallbackStart));
+            setEndDateTime(parseDateOrFallback(data.endDate, fallbackEnd));
         } catch (error: any) {
-            logger.debug(
-                "Load destination for edit failed:",
-                error.response?.data || error.message
-            );
+            logger.debug("Load destination for edit failed:", error.response?.data || error.message);
 
-            setError(
-                getApiErrorMessage(
-                    error,
-                    "Failed to load destination. Please try again."
-                )
-            );
+            setError(getApiErrorMessage(error, "Failed to load destination. Please try again."));
         } finally {
             setIsLoading(false);
         }
@@ -116,7 +139,7 @@ export default function EditDestinationScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            loadDestination();
+            loadDestinationForEdit();
         }, [tripIdParam, destinationIdParam])
     );
 
@@ -141,13 +164,8 @@ export default function EditDestinationScreen() {
         }
     }
 
-    const handlePickerValueChange: DateTimePickerValueChange = (
-        _event,
-        selectedDate
-    ) => {
-        if (!activePicker) {
-            return;
-        }
+    const handlePickerValueChange: DateTimePickerValueChange = (_event, selectedDate) => {
+        if (!activePicker) return;
 
         applySelectedDateTime(selectedDate);
 
@@ -161,32 +179,21 @@ export default function EditDestinationScreen() {
     }
 
     async function submitDestinationUpdate(allowOverlap = false) {
-        const tripNumberId = Number(tripIdParam);
-        const destinationNumberId = Number(destinationIdParam);
-
         await updateDestination(tripNumberId, destinationNumberId, {
             destinationName: destinationName.trim(),
             startDate: formatForBackend(startDateTime),
             endDate: formatForBackend(endDateTime),
-            destinationOrder: destinationOrder.trim()
-                ? Number(destinationOrder)
-                : null,
+            destinationOrder: parseDestinationOrder(destinationOrder),
             notes: notes.trim() || null,
             allowOverlap,
         });
     }
 
     async function handleUpdateDestination() {
-        const tripNumberId = Number(tripIdParam);
-        const destinationNumberId = Number(destinationIdParam);
+        setError(null);
 
-        if (
-            !tripIdParam ||
-            !destinationIdParam ||
-            Number.isNaN(tripNumberId) ||
-            Number.isNaN(destinationNumberId)
-        ) {
-            Alert.alert("Missing destination", "Trip ID or destination ID is missing.");
+        if (!hasValidRouteIds) {
+            Alert.alert("Missing destination", "Trip ID or destination ID is missing or invalid.");
             return;
         }
 
@@ -195,8 +202,13 @@ export default function EditDestinationScreen() {
             return;
         }
 
+        if (destinationOrder.trim() && Number.isNaN(Number(destinationOrder.trim()))) {
+            Alert.alert("Invalid order", "Destination order must be a number.");
+            return;
+        }
+
         if (endDateTime <= startDateTime) {
-            Alert.alert("Invalid date", "End date/time must be after start date/time.");
+            Alert.alert("Invalid dates", "End date/time must be after start date/time.");
             return;
         }
 
@@ -208,10 +220,7 @@ export default function EditDestinationScreen() {
             Alert.alert("Destination updated", "Destination has been updated.");
             router.back();
         } catch (error: any) {
-            logger.debug(
-                "Update destination failed:",
-                error.response?.data || error.message
-            );
+            logger.debug("Update destination failed:", error.response?.data || error.message);
 
             if (hasApiWarning(error, "DESTINATION_OVERLAP_WARNING")) {
                 Alert.alert(
@@ -228,20 +237,23 @@ export default function EditDestinationScreen() {
                             onPress: async () => {
                                 try {
                                     setIsSubmitting(true);
+                                    setError(null);
 
                                     await submitDestinationUpdate(true);
 
-                                    Alert.alert(
-                                        "Destination updated",
-                                        "Destination has been updated."
-                                    );
-
+                                    Alert.alert("Destination updated", "Destination has been updated.");
                                     router.back();
                                 } catch (confirmError: any) {
                                     logger.debug(
                                         "Update destination after confirmation failed:",
-                                        confirmError.response?.data ||
-                                        confirmError.message
+                                        confirmError.response?.data || confirmError.message
+                                    );
+
+                                    setError(
+                                        getApiErrorMessage(
+                                            confirmError,
+                                            "Please check your input and try again."
+                                        )
                                     );
 
                                     Alert.alert(
@@ -262,6 +274,8 @@ export default function EditDestinationScreen() {
                 return;
             }
 
+            setError(getApiErrorMessage(error, "Please check your input and try again."));
+
             Alert.alert(
                 getApiErrorTitle(error, "Update destination failed"),
                 getApiErrorMessage(error, "Please check your input and try again.")
@@ -277,367 +291,342 @@ export default function EditDestinationScreen() {
             : endDateTime;
 
     const pickerMode =
-        activePicker === "startTime" || activePicker === "endTime"
-            ? "time"
-            : "date";
+        activePicker === "startTime" || activePicker === "endTime" ? "time" : "date";
 
     if (isLoading) {
         return (
-            <SafeAreaView style={styles.centerContainer}>
-                <ActivityIndicator color={colors.primary} />
-                <Text style={styles.loadingText}>Loading destination...</Text>
-            </SafeAreaView>
+            <AppScreen scroll={false} centerContent>
+                <LoadingState
+                    title="Loading destination..."
+                    subtitle="Getting this destination ready for editing."
+                    fullScreen
+                />
+            </AppScreen>
         );
     }
 
-    if (error) {
+    if (error && !destinationName) {
         return (
-            <SafeAreaView style={styles.centerContainer}>
-                <Text style={styles.errorTitle}>Unable to load destination</Text>
-                <Text style={styles.errorText}>{error}</Text>
+            <AppScreen scroll={false} centerContent contentContainerStyle={styles.centerContent}>
+                <View style={styles.errorIconBadge}>
+                    <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
+                </View>
 
-                <Pressable onPress={loadDestination} style={styles.retryButton}>
-                    <Text style={styles.retryButtonText}>Try again</Text>
-                </Pressable>
+                <View style={styles.centerTextGroup}>
+                    <Text style={styles.centerTitle}>Unable to load destination</Text>
+                    <Text style={styles.centerSubtitle}>{error}</Text>
+                </View>
 
-                <Pressable onPress={() => router.back()} style={styles.backTextButton}>
-                    <Text style={styles.backText}>Go back</Text>
-                </Pressable>
-            </SafeAreaView>
+                <AppButton title="Try again" onPress={loadDestinationForEdit} />
+                <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
+            </AppScreen>
         );
     }
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <KeyboardAvoidingView
-                style={styles.keyboardView}
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-            >
-                <ScrollView
-                    contentContainerStyle={styles.container}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
-                >
-                    <View style={styles.header}>
-                        <Pressable onPress={() => router.back()} style={styles.backButton}>
-                            <Ionicons name="chevron-back" size={24} color={colors.text} />
-                        </Pressable>
+        <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
+            <View style={styles.header}>
+                <Pressable onPress={() => router.back()} style={styles.backButton}>
+                    <Ionicons name="chevron-back" size={22} color={colors.primary} />
+                </Pressable>
 
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.title}>Edit Destination</Text>
-                            <Text style={styles.subtitle}>
-                                Update destination details and dates
-                            </Text>
-                        </View>
-                    </View>
+                <View style={styles.headerTextGroup}>
+                    <Text style={styles.eyebrow}>Edit destination</Text>
+                    <Text style={styles.title}>Update Destination</Text>
+                    <Text style={styles.subtitle}>Edit destination details, notes, order, and dates.</Text>
+                </View>
+            </View>
 
-                    <View style={styles.card}>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Destination name</Text>
-                            <TextInput
-                                value={destinationName}
-                                onChangeText={setDestinationName}
-                                placeholder="e.g. Tokyo"
-                                placeholderTextColor="#9CA3AF"
-                                style={styles.input}
-                            />
-                        </View>
+            <AppCard contentStyle={styles.cardContent}>
+                <AppInput
+                    label="Destination name"
+                    required
+                    value={destinationName}
+                    onChangeText={setDestinationName}
+                    placeholder="e.g. Tokyo"
+                    leftIcon={<Ionicons name="location-outline" size={20} color={colors.textMuted} />}
+                />
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Order</Text>
-                            <TextInput
-                                value={destinationOrder}
-                                onChangeText={setDestinationOrder}
-                                placeholder="e.g. 1"
-                                placeholderTextColor="#9CA3AF"
-                                keyboardType="number-pad"
-                                style={styles.input}
-                            />
-                        </View>
+                <AppInput
+                    label="Order"
+                    value={destinationOrder}
+                    onChangeText={setDestinationOrder}
+                    placeholder="e.g. 1"
+                    keyboardType="number-pad"
+                    helperText="Optional. Use this to arrange destinations in order."
+                    leftIcon={<Ionicons name="list-outline" size={20} color={colors.textMuted} />}
+                />
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Notes</Text>
-                            <TextInput
-                                value={notes}
-                                onChangeText={setNotes}
-                                placeholder="Optional notes"
-                                placeholderTextColor="#9CA3AF"
-                                style={[styles.input, styles.textArea]}
-                                multiline
-                            />
-                        </View>
+                <AppInput
+                    label="Notes"
+                    value={notes}
+                    onChangeText={setNotes}
+                    placeholder="Optional notes"
+                    multiline
+                    inputStyle={styles.notesInput}
+                    leftIcon={<Ionicons name="document-text-outline" size={20} color={colors.textMuted} />}
+                />
 
-                        <View style={styles.divider} />
+                <View style={styles.divider} />
 
-                        <Text style={styles.sectionTitle}>Start</Text>
+                <DateTimeSection
+                    title="Start"
+                    dateValue={formatDisplayDate(startDateTime)}
+                    timeValue={formatDisplayTime(startDateTime)}
+                    onDatePress={() => setActivePicker("startDate")}
+                    onTimePress={() => setActivePicker("startTime")}
+                />
 
-                        <View style={styles.pickerRow}>
-                            <Pressable
-                                style={styles.pickerButton}
-                                onPress={() => setActivePicker("startDate")}
-                            >
-                                <Ionicons
-                                    name="calendar-outline"
-                                    size={20}
-                                    color={colors.primary}
-                                />
-                                <View>
-                                    <Text style={styles.pickerLabel}>Date</Text>
-                                    <Text style={styles.pickerValue}>
-                                        {formatDisplayDate(startDateTime)}
-                                    </Text>
-                                </View>
+                <DateTimeSection
+                    title="End"
+                    dateValue={formatDisplayDate(endDateTime)}
+                    timeValue={formatDisplayTime(endDateTime)}
+                    onDatePress={() => setActivePicker("endDate")}
+                    onTimePress={() => setActivePicker("endTime")}
+                />
+
+                <ErrorMessage message={error} title="Update destination failed" />
+
+                <AppButton
+                    title="Save Destination"
+                    onPress={handleUpdateDestination}
+                    loading={isSubmitting}
+                    rightIcon={<Ionicons name="checkmark-circle" size={20} color={colors.textLight} />}
+                />
+            </AppCard>
+
+            {activePicker ? (
+                <AppCard variant="outline" contentStyle={styles.pickerCardContent}>
+                    <View style={styles.pickerHeader}>
+                        <Text style={styles.pickerTitle}>{getPickerTitle(activePicker)}</Text>
+
+                        {Platform.OS === "ios" ? (
+                            <Pressable onPress={handlePickerDismiss} hitSlop={10}>
+                                <Text style={styles.doneText}>Done</Text>
                             </Pressable>
-
-                            <Pressable
-                                style={styles.pickerButton}
-                                onPress={() => setActivePicker("startTime")}
-                            >
-                                <Ionicons
-                                    name="time-outline"
-                                    size={20}
-                                    color={colors.primary}
-                                />
-                                <View>
-                                    <Text style={styles.pickerLabel}>Time</Text>
-                                    <Text style={styles.pickerValue}>
-                                        {formatDisplayTime(startDateTime)}
-                                    </Text>
-                                </View>
-                            </Pressable>
-                        </View>
-
-                        <Text style={styles.sectionTitle}>End</Text>
-
-                        <View style={styles.pickerRow}>
-                            <Pressable
-                                style={styles.pickerButton}
-                                onPress={() => setActivePicker("endDate")}
-                            >
-                                <Ionicons
-                                    name="calendar-outline"
-                                    size={20}
-                                    color={colors.primary}
-                                />
-                                <View>
-                                    <Text style={styles.pickerLabel}>Date</Text>
-                                    <Text style={styles.pickerValue}>
-                                        {formatDisplayDate(endDateTime)}
-                                    </Text>
-                                </View>
-                            </Pressable>
-
-                            <Pressable
-                                style={styles.pickerButton}
-                                onPress={() => setActivePicker("endTime")}
-                            >
-                                <Ionicons
-                                    name="time-outline"
-                                    size={20}
-                                    color={colors.primary}
-                                />
-                                <View>
-                                    <Text style={styles.pickerLabel}>Time</Text>
-                                    <Text style={styles.pickerValue}>
-                                        {formatDisplayTime(endDateTime)}
-                                    </Text>
-                                </View>
-                            </Pressable>
-                        </View>
-
-                        {activePicker ? (
-                            <DateTimePicker
-                                value={pickerValue}
-                                mode={pickerMode}
-                                display={Platform.OS === "ios" ? "spinner" : "default"}
-                                onValueChange={handlePickerValueChange}
-                                onDismiss={handlePickerDismiss}
-                            />
                         ) : null}
-
-                        <Pressable
-                            onPress={handleUpdateDestination}
-                            disabled={isSubmitting}
-                            style={[
-                                styles.submitButton,
-                                isSubmitting && styles.disabledButton,
-                            ]}
-                        >
-                            {isSubmitting ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.submitButtonText}>
-                                    Save Destination
-                                </Text>
-                            )}
-                        </Pressable>
                     </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+
+                    <DateTimePicker
+                        value={pickerValue}
+                        mode={pickerMode}
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onValueChange={handlePickerValueChange}
+                        onDismiss={handlePickerDismiss}
+                    />
+                </AppCard>
+            ) : null}
+        </AppScreen>
+    );
+}
+
+type DateTimeSectionProps = Readonly<{
+    title: string;
+    dateValue: string;
+    timeValue: string;
+    onDatePress: () => void;
+    onTimePress: () => void;
+}>;
+
+function DateTimeSection({
+                             title,
+                             dateValue,
+                             timeValue,
+                             onDatePress,
+                             onTimePress,
+                         }: DateTimeSectionProps) {
+    return (
+        <View style={styles.dateSection}>
+            <Text style={styles.sectionTitle}>{title}</Text>
+            <View style={styles.pickerRow}>
+                <PickerButton
+                    icon="calendar-outline"
+                    label="Date"
+                    value={dateValue}
+                    onPress={onDatePress}
+                />
+                <PickerButton
+                    icon="time-outline"
+                    label="Time"
+                    value={timeValue}
+                    onPress={onTimePress}
+                />
+            </View>
+        </View>
+    );
+}
+
+type PickerButtonProps = Readonly<{
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    value: string;
+    onPress: () => void;
+}>;
+
+function PickerButton({ icon, label, value, onPress }: PickerButtonProps) {
+    return (
+        <Pressable
+            accessibilityRole="button"
+            onPress={onPress}
+            style={({ pressed }) => [styles.pickerButton, pressed && styles.pickerButtonPressed]}
+        >
+            <View style={styles.pickerIconBadge}>
+                <Ionicons name={icon} size={19} color={colors.primary} />
+            </View>
+            <View style={styles.pickerTextGroup}>
+                <Text style={styles.pickerLabel}>{label}</Text>
+                <Text style={styles.pickerValue} numberOfLines={1}>{value}</Text>
+            </View>
+        </Pressable>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: colors.background,
+    screenContent: {
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.xxl,
+        gap: spacing.lg,
     },
-    keyboardView: {
-        flex: 1,
+    centerContent: {
+        gap: spacing.lg,
     },
-    container: {
-        padding: spacing.lg,
-        paddingBottom: 120,
+    centerTextGroup: {
+        alignItems: "center",
+        gap: spacing.sm,
     },
-    centerContainer: {
-        flex: 1,
-        backgroundColor: colors.background,
+    centerTitle: {
+        color: colors.text,
+        fontSize: typography.title,
+        fontWeight: fontWeight.bold,
+        textAlign: "center",
+    },
+    centerSubtitle: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 21,
+        textAlign: "center",
+    },
+    errorIconBadge: {
+        width: 72,
+        height: 72,
+        borderRadius: radius.xl,
+        backgroundColor: colors.dangerSoft,
         alignItems: "center",
         justifyContent: "center",
-        padding: spacing.lg,
-    },
-    loadingText: {
-        marginTop: spacing.sm,
-        color: colors.mutedText,
-        fontWeight: "700",
     },
     header: {
         flexDirection: "row",
-        gap: spacing.md,
         alignItems: "center",
-        marginBottom: spacing.lg,
+        gap: spacing.md,
     },
     backButton: {
         width: 44,
         height: 44,
-        borderRadius: 16,
-        backgroundColor: colors.card,
-        alignItems: "center",
-        justifyContent: "center",
-        ...shadow.card,
-    },
-    title: {
-        fontSize: 26,
-        fontWeight: "900",
-        color: colors.text,
-    },
-    subtitle: {
-        marginTop: 4,
-        color: colors.mutedText,
-        fontWeight: "700",
-    },
-    card: {
-        backgroundColor: colors.card,
-        borderRadius: radius.xl,
-        padding: spacing.lg,
-        ...shadow.card,
-    },
-    inputGroup: {
-        marginBottom: spacing.md,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: "800",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    input: {
-        backgroundColor: colors.background,
-        borderRadius: radius.md,
-        paddingHorizontal: spacing.md,
-        paddingVertical: 14,
-        fontSize: 15,
-        color: colors.text,
-        fontWeight: "700",
+        borderRadius: radius.lg,
+        backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
     },
-    textArea: {
-        minHeight: 90,
-        textAlignVertical: "top",
+    headerTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    eyebrow: {
+        color: colors.primary,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0.6,
+    },
+    title: {
+        color: colors.text,
+        fontSize: typography.heading,
+        fontWeight: fontWeight.bold,
+    },
+    subtitle: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+    },
+    cardContent: {
+        gap: spacing.lg,
+    },
+    notesInput: {
+        minHeight: 92,
     },
     divider: {
         height: 1,
         backgroundColor: colors.border,
-        marginVertical: spacing.md,
     },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: "900",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    pickerRow: {
-        flexDirection: "row",
-        gap: spacing.md,
-        marginBottom: spacing.lg,
-    },
-    pickerButton: {
-        flex: 1,
-        backgroundColor: colors.background,
-        borderRadius: radius.md,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-        flexDirection: "row",
-        alignItems: "center",
+    dateSection: {
         gap: spacing.sm,
     },
+    sectionTitle: {
+        color: colors.text,
+        fontSize: typography.body,
+        fontWeight: fontWeight.bold,
+    },
+    pickerRow: {
+        gap: spacing.sm,
+    },
+    pickerButton: {
+        minHeight: 64,
+        borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    pickerButtonPressed: {
+        opacity: 0.86,
+        transform: [{ scale: 0.99 }],
+    },
+    pickerIconBadge: {
+        width: 38,
+        height: 38,
+        borderRadius: radius.md,
+        backgroundColor: colors.primarySoft,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    pickerTextGroup: {
+        flex: 1,
+        gap: 2,
+    },
     pickerLabel: {
-        fontSize: 12,
-        color: colors.mutedText,
-        fontWeight: "800",
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
     },
     pickerValue: {
-        fontSize: 13,
         color: colors.text,
-        fontWeight: "800",
-        marginTop: 2,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
     },
-    submitButton: {
-        marginTop: spacing.lg,
-        backgroundColor: colors.primary,
-        borderRadius: radius.lg,
-        paddingVertical: 16,
+    pickerCardContent: {
+        gap: spacing.md,
+    },
+    pickerHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
         alignItems: "center",
+        gap: spacing.md,
     },
-    disabledButton: {
-        opacity: 0.6,
-    },
-    submitButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "900",
-    },
-    errorTitle: {
-        fontSize: 22,
-        fontWeight: "900",
+    pickerTitle: {
         color: colors.text,
-        marginBottom: spacing.sm,
+        fontSize: typography.body,
+        fontWeight: fontWeight.bold,
     },
-    errorText: {
-        textAlign: "center",
-        color: colors.mutedText,
-        lineHeight: 21,
-        marginBottom: spacing.lg,
-    },
-    retryButton: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        borderRadius: radius.md,
-        marginBottom: spacing.md,
-    },
-    retryButtonText: {
-        color: "#FFFFFF",
-        fontWeight: "900",
-    },
-    backTextButton: {
-        padding: spacing.sm,
-    },
-    backText: {
+    doneText: {
         color: colors.primary,
-        fontWeight: "800",
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
     },
 });
