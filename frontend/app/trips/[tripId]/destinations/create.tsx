@@ -1,27 +1,28 @@
-import {useState, type ComponentProps} from "react";
+import { useState, type ComponentProps } from "react";
 import {
-    ActivityIndicator,
     Alert,
-    KeyboardAvoidingView,
     Platform,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     View,
 } from "react-native";
-import {SafeAreaView} from "react-native-safe-area-context";
-import {useLocalSearchParams, useRouter} from "expo-router";
-import {Ionicons} from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+
+import { createDestination } from "@/src/api/destinationApi";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppInput } from "@/src/components/ui/AppInput";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import {
     getApiErrorMessage,
     getApiErrorTitle,
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
-import {createDestination} from "@/src/api/destinationApi";
-import {colors, radius, shadow, spacing} from "@/src/theme/theme";
 import {
     formatDisplayDate,
     formatDisplayTime,
@@ -32,28 +33,63 @@ import {
 } from "@/src/utils/dateTimePickerUtils";
 import { logger } from "@/src/utils/logger";
 
+type DateTimePickerValueChange = NonNullable<
+    ComponentProps<typeof DateTimePicker>["onValueChange"]
+>;
+
+function getDefaultStartDateTime() {
+    const date = new Date();
+    date.setHours(9, 0, 0, 0);
+    return date;
+}
+
+function getDefaultEndDateTime() {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    date.setHours(18, 0, 0, 0);
+    return date;
+}
+
+function getPickerTitle(activePicker: PickerTarget) {
+    if (activePicker === "startDate") return "Choose start date";
+    if (activePicker === "startTime") return "Choose start time";
+    if (activePicker === "endDate") return "Choose end date";
+    if (activePicker === "endTime") return "Choose end time";
+    return "Choose date/time";
+}
+
+function parseDestinationOrder(value: string) {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+        return null;
+    }
+
+    const parsedValue = Number(trimmedValue);
+
+    if (Number.isNaN(parsedValue)) {
+        return null;
+    }
+
+    return parsedValue;
+}
+
 export default function CreateDestinationScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
 
-    const tripIdParam = Array.isArray(params.tripId)
-        ? params.tripId[0]
-        : params.tripId;
-
-    const defaultStart = new Date();
-    defaultStart.setHours(9, 0, 0, 0);
-
-    const defaultEnd = new Date();
-    defaultEnd.setDate(defaultEnd.getDate() + 1);
-    defaultEnd.setHours(18, 0, 0, 0);
+    const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
+    const tripNumberId = Number(tripIdParam);
+    const hasValidTripId = Boolean(tripIdParam) && !Number.isNaN(tripNumberId);
 
     const [destinationName, setDestinationName] = useState("");
     const [destinationOrder, setDestinationOrder] = useState("");
     const [notes, setNotes] = useState("");
-    const [startDateTime, setStartDateTime] = useState(defaultStart);
-    const [endDateTime, setEndDateTime] = useState(defaultEnd);
+    const [startDateTime, setStartDateTime] = useState(getDefaultStartDateTime);
+    const [endDateTime, setEndDateTime] = useState(getDefaultEndDateTime);
     const [activePicker, setActivePicker] = useState<PickerTarget>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     function applySelectedDateTime(selectedDate: Date) {
         if (activePicker === "startDate") {
@@ -76,18 +112,8 @@ export default function CreateDestinationScreen() {
         }
     }
 
-    function handlePickerDismiss() {
-        setActivePicker(null);
-    }
-
-    type DateTimePickerValueChange = NonNullable<
-        ComponentProps<typeof DateTimePicker>["onValueChange"]
-    >;
-
     const handlePickerValueChange: DateTimePickerValueChange = (_event, selectedDate) => {
-        if (!activePicker) {
-            return;
-        }
+        if (!activePicker) return;
 
         applySelectedDateTime(selectedDate);
 
@@ -96,26 +122,26 @@ export default function CreateDestinationScreen() {
         }
     };
 
-    async function submitDestination(allowOverlap = false) {
-        const tripNumberId = Number(tripIdParam);
+    function handlePickerDismiss() {
+        setActivePicker(null);
+    }
 
+    async function submitDestination(allowOverlap = false) {
         await createDestination(tripNumberId, {
             destinationName: destinationName.trim(),
             startDate: formatForBackend(startDateTime),
             endDate: formatForBackend(endDateTime),
-            destinationOrder: destinationOrder.trim()
-                ? Number(destinationOrder)
-                : null,
+            destinationOrder: parseDestinationOrder(destinationOrder),
             notes: notes.trim() || null,
             allowOverlap,
         });
     }
 
     async function handleCreateDestination() {
-        const tripNumberId = Number(tripIdParam);
+        setError(null);
 
-        if (!tripIdParam || Number.isNaN(tripNumberId)) {
-            Alert.alert("Missing trip", "Trip ID is missing.");
+        if (!hasValidTripId) {
+            Alert.alert("Missing trip", "Trip ID is missing or invalid.");
             return;
         }
 
@@ -124,8 +150,13 @@ export default function CreateDestinationScreen() {
             return;
         }
 
+        if (destinationOrder.trim() && Number.isNaN(Number(destinationOrder.trim()))) {
+            Alert.alert("Invalid order", "Destination order must be a number.");
+            return;
+        }
+
         if (endDateTime <= startDateTime) {
-            Alert.alert("Invalid date", "End date/time must be after start date/time.");
+            Alert.alert("Invalid dates", "End date/time must be after start date/time.");
             return;
         }
 
@@ -154,6 +185,7 @@ export default function CreateDestinationScreen() {
                             onPress: async () => {
                                 try {
                                     setIsSubmitting(true);
+                                    setError(null);
 
                                     await submitDestination(true);
 
@@ -166,13 +198,22 @@ export default function CreateDestinationScreen() {
                                 } catch (confirmError: any) {
                                     logger.debug(
                                         "Create destination after confirmation failed:",
-                                        confirmError.response?.data ||
-                                        confirmError.message
+                                        confirmError.response?.data || confirmError.message
+                                    );
+
+                                    setError(
+                                        getApiErrorMessage(
+                                            confirmError,
+                                            "Please check your input and try again."
+                                        )
                                     );
 
                                     Alert.alert(
-                                        getApiErrorTitle(error, "Create destination failed"),
-                                        getApiErrorMessage(error, "Please check your input and try again.")
+                                        getApiErrorTitle(confirmError, "Create destination failed"),
+                                        getApiErrorMessage(
+                                            confirmError,
+                                            "Please check your input and try again."
+                                        )
                                     );
                                 } finally {
                                     setIsSubmitting(false);
@@ -185,8 +226,10 @@ export default function CreateDestinationScreen() {
                 return;
             }
 
+            setError(getApiErrorMessage(error, "Please check your input and try again."));
+
             Alert.alert(
-                "Create destination failed",
+                getApiErrorTitle(error, "Create destination failed"),
                 getApiErrorMessage(error, "Please check your input and try again.")
             );
         } finally {
@@ -200,281 +243,285 @@ export default function CreateDestinationScreen() {
             : endDateTime;
 
     const pickerMode =
-        activePicker === "startTime" || activePicker === "endTime"
-            ? "time"
-            : "date";
+        activePicker === "startTime" || activePicker === "endTime" ? "time" : "date";
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <KeyboardAvoidingView
-                style={styles.keyboardView}
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-            >
-                <ScrollView
-                    contentContainerStyle={styles.container}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
-                >
-                    <View style={styles.header}>
-                        <Pressable onPress={() => router.back()} style={styles.backButton}>
-                            <Ionicons name="chevron-back" size={24} color={colors.text}/>
-                        </Pressable>
+        <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
+            <View style={styles.header}>
+                <Pressable onPress={() => router.back()} style={styles.backButton}>
+                    <Ionicons name="chevron-back" size={22} color={colors.primary} />
+                </Pressable>
 
-                        <View style={{flex: 1}}>
-                            <Text style={styles.title}>Add Destination</Text>
-                            <Text style={styles.subtitle}>
-                                Add a city or place inside this trip
-                            </Text>
-                        </View>
+                <View style={styles.headerTextGroup}>
+                    <Text style={styles.eyebrow}>New destination</Text>
+                    <Text style={styles.title}>Add Destination</Text>
+                    <Text style={styles.subtitle}>Add a city or place inside this trip.</Text>
+                </View>
+            </View>
+
+            <AppCard contentStyle={styles.cardContent}>
+                <AppInput
+                    label="Destination name"
+                    required
+                    value={destinationName}
+                    onChangeText={setDestinationName}
+                    placeholder="e.g. Tokyo"
+                    leftIcon={<Ionicons name="location-outline" size={20} color={colors.textMuted} />}
+                />
+
+                <AppInput
+                    label="Order"
+                    value={destinationOrder}
+                    onChangeText={setDestinationOrder}
+                    placeholder="e.g. 1"
+                    keyboardType="number-pad"
+                    helperText="Optional. Use this to arrange destinations in order."
+                    leftIcon={<Ionicons name="list-outline" size={20} color={colors.textMuted} />}
+                />
+
+                <AppInput
+                    label="Notes"
+                    value={notes}
+                    onChangeText={setNotes}
+                    placeholder="Optional notes"
+                    multiline
+                    inputStyle={styles.notesInput}
+                    leftIcon={<Ionicons name="document-text-outline" size={20} color={colors.textMuted} />}
+                />
+
+                <View style={styles.divider} />
+
+                <DateTimeSection
+                    title="Start"
+                    dateValue={formatDisplayDate(startDateTime)}
+                    timeValue={formatDisplayTime(startDateTime)}
+                    onDatePress={() => setActivePicker("startDate")}
+                    onTimePress={() => setActivePicker("startTime")}
+                />
+
+                <DateTimeSection
+                    title="End"
+                    dateValue={formatDisplayDate(endDateTime)}
+                    timeValue={formatDisplayTime(endDateTime)}
+                    onDatePress={() => setActivePicker("endDate")}
+                    onTimePress={() => setActivePicker("endTime")}
+                />
+
+                <ErrorMessage message={error} title="Create destination failed" />
+
+                <AppButton
+                    title="Create Destination"
+                    onPress={handleCreateDestination}
+                    loading={isSubmitting}
+                    rightIcon={<Ionicons name="checkmark-circle" size={20} color={colors.textLight} />}
+                />
+            </AppCard>
+
+            {activePicker ? (
+                <AppCard variant="outline" contentStyle={styles.pickerCardContent}>
+                    <View style={styles.pickerHeader}>
+                        <Text style={styles.pickerTitle}>{getPickerTitle(activePicker)}</Text>
+
+                        {Platform.OS === "ios" ? (
+                            <Pressable onPress={handlePickerDismiss} hitSlop={10}>
+                                <Text style={styles.doneText}>Done</Text>
+                            </Pressable>
+                        ) : null}
                     </View>
 
-                    <View style={styles.card}>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Destination name</Text>
-                            <TextInput
-                                value={destinationName}
-                                onChangeText={setDestinationName}
-                                placeholder="e.g. Tokyo"
-                                placeholderTextColor="#9CA3AF"
-                                style={styles.input}
-                            />
-                        </View>
+                    <DateTimePicker
+                        value={pickerValue}
+                        mode={pickerMode}
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onValueChange={handlePickerValueChange}
+                        onDismiss={handlePickerDismiss}
+                    />
+                </AppCard>
+            ) : null}
+        </AppScreen>
+    );
+}
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Order</Text>
-                            <TextInput
-                                value={destinationOrder}
-                                onChangeText={setDestinationOrder}
-                                placeholder="e.g. 1"
-                                placeholderTextColor="#9CA3AF"
-                                keyboardType="number-pad"
-                                style={styles.input}
-                            />
-                        </View>
+type DateTimeSectionProps = Readonly<{
+    title: string;
+    dateValue: string;
+    timeValue: string;
+    onDatePress: () => void;
+    onTimePress: () => void;
+}>;
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Notes</Text>
-                            <TextInput
-                                value={notes}
-                                onChangeText={setNotes}
-                                placeholder="Optional notes"
-                                placeholderTextColor="#9CA3AF"
-                                style={[styles.input, styles.textArea]}
-                                multiline
-                            />
-                        </View>
+function DateTimeSection({
+                             title,
+                             dateValue,
+                             timeValue,
+                             onDatePress,
+                             onTimePress,
+                         }: DateTimeSectionProps) {
+    return (
+        <View style={styles.dateSection}>
+            <Text style={styles.sectionTitle}>{title}</Text>
+            <View style={styles.pickerRow}>
+                <PickerButton
+                    icon="calendar-outline"
+                    label="Date"
+                    value={dateValue}
+                    onPress={onDatePress}
+                />
+                <PickerButton
+                    icon="time-outline"
+                    label="Time"
+                    value={timeValue}
+                    onPress={onTimePress}
+                />
+            </View>
+        </View>
+    );
+}
 
-                        <View style={styles.divider}/>
+type PickerButtonProps = Readonly<{
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    value: string;
+    onPress: () => void;
+}>;
 
-                        <Text style={styles.sectionTitle}>Start</Text>
-
-                        <View style={styles.pickerRow}>
-                            <Pressable
-                                style={styles.pickerButton}
-                                onPress={() => setActivePicker("startDate")}
-                            >
-                                <Ionicons name="calendar-outline" size={20} color={colors.primary}/>
-                                <View>
-                                    <Text style={styles.pickerLabel}>Date</Text>
-                                    <Text style={styles.pickerValue}>
-                                        {formatDisplayDate(startDateTime)}
-                                    </Text>
-                                </View>
-                            </Pressable>
-
-                            <Pressable
-                                style={styles.pickerButton}
-                                onPress={() => setActivePicker("startTime")}
-                            >
-                                <Ionicons name="time-outline" size={20} color={colors.primary}/>
-                                <View>
-                                    <Text style={styles.pickerLabel}>Time</Text>
-                                    <Text style={styles.pickerValue}>
-                                        {formatDisplayTime(startDateTime)}
-                                    </Text>
-                                </View>
-                            </Pressable>
-                        </View>
-
-                        <Text style={styles.sectionTitle}>End</Text>
-
-                        <View style={styles.pickerRow}>
-                            <Pressable
-                                style={styles.pickerButton}
-                                onPress={() => setActivePicker("endDate")}
-                            >
-                                <Ionicons name="calendar-outline" size={20} color={colors.primary}/>
-                                <View>
-                                    <Text style={styles.pickerLabel}>Date</Text>
-                                    <Text style={styles.pickerValue}>
-                                        {formatDisplayDate(endDateTime)}
-                                    </Text>
-                                </View>
-                            </Pressable>
-
-                            <Pressable
-                                style={styles.pickerButton}
-                                onPress={() => setActivePicker("endTime")}
-                            >
-                                <Ionicons name="time-outline" size={20} color={colors.primary}/>
-                                <View>
-                                    <Text style={styles.pickerLabel}>Time</Text>
-                                    <Text style={styles.pickerValue}>
-                                        {formatDisplayTime(endDateTime)}
-                                    </Text>
-                                </View>
-                            </Pressable>
-                        </View>
-
-                        {activePicker && (
-                            <DateTimePicker
-                                value={pickerValue}
-                                mode={pickerMode}
-                                display={Platform.OS === "ios" ? "spinner" : "default"}
-                                onValueChange={handlePickerValueChange}
-                                onDismiss={handlePickerDismiss}
-                            />
-                        )}
-
-                        <Pressable
-                            onPress={handleCreateDestination}
-                            disabled={isSubmitting}
-                            style={[
-                                styles.submitButton,
-                                isSubmitting && styles.disabledButton,
-                            ]}
-                        >
-                            {isSubmitting ? (
-                                <ActivityIndicator color="#FFFFFF"/>
-                            ) : (
-                                <Text style={styles.submitButtonText}>Create Destination</Text>
-                            )}
-                        </Pressable>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+function PickerButton({ icon, label, value, onPress }: PickerButtonProps) {
+    return (
+        <Pressable
+            accessibilityRole="button"
+            onPress={onPress}
+            style={({ pressed }) => [styles.pickerButton, pressed && styles.pickerButtonPressed]}
+        >
+            <View style={styles.pickerIconBadge}>
+                <Ionicons name={icon} size={19} color={colors.primary} />
+            </View>
+            <View style={styles.pickerTextGroup}>
+                <Text style={styles.pickerLabel}>{label}</Text>
+                <Text style={styles.pickerValue} numberOfLines={1}>{value}</Text>
+            </View>
+        </Pressable>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: colors.background,
-    },
-    keyboardView: {
-        flex: 1,
-    },
-    container: {
-        padding: spacing.lg,
-        paddingBottom: 120,
+    screenContent: {
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.xxl,
+        gap: spacing.lg,
     },
     header: {
         flexDirection: "row",
-        gap: spacing.md,
         alignItems: "center",
-        marginBottom: spacing.lg,
+        gap: spacing.md,
     },
     backButton: {
         width: 44,
         height: 44,
-        borderRadius: 16,
-        backgroundColor: colors.card,
-        alignItems: "center",
-        justifyContent: "center",
-        ...shadow.card,
-    },
-    title: {
-        fontSize: 26,
-        fontWeight: "900",
-        color: colors.text,
-    },
-    subtitle: {
-        marginTop: 4,
-        color: colors.mutedText,
-        fontWeight: "700",
-    },
-    card: {
-        backgroundColor: colors.card,
-        borderRadius: radius.xl,
-        padding: spacing.lg,
-        ...shadow.card,
-    },
-    inputGroup: {
-        marginBottom: spacing.md,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: "800",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    input: {
-        backgroundColor: colors.background,
-        borderRadius: radius.md,
-        paddingHorizontal: spacing.md,
-        paddingVertical: 14,
-        fontSize: 15,
-        color: colors.text,
-        fontWeight: "700",
+        borderRadius: radius.lg,
+        backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
     },
-    textArea: {
-        minHeight: 90,
-        textAlignVertical: "top",
+    headerTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    eyebrow: {
+        color: colors.primary,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0.6,
+    },
+    title: {
+        color: colors.text,
+        fontSize: typography.heading,
+        fontWeight: fontWeight.bold,
+    },
+    subtitle: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+    },
+    cardContent: {
+        gap: spacing.lg,
+    },
+    notesInput: {
+        minHeight: 92,
     },
     divider: {
         height: 1,
         backgroundColor: colors.border,
-        marginVertical: spacing.md,
     },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: "900",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    pickerRow: {
-        flexDirection: "row",
-        gap: spacing.md,
-        marginBottom: spacing.lg,
-    },
-    pickerButton: {
-        flex: 1,
-        backgroundColor: colors.background,
-        borderRadius: radius.md,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-        flexDirection: "row",
-        alignItems: "center",
+    dateSection: {
         gap: spacing.sm,
     },
+    sectionTitle: {
+        color: colors.text,
+        fontSize: typography.body,
+        fontWeight: fontWeight.bold,
+    },
+    pickerRow: {
+        gap: spacing.sm,
+    },
+    pickerButton: {
+        minHeight: 64,
+        borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    pickerButtonPressed: {
+        opacity: 0.86,
+        transform: [{ scale: 0.99 }],
+    },
+    pickerIconBadge: {
+        width: 38,
+        height: 38,
+        borderRadius: radius.md,
+        backgroundColor: colors.primarySoft,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    pickerTextGroup: {
+        flex: 1,
+        gap: 2,
+    },
     pickerLabel: {
-        fontSize: 12,
-        color: colors.mutedText,
-        fontWeight: "800",
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
     },
     pickerValue: {
-        fontSize: 13,
         color: colors.text,
-        fontWeight: "800",
-        marginTop: 2,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
     },
-    submitButton: {
-        marginTop: spacing.lg,
-        backgroundColor: colors.primary,
-        borderRadius: radius.lg,
-        paddingVertical: 16,
+    pickerCardContent: {
+        gap: spacing.md,
+    },
+    pickerHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
         alignItems: "center",
+        gap: spacing.md,
     },
-    disabledButton: {
-        opacity: 0.6,
+    pickerTitle: {
+        color: colors.text,
+        fontSize: typography.body,
+        fontWeight: fontWeight.bold,
     },
-    submitButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "900",
+    doneText: {
+        color: colors.primary,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
     },
 });
