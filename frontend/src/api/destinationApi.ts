@@ -5,13 +5,14 @@ import type {
     DestinationApiResponse,
     UpdateDestinationRequest,
 } from "../types/destination";
+import { logger } from "../utils/logger";
 
 export async function getDestinationsByTrip(tripId: number): Promise<Destination[]> {
     const response = await axiosClient.get<DestinationApiResponse<Destination[]>>(
         `/api/v1/trips/${tripId}/destinations`
     );
 
-    console.log("Destinations response:", response.data);
+    logger.debug("Destinations response:", response.data);
 
     return response.data.body;
 }
@@ -24,7 +25,7 @@ export async function getDestinationById(
         `/api/v1/trips/${tripId}/destinations/${destinationId}`
     );
 
-    console.log("Destination detail response:", response.data);
+    logger.debug("Destination detail response:", response.data);
 
     return response.data.body;
 }
@@ -38,7 +39,7 @@ export async function createDestination(
         data
     );
 
-    console.log("Create destinations response:", response.data);
+    logger.debug("Create destinations response:", response.data);
 
     return response.data.body;
 }
@@ -53,7 +54,7 @@ export async function updateDestination(
         data
     );
 
-    console.log("Update destinations response:", response.data);
+    logger.debug("Update destinations response:", response.data);
 
     return response.data.body;
 }

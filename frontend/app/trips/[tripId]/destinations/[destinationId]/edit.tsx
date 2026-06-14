@@ -34,6 +34,7 @@ import {
     getApiErrorTitle,
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
+import { logger } from "@/src/utils/logger";
 
 type DateTimePickerValueChange = NonNullable<
     ComponentProps<typeof DateTimePicker>["onValueChange"]
@@ -97,7 +98,7 @@ export default function EditDestinationScreen() {
             setStartDateTime(new Date(data.startDate));
             setEndDateTime(new Date(data.endDate));
         } catch (error: any) {
-            console.log(
+            logger.debug(
                 "Load destination for edit failed:",
                 error.response?.data || error.message
             );
@@ -207,7 +208,7 @@ export default function EditDestinationScreen() {
             Alert.alert("Destination updated", "Destination has been updated.");
             router.back();
         } catch (error: any) {
-            console.log(
+            logger.debug(
                 "Update destination failed:",
                 error.response?.data || error.message
             );
@@ -237,7 +238,7 @@ export default function EditDestinationScreen() {
 
                                     router.back();
                                 } catch (confirmError: any) {
-                                    console.log(
+                                    logger.debug(
                                         "Update destination after confirmation failed:",
                                         confirmError.response?.data ||
                                         confirmError.message

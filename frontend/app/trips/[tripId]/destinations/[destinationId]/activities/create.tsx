@@ -30,6 +30,7 @@ import {
     getApiErrorMessage,
     getApiErrorTitle,
 } from "@/src/utils/apiWarningUtils";
+import { logger } from "@/src/utils/logger";
 
 type DateTimePickerValueChange = NonNullable<
     ComponentProps<typeof DateTimePicker>["onValueChange"]
@@ -140,7 +141,7 @@ export default function CreateActivityScreen() {
             Alert.alert("Activity created", "Activity has been added.");
             router.back();
         } catch (error: any) {
-            console.log("Create activity failed:", error.response?.data || error.message);
+            logger.debug("Create activity failed:", error.response?.data || error.message);
 
             Alert.alert(
                 getApiErrorTitle(error, "Create activity failed"),

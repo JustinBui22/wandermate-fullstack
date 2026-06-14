@@ -21,6 +21,7 @@ import {
 import type { Destination } from "@/src/types/destination";
 import { colors, radius, shadow, spacing } from "@/src/theme/theme";
 import { formatDateTime } from "@/src/utils/dateFormat";
+import { logger } from "@/src/utils/logger";
 
 export default function DestinationDetailScreen() {
     const router = useRouter();
@@ -60,13 +61,13 @@ export default function DestinationDetailScreen() {
                 getActivitiesByDestination(tripNumberId, destinationNumberId),
             ]);
 
-            console.log("Destination detail:", destinationData);
-            console.log("Activities loaded:", activityData);
+            logger.debug("Destination detail:", destinationData);
+            logger.debug("Activities loaded:", activityData);
 
             setDestination(destinationData);
             setActivities(Array.isArray(activityData) ? activityData : []);
         } catch (error: any) {
-            console.log(
+            logger.debug(
                 "Load destination detail failed:",
                 error.response?.data || error.message
             );
@@ -144,7 +145,7 @@ export default function DestinationDetailScreen() {
 
                             router.back();
                         } catch (error: any) {
-                            console.log(
+                            logger.debug(
                                 "Delete destination failed:",
                                 error.response?.data || error.message
                             );

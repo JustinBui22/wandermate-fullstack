@@ -33,6 +33,7 @@ import {
     getApiErrorMessage,
     getApiErrorTitle,
 } from "@/src/utils/apiWarningUtils";
+import { logger } from "@/src/utils/logger";
 
 type DateTimePickerValueChange = NonNullable<
     ComponentProps<typeof DateTimePicker>["onValueChange"]
@@ -99,7 +100,7 @@ export default function EditActivityScreen() {
             setStartDateTime(new Date(data.startDateTime));
             setEndDateTime(new Date(data.endDateTime));
         } catch (error: any) {
-            console.log(
+            logger.debug(
                 "Load activity for edit failed:",
                 error.response?.data || error.message
             );
@@ -207,7 +208,7 @@ export default function EditActivityScreen() {
             Alert.alert("Activity updated", "Activity has been updated.");
             router.back();
         } catch (error: any) {
-            console.log("Update activity failed:", error.response?.data || error.message);
+            logger.debug("Update activity failed:", error.response?.data || error.message);
 
             Alert.alert(
                 getApiErrorTitle(error, "Update activity failed"),

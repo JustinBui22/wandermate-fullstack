@@ -253,7 +253,7 @@ Suggested logger pattern:
 export const logger = {
   debug: (...args: unknown[]) => {
     if (__DEV__) {
-      console.log(...args);
+      logger.debug(...args);
     }
   },
   error: (...args: unknown[]) => {

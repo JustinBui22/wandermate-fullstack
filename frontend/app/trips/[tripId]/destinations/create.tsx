@@ -30,6 +30,7 @@ import {
     updateDatePart,
     updateTimePart,
 } from "@/src/utils/dateTimePickerUtils";
+import { logger } from "@/src/utils/logger";
 
 export default function CreateDestinationScreen() {
     const router = useRouter();
@@ -136,7 +137,7 @@ export default function CreateDestinationScreen() {
             Alert.alert("Destination created", "Destination has been added.");
             router.back();
         } catch (error: any) {
-            console.log("Create destination failed:", error.response?.data || error.message);
+            logger.debug("Create destination failed:", error.response?.data || error.message);
 
             if (hasApiWarning(error, "DESTINATION_OVERLAP_WARNING")) {
                 Alert.alert(
@@ -163,7 +164,7 @@ export default function CreateDestinationScreen() {
 
                                     router.back();
                                 } catch (confirmError: any) {
-                                    console.log(
+                                    logger.debug(
                                         "Create destination after confirmation failed:",
                                         confirmError.response?.data ||
                                         confirmError.message

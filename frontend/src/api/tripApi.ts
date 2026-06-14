@@ -1,10 +1,11 @@
 import { axiosClient } from "./axiosClient";
 import type {ApiResponse, CreateTripRequest, Trip, UpdateTripRequest} from "../types/trip";
+import { logger } from "../utils/logger";
 
 export async function getMyTrips(): Promise<Trip[]> {
     const response = await axiosClient.get<ApiResponse<Trip[]>>("/api/v1/trips");
 
-    console.log("Trips response:", response.data);
+    logger.debug("Trips response:", response.data);
 
     return response.data.body;
 }
@@ -14,7 +15,7 @@ export async function getTripById(tripId: number): Promise<Trip> {
         `/api/v1/trips/${tripId}`
     );
 
-    console.log("Trip detail response:", response.data);
+    logger.debug("Trip detail response:", response.data);
 
     return response.data.body;
 }
@@ -25,7 +26,7 @@ export async function createTrip(data: CreateTripRequest): Promise<Trip> {
         data
     );
 
-    console.log("Create trip response:", response.data);
+    logger.debug("Create trip response:", response.data);
 
     return response.data.body;
 }
@@ -39,12 +40,12 @@ export async function updateTrip(
         data
     );
 
-    console.log("Update trip response:", response.data);
+    logger.debug("Update trip response:", response.data);
 
     return response.data.body;
 }
 
 export async function deleteTrip(tripId: number): Promise<void> {
     const response = await axiosClient.delete(`/api/v1/trips/${tripId}`);
-    console.log("Delete trip response:", response.data);
+    logger.debug("Delete trip response:", response.data);
 }

@@ -20,6 +20,7 @@ import type { Activity } from "@/src/types/activity";
 import { colors, radius, shadow, spacing } from "@/src/theme/theme";
 import { formatDateTime } from "@/src/utils/dateFormat";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
+import { logger } from "@/src/utils/logger";
 
 export default function ActivityDetailScreen() {
     const router = useRouter();
@@ -72,7 +73,7 @@ export default function ActivityDetailScreen() {
 
             setActivity(data);
         } catch (error: any) {
-            console.log(
+            logger.debug(
                 "Load activity detail failed:",
                 error.response?.data || error.message
             );
@@ -139,7 +140,7 @@ export default function ActivityDetailScreen() {
                             Alert.alert("Activity deleted", "Activity has been deleted.");
                             router.back();
                         } catch (error: any) {
-                            console.log(
+                            logger.debug(
                                 "Delete activity failed:",
                                 error.response?.data || error.message
                             );

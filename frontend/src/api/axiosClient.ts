@@ -65,11 +65,9 @@ axiosClient.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                if (!refreshPromise) {
-                    refreshPromise = refreshAccessToken().finally(() => {
-                        refreshPromise = null;
-                    });
-                }
+                refreshPromise ??= refreshAccessToken().finally(() => {
+                    refreshPromise = null;
+                });
 
                 const newAccessToken = await refreshPromise;
 

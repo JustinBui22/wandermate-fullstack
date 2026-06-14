@@ -9,6 +9,7 @@ import {
     saveTokens,
 } from "../stores/tokenStore";
 import type { LoginRequest } from "../types/auth";
+import { logger } from "../utils/logger";
 
 type AuthState = {
     isAuthenticated: boolean;
@@ -70,7 +71,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         try {
             await logout();
         } catch (error: any) {
-            console.log("Logout API failed:", error.response?.data || error.message);
+            logger.error("Logout API failed:", error.response?.data || error.message);
         } finally {
             await clearTokens();
 
@@ -85,7 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     restoreAuthSession: async () => {
         try {
-            console.log("Restore session started");
+            logger.debug("Restore session started");
             set({
                 isLoading: true,
                 error: null,
@@ -109,9 +110,9 @@ export const useAuthStore = create<AuthState>((set) => ({
                 return;
             }
 
-            console.log("Restoring session: refreshing access token...");
+            logger.debug("Restoring session: refreshing access token...");
             await refreshAccessToken();
-            console.log("Session restored successfully.");
+            logger.debug("Session restored successfully.");
 
             set({
                 isAuthenticated: true,
@@ -120,7 +121,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 errorCode: null,
             });
         } catch (error: any) {
-            console.log(
+            logger.error(
                 "Restore session failed:",
                 error.response?.data || error.message
             );

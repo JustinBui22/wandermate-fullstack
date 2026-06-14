@@ -30,6 +30,7 @@ import {
     getApiErrorMessage, getApiErrorTitle,
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
+import { logger } from "@/src/utils/logger";
 
 type DateTimePickerValueChange = NonNullable<
     ComponentProps<typeof DateTimePicker>["onValueChange"]
@@ -73,7 +74,7 @@ export default function EditTripScreen() {
             setStartDateTime(new Date(data.startDate));
             setEndDateTime(new Date(data.endDate));
         } catch (error: any) {
-            console.log(
+            logger.debug(
                 "Load trip for edit failed:",
                 error.response?.data || error.message
             );
@@ -173,7 +174,7 @@ export default function EditTripScreen() {
             Alert.alert("Trip updated", "Your trip has been updated.");
             router.back();
         } catch (error: any) {
-            console.log(
+            logger.debug(
                 "Update trip failed:",
                 error.response?.data || error.message
             );
@@ -203,7 +204,7 @@ export default function EditTripScreen() {
 
                                     router.back();
                                 } catch (confirmError: any) {
-                                    console.log(
+                                    logger.debug(
                                         "Update trip after confirmation failed:",
                                         confirmError.response?.data ||
                                         confirmError.message

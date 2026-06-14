@@ -18,6 +18,7 @@ import type {Trip} from "@/src/types/trip";
 import {colors, radius, shadow, spacing} from "@/src/theme/theme";
 import {formatDateTime} from "@/src/utils/dateFormat";
 import type {Destination} from "@/src/types/destination";
+import { logger } from "@/src/utils/logger";
 
 export default function TripDetailScreen() {
     const router = useRouter();
@@ -49,13 +50,13 @@ export default function TripDetailScreen() {
                 getDestinationsByTrip(tripNumberId),
             ]);
 
-            console.log("Trip detail:", tripData);
-            console.log("Destinations loaded:", destinationData);
+            logger.debug("Trip detail:", tripData);
+            logger.debug("Destinations loaded:", destinationData);
 
             setTrip(tripData);
             setDestinations(Array.isArray(destinationData) ? destinationData : []);
         } catch (error: any) {
-            console.log("Load trip detail failed:", error.response?.data || error.message);
+            logger.debug("Load trip detail failed:", error.response?.data || error.message);
 
             setError(
                 error.response?.data?.message ||
@@ -123,7 +124,7 @@ export default function TripDetailScreen() {
                             Alert.alert("Trip deleted", "Trip has been deleted.");
                             router.back();
                         } catch (error: any) {
-                            console.log(
+                            logger.debug(
                                 "Delete trip failed:",
                                 error.response?.data || error.message
                             );

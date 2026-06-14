@@ -5,6 +5,7 @@ import type {
     CreateActivityRequest,
     UpdateActivityRequest,
 } from "../types/activity";
+import { logger } from "../utils/logger";
 
 export async function getActivitiesByDestination(
     tripId: number,
@@ -14,7 +15,7 @@ export async function getActivitiesByDestination(
         `/api/v1/trips/${tripId}/destinations/${destinationId}/activities`
     );
 
-    console.log("Activities response:", response.data);
+    logger.debug("Activities response:", response.data);
 
     return response.data.body;
 }
@@ -28,7 +29,7 @@ export async function getActivityById(
         `/api/v1/trips/${tripId}/destinations/${destinationId}/activities/${activityId}`
     );
 
-    console.log("Activity detail response:", response.data);
+    logger.debug("Activity detail response:", response.data);
 
     return response.data.body;
 }
@@ -43,7 +44,7 @@ export async function createActivity(
         data
     );
 
-    console.log("Create activity response:", response.data);
+    logger.debug("Create activity response:", response.data);
 
     return response.data.body;
 }
@@ -59,7 +60,7 @@ export async function updateActivity(
         data
     );
 
-    console.log("Update activity response:", response.data);
+    logger.debug("Update activity response:", response.data);
 
     return response.data.body;
 }

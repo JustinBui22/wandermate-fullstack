@@ -31,6 +31,7 @@ import {
 
 import { createTrip } from "@/src/api/tripApi";
 import { colors, radius, shadow, spacing } from "@/src/theme/theme";
+import { logger } from "@/src/utils/logger";
 
 export default function CreateTripScreen() {
     const router = useRouter();
@@ -119,7 +120,7 @@ export default function CreateTripScreen() {
             Alert.alert("Trip created", "Your trip has been created successfully.");
             router.back();
         } catch (error: any) {
-            console.log("Create trip failed:", error.response?.data || error.message);
+            logger.debug("Create trip failed:", error.response?.data || error.message);
 
             if (hasApiWarning(error, "TRIP_OVERLAP_WARNING")) {
                 Alert.alert(
@@ -146,7 +147,7 @@ export default function CreateTripScreen() {
 
                                     router.back();
                                 } catch (confirmError: any) {
-                                    console.log(
+                                    logger.debug(
                                         "Create trip after confirmation failed:",
                                         confirmError.response?.data || confirmError.message
                                     );
