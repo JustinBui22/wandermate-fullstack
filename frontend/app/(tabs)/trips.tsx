@@ -1,20 +1,58 @@
-import { useFocusEffect, useRouter } from "expo-router";
-import type { Trip } from "@/src/types/trip";
 import { useCallback, useState } from "react";
 import {
   Alert,
-  ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
 
 import { getMyTrips } from "@/src/api/tripApi";
-import { colors, radius, shadow, spacing } from "@/src/theme/theme";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { EmptyState } from "@/src/components/ui/EmptyState";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
+import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import type { Trip } from "@/src/types/trip";
+
+function getApiMessage(error: any) {
+  const data = error.response?.data;
+
+  if (typeof data?.body === "string" && data.body.trim()) {
+    return data.body;
+  }
+
+  return data?.message || error.message || "Failed to load trips.";
+}
+
+function formatDateRange(startDate?: string, endDate?: string) {
+  if (!startDate && !endDate) return "Dates not set";
+  if (startDate && !endDate) return `Starts ${formatDate(startDate)}`;
+  if (!startDate && endDate) return `Ends ${formatDate(endDate)}`;
+
+  return `${formatDate(startDate)} → ${formatDate(endDate)}`;
+}
+
+function formatDate(value?: string) {
+  if (!value) return "Not set";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 export default function TripsScreen() {
   const router = useRouter();
@@ -29,7 +67,7 @@ export default function TripsScreen() {
       const data = await getMyTrips();
       setTrips(Array.isArray(data) ? data : []);
     } catch (error: any) {
-      setError(error.response?.data?.message || error.message || "Failed to load trips.");
+      setError(getApiMessage(error));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -48,194 +86,230 @@ export default function TripsScreen() {
     await loadTrips();
   }
 
+  function handleCreateTrip() {
+    router.push("/trips/create" as never);
+  }
+
+  function handleOpenTrip(trip: Trip) {
+    if (!trip.tripId) {
+      Alert.alert("Missing trip ID", "This trip cannot be opened.");
+      return;
+    }
+
+    router.push({
+      pathname: "/trips/[tripId]" as never,
+      params: { tripId: String(trip.tripId) } as never,
+    });
+  }
+
   if (isLoading) {
     return (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator color={colors.primary} />
-          <Text style={styles.loadingText}>Loading trips...</Text>
-        </View>
+        <AppScreen scroll={false} centerContent>
+          <LoadingState
+              title="Loading trips..."
+              subtitle="Getting your travel plans ready."
+              fullScreen
+          />
+        </AppScreen>
     );
   }
 
   return (
-      <View style={styles.container}>
+      <AppScreen scroll={false} contentContainerStyle={styles.screenContent}>
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerTextGroup}>
+            <Text style={styles.eyebrow}>WanderMate</Text>
             <Text style={styles.title}>My Trips</Text>
             <Text style={styles.subtitle}>Manage your travel plans</Text>
           </View>
 
-          <Pressable
-              onPress={() => router.push("/trips/create" as never)}
+          <AppButton
+              title=""
+              onPress={handleCreateTrip}
+              fullWidth={false}
               style={styles.addButton}
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-          </Pressable>
+              leftIcon={<Ionicons name="add" size={24} color={colors.textLight} />}
+              testID="create-trip-button"
+          />
         </View>
 
-        {error ? (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-        ) : null}
+        <ErrorMessage message={error} title="Could not load trips" />
 
         <FlatList
             data={trips}
             keyExtractor={(item, index) => String(item.tripId ?? index)}
             refreshControl={
-              <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+              <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={colors.primary}
+                  colors={[colors.primary]}
+              />
             }
             ListEmptyComponent={
-              <View style={styles.emptyCard}>
-                <View style={styles.emptyIcon}>
-                  <Ionicons name="map-outline" size={34} color={colors.primary} />
-                </View>
-                <Text style={styles.emptyTitle}>No trips yet</Text>
-                <Text style={styles.emptySubtitle}>
-                  Create your first trip plan and it will appear here.
-                </Text>
-              </View>
+              <EmptyState
+                  title="No trips yet"
+                  message="Create your first trip plan and it will appear here."
+                  icon={<Ionicons name="map-outline" size={30} color={colors.primary} />}
+                  actionLabel="Create trip"
+                  onActionPress={handleCreateTrip}
+                  style={styles.emptyState}
+              />
             }
             renderItem={({ item }) => (
-                <Pressable
-                    style={styles.tripCard}
-                    onPress={() => {
-                      if (!item.tripId) {
-                        Alert.alert("Missing trip ID", "This trip cannot be opened.");
-                        return;
-                      }
-
-                      router.push({
-                        pathname: "/trips/[tripId]" as never,
-                        params: { tripId: String(item.tripId) } as never,
-                      });
-                    }}
-                >
-                  <View>
-                    <Text style={styles.tripTitle}>
-                      {item.tripName || "Untitled trip"}
-                    </Text>
-                    <Text style={styles.tripDestination}>
-                      {item.destination || "No destinations"}
-                    </Text>
-                  </View>
-
-                  <Ionicons name="chevron-forward" size={22} color={colors.mutedText} />
-                </Pressable>
+                <TripCard trip={item} onPress={() => handleOpenTrip(item)} />
             )}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              trips.length === 0 && styles.emptyListContent,
+            ]}
+            showsVerticalScrollIndicator={false}
         />
-      </View>
+      </AppScreen>
+  );
+}
+
+type TripCardProps = Readonly<{
+  trip: Trip;
+  onPress: () => void;
+}>;
+
+function TripCard({ trip, onPress }: TripCardProps) {
+  return (
+      <AppCard onPress={onPress} style={styles.tripCard} contentStyle={styles.tripCardContent}>
+        <View style={styles.tripMainRow}>
+          <View style={styles.tripIconBadge}>
+            <Ionicons name="airplane-outline" size={20} color={colors.primary} />
+          </View>
+
+          <View style={styles.tripTextGroup}>
+            <Text style={styles.tripTitle} numberOfLines={1}>
+              {trip.tripName || "Untitled trip"}
+            </Text>
+            <Text style={styles.tripDestination} numberOfLines={1}>
+              {trip.destination || "No destination"}
+            </Text>
+          </View>
+
+          <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+        </View>
+
+        <View style={styles.tripMetaRow}>
+          <View style={styles.metaPill}>
+            <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.metaText} numberOfLines={1}>
+              {formatDateRange(trip.startDate, trip.endDate)}
+            </Text>
+          </View>
+        </View>
+      </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screenContent: {
     flex: 1,
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  centerContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: spacing.sm,
-    color: colors.mutedText,
-    fontWeight: "600",
+    paddingTop: spacing.xl,
+    paddingBottom: 0,
+    gap: spacing.lg,
   },
   header: {
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.md,
   },
-  addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadow.card,
+  headerTextGroup: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  eyebrow: {
+    color: colors.primary,
+    fontSize: typography.caption,
+    fontWeight: fontWeight.bold,
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
   },
   title: {
-    fontSize: 30,
-    fontWeight: "900",
     color: colors.text,
+    fontSize: typography.hero,
+    fontWeight: fontWeight.bold,
   },
   subtitle: {
-    marginTop: 4,
-    fontSize: 15,
-    color: colors.mutedText,
+    color: colors.textMuted,
+    fontSize: typography.bodySmall,
+    lineHeight: 20,
   },
-  errorBox: {
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    borderRadius: radius.md,
-    padding: spacing.md,
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  errorText: {
-    flex: 1,
-    color: colors.error,
-    fontWeight: "600",
+  addButton: {
+    width: 50,
+    height: 50,
+    minHeight: 50,
+    borderRadius: radius.lg,
+    paddingHorizontal: 0,
   },
   listContent: {
     paddingBottom: 120,
+    gap: spacing.md,
   },
-  emptyCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    alignItems: "center",
-    ...shadow.card,
-  },
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    backgroundColor: colors.softBlue,
-    alignItems: "center",
+  emptyListContent: {
+    flexGrow: 1,
     justifyContent: "center",
-    marginBottom: spacing.md,
   },
-  emptyTitle: {
-    fontSize: 21,
-    fontWeight: "900",
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  emptySubtitle: {
-    textAlign: "center",
-    color: colors.mutedText,
-    lineHeight: 21,
+  emptyState: {
+    marginTop: spacing.xl,
   },
   tripCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    borderRadius: radius.xl,
+  },
+  tripCardContent: {
+    gap: spacing.md,
+  },
+  tripMainRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    ...shadow.card,
+    gap: spacing.md,
+  },
+  tripIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tripTextGroup: {
+    flex: 1,
+    gap: spacing.xs,
   },
   tripTitle: {
-    fontSize: 17,
-    fontWeight: "800",
     color: colors.text,
+    fontSize: typography.body,
+    fontWeight: fontWeight.bold,
   },
   tripDestination: {
-    marginTop: 4,
-    fontSize: 14,
-    color: colors.mutedText,
+    color: colors.textMuted,
+    fontSize: typography.bodySmall,
+    lineHeight: 19,
+  },
+  tripMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  metaPill: {
+    flexShrink: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  metaText: {
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    fontWeight: fontWeight.semibold,
   },
 });
