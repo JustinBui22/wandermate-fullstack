@@ -1,42 +1,60 @@
 import { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
     Alert,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import {
     deleteActivity,
     getActivityById,
 } from "@/src/api/activityApi";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
+import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import type { Activity } from "@/src/types/activity";
-import { colors, radius, shadow, spacing } from "@/src/theme/theme";
-import { formatDateTime } from "@/src/utils/dateFormat";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
+import { formatDateTime } from "@/src/utils/dateFormat";
 import { logger } from "@/src/utils/logger";
+
+function getApiMessage(error: any) {
+    const data = error.response?.data;
+
+    if (typeof data?.body === "string" && data.body.trim()) {
+        return data.body;
+    }
+
+    return data?.message || error.message || "Failed to load activity detail.";
+}
 
 export default function ActivityDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
 
-    const tripIdParam = Array.isArray(params.tripId)
-        ? params.tripId[0]
-        : params.tripId;
-
+    const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const destinationIdParam = Array.isArray(params.destinationId)
         ? params.destinationId[0]
         : params.destinationId;
-
     const activityIdParam = Array.isArray(params.activityId)
         ? params.activityId[0]
         : params.activityId;
+
+    const tripNumberId = Number(tripIdParam);
+    const destinationNumberId = Number(destinationIdParam);
+    const activityNumberId = Number(activityIdParam);
+    const hasValidRouteIds = Boolean(tripIdParam)
+        && Boolean(destinationIdParam)
+        && Boolean(activityIdParam)
+        && !Number.isNaN(tripNumberId)
+        && !Number.isNaN(destinationNumberId)
+        && !Number.isNaN(activityNumberId);
 
     const [activity, setActivity] = useState<Activity | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -44,19 +62,8 @@ export default function ActivityDetailScreen() {
     const [error, setError] = useState<string | null>(null);
 
     async function loadActivityDetail() {
-        const tripNumberId = Number(tripIdParam);
-        const destinationNumberId = Number(destinationIdParam);
-        const activityNumberId = Number(activityIdParam);
-
-        if (
-            !tripIdParam ||
-            !destinationIdParam ||
-            !activityIdParam ||
-            Number.isNaN(tripNumberId) ||
-            Number.isNaN(destinationNumberId) ||
-            Number.isNaN(activityNumberId)
-        ) {
-            setError("Trip ID, destination ID, or activity ID is missing.");
+        if (!hasValidRouteIds) {
+            setError("Trip ID, destination ID, or activity ID is missing or invalid.");
             setIsLoading(false);
             return;
         }
@@ -73,17 +80,8 @@ export default function ActivityDetailScreen() {
 
             setActivity(data);
         } catch (error: any) {
-            logger.debug(
-                "Load activity detail failed:",
-                error.response?.data || error.message
-            );
-
-            setError(
-                getApiErrorMessage(
-                    error,
-                    "Failed to load activity. Please try again."
-                )
-            );
+            logger.debug("Load activity detail failed:", error.response?.data || error.message);
+            setError(getApiMessage(error));
         } finally {
             setIsLoading(false);
         }
@@ -96,19 +94,19 @@ export default function ActivityDetailScreen() {
     );
 
     function handleEditActivity() {
-        if (!tripIdParam || !destinationIdParam || !activityIdParam) {
-            Alert.alert("Missing activity", "Activity ID is missing.");
+        if (!hasValidRouteIds) {
+            Alert.alert("Missing activity", "Trip ID, destination ID, or activity ID is missing or invalid.");
             return;
         }
 
         router.push(
-            `/trips/${tripIdParam}/destinations/${destinationIdParam}/activities/${activityIdParam}/edit`
+            `/trips/${tripNumberId}/destinations/${destinationNumberId}/activities/${activityNumberId}/edit` as any
         );
     }
 
     function handleDeleteActivity() {
-        if (!tripIdParam || !destinationIdParam || !activityIdParam) {
-            Alert.alert("Missing activity", "Activity ID is missing.");
+        if (!hasValidRouteIds) {
+            Alert.alert("Missing activity", "Trip ID, destination ID, or activity ID is missing or invalid.");
             return;
         }
 
@@ -116,18 +114,11 @@ export default function ActivityDetailScreen() {
             "Delete activity",
             "Are you sure you want to delete this activity?",
             [
-                {
-                    text: "Cancel",
-                    style: "cancel",
-                },
+                { text: "Cancel", style: "cancel" },
                 {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
-                        const tripNumberId = Number(tripIdParam);
-                        const destinationNumberId = Number(destinationIdParam);
-                        const activityNumberId = Number(activityIdParam);
-
                         try {
                             setIsDeleting(true);
 
@@ -140,17 +131,11 @@ export default function ActivityDetailScreen() {
                             Alert.alert("Activity deleted", "Activity has been deleted.");
                             router.back();
                         } catch (error: any) {
-                            logger.debug(
-                                "Delete activity failed:",
-                                error.response?.data || error.message
-                            );
+                            logger.debug("Delete activity failed:", error.response?.data || error.message);
 
                             Alert.alert(
                                 "Delete activity failed",
-                                getApiErrorMessage(
-                                    error,
-                                    "Please try again."
-                                )
+                                getApiErrorMessage(error, "Please try again.")
                             );
                         } finally {
                             setIsDeleting(false);
@@ -163,321 +148,293 @@ export default function ActivityDetailScreen() {
 
     if (isLoading) {
         return (
-            <SafeAreaView style={styles.centerContainer}>
-            <ActivityIndicator color={colors.primary} />
-        <Text style={styles.loadingText}>Loading activity...</Text>
-        </SafeAreaView>
-    );
+            <AppScreen scroll={false} centerContent>
+                <LoadingState
+                    title="Loading activity..."
+                    subtitle="Getting this activity detail ready."
+                    fullScreen
+                />
+            </AppScreen>
+        );
     }
 
     if (error || !activity) {
         return (
-            <SafeAreaView style={styles.centerContainer}>
-            <View style={styles.errorIcon}>
-            <Ionicons
-                name="alert-circle-outline"
-        size={34}
-        color={colors.error}
-        />
-        </View>
+            <AppScreen scroll={false} centerContent contentContainerStyle={styles.centerContent}>
+                <View style={styles.errorIconBadge}>
+                    <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
+                </View>
 
-        <Text style={styles.errorTitle}>Unable to load activity</Text>
-        <Text style={styles.errorText}>
-            {error ?? "Activity not found."}
-        </Text>
+                <View style={styles.centerTextGroup}>
+                    <Text style={styles.centerTitle}>Unable to load activity</Text>
+                    <Text style={styles.centerSubtitle}>{error ?? "Activity not found."}</Text>
+                </View>
 
-        <Pressable onPress={loadActivityDetail} style={styles.retryButton}>
-        <Text style={styles.retryButtonText}>Try again</Text>
-        </Pressable>
-
-        <Pressable onPress={() => router.back()} style={styles.backTextButton}>
-        <Text style={styles.backText}>Go back</Text>
-        </Pressable>
-        </SafeAreaView>
-    );
+                <AppButton title="Try again" onPress={loadActivityDetail} />
+                <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
+            </AppScreen>
+        );
     }
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-        <ScrollView
-            contentContainerStyle={styles.container}
-    showsVerticalScrollIndicator={false}
-    >
-    <View style={styles.header}>
-    <Pressable onPress={() => router.back()} style={styles.iconButton}>
-    <Ionicons name="chevron-back" size={24} color={colors.text} />
-    </Pressable>
+        <AppScreen contentContainerStyle={styles.screenContent}>
+            <View style={styles.header}>
+                <HeaderIconButton
+                    icon="chevron-back"
+                    accessibilityLabel="Go back"
+                    onPress={() => router.back()}
+                />
 
-    <Pressable onPress={handleEditActivity} style={styles.iconButton}>
-    <Ionicons name="create-outline" size={23} color={colors.text} />
-    </Pressable>
-    </View>
+                <HeaderIconButton
+                    icon="create-outline"
+                    accessibilityLabel="Edit activity"
+                    onPress={handleEditActivity}
+                />
+            </View>
 
-    <View style={styles.heroCard}>
-    <View style={styles.heroIcon}>
-    <Ionicons name="walk" size={30} color="#FFFFFF" />
-        </View>
+            <AppCard style={styles.heroCard} contentStyle={styles.heroCardContent}>
+                <View style={styles.heroIconBadge}>
+                    <Ionicons name="walk" size={28} color={colors.textLight} />
+                </View>
 
-        <Text style={styles.label}>Activity</Text>
+                <View style={styles.heroTextGroup}>
+                    <Text style={styles.activityLabel}>Activity</Text>
+                    <Text style={styles.activityName}>{activity.activityName || "Untitled activity"}</Text>
 
-        <Text style={styles.title}>
-        {activity.activityName}
-        </Text>
+                    {activity.location ? (
+                        <View style={styles.locationRow}>
+                            <Ionicons name="location-outline" size={16} color="#DBEAFE" />
+                            <Text style={styles.locationText}>{activity.location}</Text>
+                        </View>
+                    ) : (
+                        <Text style={styles.locationMuted}>No location added.</Text>
+                    )}
+                </View>
+            </AppCard>
 
-    {activity.location ? (
-        <Text style={styles.location}>
-            {activity.location}
-            </Text>
-    ) : (
-        <Text style={styles.locationMuted}>
-            No location added.
-    </Text>
-    )}
-    </View>
+            <View style={styles.infoGrid}>
+                <InfoCard
+                    icon="time-outline"
+                    label="Start"
+                    value={formatDateTime(activity.startDateTime)}
+                />
+                <InfoCard
+                    icon="flag-outline"
+                    label="End"
+                    value={formatDateTime(activity.endDateTime)}
+                />
+            </View>
 
-    <View style={styles.infoGrid}>
-    <View style={styles.infoCard}>
-    <View style={styles.infoIcon}>
-    <Ionicons
-        name="time-outline"
-    size={20}
-    color={colors.primary}
-    />
-    </View>
+            <AppCard title="Description" contentStyle={styles.descriptionCardContent}>
+                {activity.description ? (
+                    <Text style={styles.descriptionText}>{activity.description}</Text>
+                ) : (
+                    <Text style={styles.descriptionMuted}>No description added yet.</Text>
+                )}
+            </AppCard>
 
-    <Text style={styles.infoLabel}>Start</Text>
-        <Text style={styles.infoValue}>
-        {formatDateTime(activity.startDateTime)}
-    </Text>
-    </View>
+            <ErrorMessage message={error} title="Activity detail error" />
 
-    <View style={styles.infoCard}>
-    <View style={styles.infoIcon}>
-    <Ionicons
-        name="flag-outline"
-    size={20}
-    color={colors.primary}
-    />
-    </View>
+            <AppButton
+                title="Delete Activity"
+                onPress={handleDeleteActivity}
+                loading={isDeleting}
+                variant="danger"
+                leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
+                style={styles.deleteButton}
+            />
+        </AppScreen>
+    );
+}
 
-    <Text style={styles.infoLabel}>End</Text>
-        <Text style={styles.infoValue}>
-        {formatDateTime(activity.endDateTime)}
-    </Text>
-    </View>
-    </View>
+type HeaderIconButtonProps = Readonly<{
+    icon: keyof typeof Ionicons.glyphMap;
+    accessibilityLabel: string;
+    onPress: () => void;
+}>;
 
-    <View style={styles.descriptionCard}>
-    <Text style={styles.descriptionTitle}>Description</Text>
-        <Text style={styles.descriptionText}>
-        {activity.description || "No description added yet."}
-        </Text>
-        </View>
-
+function HeaderIconButton({ icon, accessibilityLabel, onPress }: HeaderIconButtonProps) {
+    return (
         <Pressable
-    onPress={handleDeleteActivity}
-    disabled={isDeleting}
-    style={[
-            styles.deleteButton,
-        isDeleting && styles.disabledButton,
-]}
->
-    {isDeleting ? (
-        <ActivityIndicator color="#FFFFFF" />
-    ) : (
-        <>
-            <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-    <Text style={styles.deleteButtonText}>Delete Activity</Text>
-    </>
-    )}
-    </Pressable>
-    </ScrollView>
-    </SafeAreaView>
-);
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel}
+            onPress={onPress}
+            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
+        >
+            <Ionicons name={icon} size={23} color={colors.text} />
+        </Pressable>
+    );
+}
+
+type InfoCardProps = Readonly<{
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    value: string;
+}>;
+
+function InfoCard({ icon, label, value }: InfoCardProps) {
+    return (
+        <AppCard variant="soft" contentStyle={styles.infoCardContent}>
+            <View style={styles.infoIconBadge}>
+                <Ionicons name={icon} size={20} color={colors.primary} />
+            </View>
+            <View style={styles.infoTextGroup}>
+                <Text style={styles.infoLabel}>{label}</Text>
+                <Text style={styles.infoValue}>{value}</Text>
+            </View>
+        </AppCard>
+    );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: colors.background,
+    screenContent: {
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.xxl,
+        gap: spacing.lg,
     },
-    container: {
-        padding: spacing.lg,
-        paddingBottom: 120,
+    centerContent: {
+        gap: spacing.lg,
     },
-    centerContainer: {
-        flex: 1,
-        backgroundColor: colors.background,
+    centerTextGroup: {
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    centerTitle: {
+        color: colors.text,
+        fontSize: typography.title,
+        fontWeight: fontWeight.bold,
+        textAlign: "center",
+    },
+    centerSubtitle: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 21,
+        textAlign: "center",
+    },
+    errorIconBadge: {
+        width: 72,
+        height: 72,
+        borderRadius: radius.xl,
+        backgroundColor: colors.dangerSoft,
         alignItems: "center",
         justifyContent: "center",
-        padding: spacing.lg,
-    },
-    loadingText: {
-        marginTop: spacing.sm,
-        color: colors.mutedText,
-        fontWeight: "700",
     },
     header: {
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: spacing.lg,
+        justifyContent: "space-between",
+        gap: spacing.md,
     },
-    iconButton: {
+    headerIconButton: {
         width: 44,
         height: 44,
-        borderRadius: 16,
-        backgroundColor: colors.card,
+        borderRadius: radius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
         alignItems: "center",
         justifyContent: "center",
-        ...shadow.card,
+    },
+    pressed: {
+        opacity: 0.86,
+        transform: [{ scale: 0.99 }],
     },
     heroCard: {
         backgroundColor: colors.primary,
-        borderRadius: radius.xl,
-        padding: spacing.xl,
-        marginBottom: spacing.lg,
-        ...shadow.card,
     },
-    heroIcon: {
+    heroCardContent: {
+        padding: spacing.xl,
+        gap: spacing.lg,
+    },
+    heroIconBadge: {
         width: 58,
         height: 58,
-        borderRadius: 20,
+        borderRadius: radius.xl,
         backgroundColor: "rgba(255,255,255,0.18)",
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: spacing.lg,
     },
-    label: {
+    heroTextGroup: {
+        gap: spacing.sm,
+    },
+    activityLabel: {
         color: "#DBEAFE",
-        fontSize: 15,
-        fontWeight: "800",
-        marginBottom: spacing.sm,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
     },
-    title: {
-        color: "#FFFFFF",
-        fontSize: 30,
-        lineHeight: 36,
-        fontWeight: "900",
+    activityName: {
+        color: colors.textLight,
+        fontSize: typography.heading,
+        lineHeight: 32,
+        fontWeight: fontWeight.bold,
     },
-    location: {
+    locationRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    locationText: {
+        flex: 1,
         color: "#E0F2FE",
-        fontSize: 15,
-        lineHeight: 22,
-        marginTop: spacing.md,
-        fontWeight: "700",
+        fontSize: typography.bodySmall,
+        lineHeight: 21,
+        fontWeight: fontWeight.semibold,
     },
     locationMuted: {
         color: "#BFDBFE",
-        fontSize: 15,
-        lineHeight: 22,
-        marginTop: spacing.md,
-        fontWeight: "600",
+        fontSize: typography.bodySmall,
+        lineHeight: 21,
+        fontWeight: fontWeight.semibold,
     },
     infoGrid: {
         gap: spacing.md,
-        marginBottom: spacing.lg,
     },
-    infoCard: {
-        backgroundColor: colors.card,
-        borderRadius: radius.lg,
-        padding: spacing.md,
-        ...shadow.card,
+    infoCardContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
     },
-    infoIcon: {
+    infoIconBadge: {
         width: 42,
         height: 42,
-        borderRadius: 14,
-        backgroundColor: colors.softBlue,
+        borderRadius: radius.md,
+        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: spacing.sm,
+    },
+    infoTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
     },
     infoLabel: {
-        color: colors.mutedText,
-        fontSize: 13,
-        fontWeight: "700",
-        marginBottom: 4,
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
     },
     infoValue: {
         color: colors.text,
-        fontSize: 16,
-        fontWeight: "800",
-        lineHeight: 22,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+        fontWeight: fontWeight.bold,
     },
-    descriptionCard: {
-        backgroundColor: colors.card,
-        borderRadius: radius.lg,
-        padding: spacing.md,
-        marginBottom: spacing.lg,
-        ...shadow.card,
-    },
-    descriptionTitle: {
-        fontSize: 16,
-        fontWeight: "900",
-        color: colors.text,
-        marginBottom: spacing.sm,
+    descriptionCardContent: {
+        gap: spacing.md,
     },
     descriptionText: {
-        color: colors.mutedText,
-        fontSize: 15,
+        color: colors.text,
+        fontSize: typography.bodySmall,
         lineHeight: 22,
-        fontWeight: "600",
+        fontWeight: fontWeight.medium,
+    },
+    descriptionMuted: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 22,
+        fontWeight: fontWeight.semibold,
     },
     deleteButton: {
-        backgroundColor: colors.error,
-        borderRadius: radius.lg,
-        paddingVertical: 16,
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "row",
-        gap: spacing.sm,
-    },
-    disabledButton: {
-        opacity: 0.6,
-    },
-    deleteButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "900",
-    },
-    errorIcon: {
-        width: 72,
-        height: 72,
-        borderRadius: 24,
-        backgroundColor: "#FEF2F2",
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: spacing.md,
-    },
-    errorTitle: {
-        fontSize: 22,
-        fontWeight: "900",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    errorText: {
-        textAlign: "center",
-        color: colors.mutedText,
-        lineHeight: 21,
-        marginBottom: spacing.lg,
-    },
-    retryButton: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        borderRadius: radius.md,
-        marginBottom: spacing.md,
-    },
-    retryButtonText: {
-        color: "#FFFFFF",
-        fontWeight: "900",
-    },
-    backTextButton: {
-        padding: spacing.sm,
-    },
-    backText: {
-        color: colors.primary,
-        fontWeight: "800",
+        marginTop: spacing.sm,
     },
 });
