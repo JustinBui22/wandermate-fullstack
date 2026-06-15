@@ -120,7 +120,7 @@ public class Common {
         } else if (isEmail) {
             userOptional = userRepository.findByEmailAndActive(username, true);
         } else {
-            userOptional = userRepository.findByUsernameAndActive(username, true);
+            userOptional = userRepository.findByUsernameAndActive(username);
         }
         return userOptional;
     }

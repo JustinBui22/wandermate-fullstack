@@ -5,11 +5,13 @@ import com.example.travellingapp.dto.request.update.UpdateActivityDTO;
 import com.example.travellingapp.dto.response.ActivityResponseDTO;
 import com.example.travellingapp.entity.ActivityEntity;
 import com.example.travellingapp.entity.DestinationEntity;
+import com.example.travellingapp.entity.User;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.ActivityMapper;
 import com.example.travellingapp.repository.ActivityRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.DestinationRepository;
+import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.ActivityService;
@@ -34,6 +36,7 @@ public class ActivityServiceImpl implements ActivityService {
     private final ActivityValidator activityValidator;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final ActivityMapper activityMapper;
+    private final UserRepository userRepository;
 
     public ActivityServiceImpl(
             ActivityRepository activityRepository,
@@ -41,14 +44,14 @@ public class ActivityServiceImpl implements ActivityService {
             ErrorCodeRepository errorCodeRepository,
             ActivityValidator activityValidator,
             AuthenticatedUserProvider authenticatedUserProvider,
-            ActivityMapper activityMapper
-    ) {
+            ActivityMapper activityMapper, UserRepository userRepository1) {
         this.activityRepository = activityRepository;
         this.destinationRepository = destinationRepository;
         this.errorCodeRepository = errorCodeRepository;
         this.activityValidator = activityValidator;
         this.authenticatedUserProvider = authenticatedUserProvider;
         this.activityMapper = activityMapper;
+        this.userRepository = userRepository1;
     }
 
     @Override
@@ -61,9 +64,9 @@ public class ActivityServiceImpl implements ActivityService {
                     activityDTO
             );
 
-            String location = normalizeKeyword(activityDTO.getLocation());
             String username = authenticatedUserProvider.getUsername();
-
+            User user = userRepository.findByUsernameAndActive(username)
+                     .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
             DestinationEntity destination = destinationRepository
                     .findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
                             destinationId,
@@ -92,12 +95,13 @@ public class ActivityServiceImpl implements ActivityService {
             }
             ActivityEntity activity = new ActivityEntity(
                     activityName,
-                    location,
+                    activityDTO.getLocation(),
                     activityDTO.getDescription(),
                     activityDTO.getStartDateTime(),
                     activityDTO.getEndDateTime(),
                     LocalDateTime.now(),
-                    destination
+                    destination,
+                    user
             );
             activityRepository.save(activity);
             return getCompleteResponse(

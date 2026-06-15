@@ -4,12 +4,16 @@ import com.example.travellingapp.dto.request.create.CreateTripDTO;
 import com.example.travellingapp.dto.request.update.UpdateTripDTO;
 import com.example.travellingapp.dto.response.TripResponseDTO;
 import com.example.travellingapp.entity.*;
+import com.example.travellingapp.entity.collaboration.TripMemberEntity;
+import com.example.travellingapp.enums.TripMemberRoleEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripMapper;
 import com.example.travellingapp.repository.*;
+import com.example.travellingapp.repository.collaboration.TripMemberRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.TripService;
+import com.example.travellingapp.service.collaboration.TripAccessService;
 import com.example.travellingapp.validator.TripValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -37,8 +41,10 @@ public class TripServiceImpl implements TripService {
     private final TripMapper tripMapper;
     private final TripValidator tripValidator;
     private final DestinationRepository destinationRepository;
+    private final TripMemberRepository tripMemberRepository;
+    private final TripAccessService tripAccessService;
 
-    public TripServiceImpl(ErrorCodeRepository errorCodeRepository, CityRepository cityRepository, RestaurantRepository restaurantRepository, AccommodationRepository accommodationRepository, ConfigurationRepository configurationRepository, UserRepository userRepository, TripRepository tripRepository, AuthenticatedUserProvider authenticatedUserProvider, TripMapper tripMapper, TripValidator tripValidator, DestinationRepository destinationRepository) {
+    public TripServiceImpl(ErrorCodeRepository errorCodeRepository, CityRepository cityRepository, RestaurantRepository restaurantRepository, AccommodationRepository accommodationRepository, ConfigurationRepository configurationRepository, UserRepository userRepository, TripRepository tripRepository, AuthenticatedUserProvider authenticatedUserProvider, TripMapper tripMapper, TripValidator tripValidator, DestinationRepository destinationRepository, TripMemberRepository tripMemberRepository, TripAccessService tripAccessService) {
         this.errorCodeRepository = errorCodeRepository;
         this.cityRepository = cityRepository;
         this.restaurantRepository = restaurantRepository;
@@ -50,6 +56,8 @@ public class TripServiceImpl implements TripService {
         this.tripMapper = tripMapper;
         this.tripValidator = tripValidator;
         this.destinationRepository = destinationRepository;
+        this.tripMemberRepository = tripMemberRepository;
+        this.tripAccessService = tripAccessService;
     }
 
     @Override
@@ -59,7 +67,7 @@ public class TripServiceImpl implements TripService {
             String destination = normalizeKeyword(tripDTO.getDestination());
             String username = authenticatedUserProvider.getUsername();
 
-            User user = userRepository.findByUsernameAndActive(username, true)
+            User user = userRepository.findByUsernameAndActive(username)
                     .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
             // Validate trip name uniqueness for the user
@@ -81,9 +89,30 @@ public class TripServiceImpl implements TripService {
                 throw new BusinessException(TRIP_OVERLAP_WARNING, TRIP.name());
             }
 
-            TripEntity trip = new TripEntity(tripName, destination, LocalDateTime.now(), tripDTO.getStartDate(), tripDTO.getEndDate(), null, user);
-            tripRepository.save(trip);
-            return getCompleteResponse(errorCodeRepository, TRIP_CREATED_SUCCESS, TRIP.name(), tripMapper.toResponseDTO(trip));
+            TripEntity trip = new TripEntity(
+                    tripName,
+                    destination,
+                    LocalDateTime.now(),
+                    tripDTO.getStartDate(),
+                    tripDTO.getEndDate(),
+                    null,
+                    user
+            );
+            TripEntity savedTrip = tripRepository.save(trip);
+            // Automatically add the owner as a trip member with OWNER role
+            TripMemberEntity ownerMember = new TripMemberEntity(
+                    savedTrip,
+                    user,
+                    TripMemberRoleEnum.OWNER,
+                    LocalDateTime.now()
+            );
+            tripMemberRepository.save(ownerMember);
+            return getCompleteResponse(
+                    errorCodeRepository,
+                    TRIP_CREATED_SUCCESS,
+                    TRIP.name(),
+                    tripMapper.toResponseDTO(savedTrip)
+            );
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -97,9 +126,11 @@ public class TripServiceImpl implements TripService {
         try {
             log.info("Getting trips for user {}", authenticatedUserProvider.getUsername());
             String username = authenticatedUserProvider.getUsername();
-            User user = userRepository.findByUsernameAndActive(username, true)
+            // check if user exists and is active before fetching trips
+            userRepository.findByUsernameAndActive(username)
                     .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
-            List<TripResponseDTO> trips = tripRepository.findAllByUser(user)
+            // Fetch trips where the user is a member (including owner and collaborator)
+            List<TripResponseDTO> trips = tripMemberRepository.findAccessibleTripsByUsername(username)
                     .stream()
                     .map(tripMapper::toResponseDTO)
                     .toList();
@@ -126,16 +157,14 @@ public class TripServiceImpl implements TripService {
                 throw new BusinessException(INVALID_INPUT, COMMON.name());
             }
             String username = authenticatedUserProvider.getUsername();
-            TripEntity trip = tripRepository.findByTripIdAndUser_Username(tripId, username)
-                    .orElseThrow(() -> new BusinessException(TRIP_NOT_FOUND, COMMON.name()));
-
+            // Use TripAccessService to check if the user has access to the trip and retrieve it
+            TripEntity trip = tripAccessService.getTripIfCanView(tripId, username);
             return getCompleteResponse(
                     errorCodeRepository,
                     TRIPS_RETRIEVED_SUCCESS,
                     TRIP.name(),
                     tripMapper.toResponseDTO(trip)
             );
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -150,9 +179,9 @@ public class TripServiceImpl implements TripService {
             String tripName = tripValidator.validateUpdateInput(tripId, tripDTO);
             String destination = normalizeKeyword(tripDTO.getDestination());
             String username = authenticatedUserProvider.getUsername();
-            TripEntity trip = tripRepository
-                    .findByTripIdAndUser_Username(tripId, username)
-                    .orElseThrow(() -> new BusinessException(INVALID_INPUT, COMMON.name()));
+            // Use TripAccessService to check if the user has edit access to the trip and retrieve it
+            TripEntity trip = tripAccessService.getTripIfCanEdit(tripId, username);
+
             // Validate trip name uniqueness for the user excluding the current trip
             if (tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                     username,
@@ -221,9 +250,7 @@ public class TripServiceImpl implements TripService {
                 throw new BusinessException(INVALID_INPUT, COMMON.name());
             }
             String username = authenticatedUserProvider.getUsername();
-            TripEntity trip = tripRepository
-                    .findByTripIdAndUser_Username(tripId, username)
-                    .orElseThrow(() -> new BusinessException(TRIP_NOT_FOUND, TRIP.name()));
+            TripEntity trip = tripAccessService.getTripIfOwner(tripId, username);
 
             tripRepository.delete(trip);
 

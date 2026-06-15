@@ -1,5 +1,7 @@
-package com.example.travellingapp.entity;
+package com.example.travellingapp.entity.collaboration;
 
+import com.example.travellingapp.entity.DestinationEntity;
+import com.example.travellingapp.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "destination_activities")
 @Getter
 @Setter
-public class ActivityEntity implements Serializable {
+public class ActivitySuggestionEntity implements Serializable {
     @Serial
     private static final long serialVersionUID = 12L;
 
@@ -54,18 +56,17 @@ public class ActivityEntity implements Serializable {
     @JoinColumn(name = "modified_by_user_id")
     private User modifiedBy;
 
-    public ActivityEntity() {
+    public ActivitySuggestionEntity() {
     }
 
-    public ActivityEntity(
+    public ActivitySuggestionEntity(
             String activityName,
             String location,
             String description,
             LocalDateTime startDateTime,
             LocalDateTime endDateTime,
             LocalDateTime createdDate,
-            DestinationEntity destination,
-            User createdBy
+            DestinationEntity destination
     ) {
         this.activityName = activityName;
         this.location = location;
@@ -73,8 +74,7 @@ public class ActivityEntity implements Serializable {
         this.startDateTime = startDateTime;
         this.endDateTime = endDateTime;
         this.createdDate = createdDate;
-        this.destination = destination;
-        this.createdBy = createdBy;
+        this.destination = destination ;
     }
 }
 

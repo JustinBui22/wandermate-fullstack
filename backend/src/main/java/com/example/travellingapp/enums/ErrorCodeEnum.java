@@ -36,6 +36,16 @@ public enum ErrorCodeEnum {
     DESTINATION_UPDATED_SUCCESS("E000", "Destination updated successfully", DESTINATION, HttpStatusCodeEnum.OK),
     DESTINATION_DELETED_SUCCESS("E000", "Destination deleted successfully", DESTINATION, HttpStatusCodeEnum.OK),
 
+    TRIP_MEMBER_ADDED_SUCCESS("E000", "Trip member added successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_MEMBER_RETRIEVED_SUCCESS("E000", "Trip member retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_MEMBER_ROLE_UPDATED_SUCCESS("E000", "Trip member role updated successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_MEMBER_REMOVED_SUCCESS("E000", "Trip member removed successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    SUGGESTION_CREATED_SUCCESS("E000", "Suggestion created successfully", SUGGESTION, HttpStatusCodeEnum.OK),
+    SUGGESTION_RETRIEVED_SUCCESS("E000", "Suggestion retrieved successfully", SUGGESTION, HttpStatusCodeEnum.OK),
+    SUGGESTION_APPROVED_SUCCESS("E000", "Suggestion approved successfully", SUGGESTION, HttpStatusCodeEnum.OK),
+    SUGGESTION_REJECTED_SUCCESS("E000", "Suggestion rejected successfully", SUGGESTION, HttpStatusCodeEnum.OK),
+
+
     INVALID_INPUT("E001", "Invalid input provided", COMMON, HttpStatusCodeEnum.BAD_REQUEST),
     USERNAME_TAKEN("E002", "Username taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
     EMAIL_TAKEN("E003", "Email taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
@@ -106,9 +116,15 @@ public enum ErrorCodeEnum {
     SMS_ENUM_MISSING("E062", "SMS enum is missing", OTP, HttpStatusCodeEnum.BAD_REQUEST),
     NEW_PASSWORD_SAME_AS_OLD("E063", "New password cannot be the same as the old password", FORGOT_PASSWORD, HttpStatusCodeEnum.BAD_REQUEST),
 
+    TRIP_ACCESS_DENIED("E064", "You do not have permission to access this trip", TRIP, HttpStatusCodeEnum.FORBIDDEN),
+    TRIP_MEMBER_ALREADY_EXISTS("E065", "This user is already a member of the trip", TRIP_MEMBER, HttpStatusCodeEnum.CONFLICT),
+    TRIP_MEMBER_NOT_FOUND("E066", "Trip member not found", TRIP_MEMBER, HttpStatusCodeEnum.NOT_FOUND),
+    TRIP_OWNER_CANNOT_BE_REMOVED("E067", "Trip owner cannot be removed from the trip", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_OWNER_ROLE_CANNOT_BE_CHANGED("E068", "Trip owner role cannot be changed", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
+    SUGGESTION_NOT_FOUND("E069", "Suggestion not found", SUGGESTION, HttpStatusCodeEnum.NOT_FOUND),
+    SUGGESTION_ALREADY_APPROVED("E070", "Suggestion already approved", SUGGESTION, HttpStatusCodeEnum.CONFLICT),
+    SUGGESTION_ALREADY_REJECTED("E071", "Suggestion already rejected", SUGGESTION, HttpStatusCodeEnum.CONFLICT),
 
-
-    
     ;
 
     private final String code;

@@ -99,7 +99,7 @@ class TokenServiceImplTest {
         mockConfig("SECRET_KEY_CONFIG", SECRET);
         mockErrorCode(TOKEN_GENERATE_SUCCESS, TOKEN.name());
 
-        when(userRepository.findByUsernameAndActive(username, true))
+        when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.of(activeUser(username)));
 
         CompleteResponse<Object> response = tokenService.generateAccessToken(username, sessionId);
@@ -127,7 +127,7 @@ class TokenServiceImplTest {
 
         assertBusinessException(exception, INPUT_FORMAT_INVALID, TOKEN.name());
 
-        verify(userRepository, never()).findByUsernameAndActive(anyString(), anyBoolean());
+        verify(userRepository, never()).findByUsernameAndActive(anyString());
     }
 
     @Test
@@ -137,7 +137,7 @@ class TokenServiceImplTest {
         mockConfig("ACCESS_TOKEN_EXPIRATION_TIME", "300000");
         mockConfig("PHONE_VN_PATTERN", "^(0|\\+84)[0-9]{9,10}$");
 
-        when(userRepository.findByUsernameAndActive(username, true))
+        when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -156,7 +156,7 @@ class TokenServiceImplTest {
         mockConfig("PHONE_VN_PATTERN", "^(0|\\+84)[0-9]{9,10}$");
         mockConfig("SECRET_KEY_CONFIG", "short-secret");
 
-        when(userRepository.findByUsernameAndActive(username, true))
+        when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.of(activeUser(username)));
 
         BusinessException exception = assertThrows(
@@ -288,7 +288,7 @@ class TokenServiceImplTest {
         mockConfig("SECRET_KEY_CONFIG", SECRET);
         mockErrorCode(TOKEN_VERIFY_SUCCESS, TOKEN.name());
 
-        when(userRepository.findByUsernameAndActive(username, true))
+        when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.of(activeUser(username)));
 
         CompleteResponse<Object> response = tokenService.validateAccessToken(token);
@@ -312,7 +312,7 @@ class TokenServiceImplTest {
         mockConfig("SECRET_KEY_CONFIG", SECRET);
         mockErrorCode(USER_NOT_FOUND, TOKEN.name());
 
-        when(userRepository.findByUsernameAndActive(username, true))
+        when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.empty());
 
         CompleteResponse<Object> response = tokenService.validateAccessToken(token);
@@ -333,7 +333,7 @@ class TokenServiceImplTest {
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TOKEN_EXPIRE.getCode());
 
-        verify(userRepository, never()).findByUsernameAndActive(anyString(), anyBoolean());
+        verify(userRepository, never()).findByUsernameAndActive(anyString());
     }
 
     @Test
@@ -776,7 +776,7 @@ class TokenServiceImplTest {
                 .thenReturn(true);
         when(refreshTokenRepository.findByTokenId(oldRefreshToken.getTokenId()))
                 .thenReturn(Optional.of(oldRefreshToken));
-        when(userRepository.findByUsernameAndActive(username, true))
+        when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.of(activeUser(username)));
 
         CompleteResponse<Object> response = tokenService.refreshAccessToken(

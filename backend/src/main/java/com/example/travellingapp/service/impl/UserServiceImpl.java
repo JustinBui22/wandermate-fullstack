@@ -65,7 +65,7 @@ public class UserServiceImpl implements UserService {
             // Validate the format of username, email, password and phone number
             userValidator.validateRegisterInput(registerRequest);
 
-            Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername(), true);
+            Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername());
             // Check if username is taken
             if (userOptional.isPresent()) {
                 log.info("Username {} is not available!", userOptional.get().getUsername());
@@ -116,7 +116,7 @@ public class UserServiceImpl implements UserService {
         try {
             // Validate the format of username, email, password and phone number
             userValidator.validateRegisterInput(registerRequest);
-            Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername(), true);
+            Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername());
             // Check if username is taken
             if (userOptional.isPresent()) {
                 log.info("Username {} is already taken!", userOptional.get().getUsername());

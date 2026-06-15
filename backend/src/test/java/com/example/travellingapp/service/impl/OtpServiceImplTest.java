@@ -103,7 +103,7 @@ class OtpServiceImplTest {
         mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
         mockErrorCode(OTP_SENT_SUCCESS, OTP.name());
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
                 .thenReturn(Optional.empty());
@@ -165,7 +165,7 @@ class OtpServiceImplTest {
         mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
         mockErrorCode(OTP_SENT_SUCCESS, OTP.name());
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
                 .thenReturn(Optional.empty());
@@ -199,7 +199,7 @@ class OtpServiceImplTest {
         mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
         mockErrorCode(OTP_SENT_SUCCESS, OTP.name());
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByPhoneNumberAndActive(PHONE_NUMBER, true))
                 .thenReturn(Optional.empty());
@@ -252,7 +252,7 @@ class OtpServiceImplTest {
         mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
         mockErrorCode(OTP_SENT_SUCCESS, OTP.name());
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(existingUser));
         when(otpCheckRepository.findByUsername(USERNAME))
                 .thenReturn(Optional.empty());
@@ -276,7 +276,7 @@ class OtpServiceImplTest {
         User existingUser = activeUser();
         existingUser.setEmail(EMAIL_ADDRESS);
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(existingUser));
 
         BusinessException exception = assertThrows(
@@ -298,7 +298,7 @@ class OtpServiceImplTest {
         User existingUser = activeUser();
         existingUser.setPhoneNumber(PHONE_NUMBER);
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(existingUser));
 
         BusinessException exception = assertThrows(
@@ -320,7 +320,7 @@ class OtpServiceImplTest {
     void sendOtp_shouldThrowEmailTaken_whenNewUserEmailAlreadyExists() {
         OtpDTO request = emailOtpRequest();
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
                 .thenReturn(Optional.of(activeUser()));
@@ -339,7 +339,7 @@ class OtpServiceImplTest {
     void sendOtp_shouldThrowPhoneNumberTaken_whenNewUserPhoneAlreadyExists() {
         OtpDTO request = phoneOtpRequest();
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByPhoneNumberAndActive(PHONE_NUMBER, true))
                 .thenReturn(Optional.of(activeUser()));
@@ -368,7 +368,7 @@ class OtpServiceImplTest {
 
         mockSendRetryConfigs();
         mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
                 .thenReturn(Optional.empty());
@@ -399,7 +399,7 @@ class OtpServiceImplTest {
 
         mockSendRetryConfigs();
         mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
                 .thenReturn(Optional.empty());
@@ -433,7 +433,7 @@ class OtpServiceImplTest {
         mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
         mockErrorCode(OTP_SENT_SUCCESS, OTP.name());
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
                 .thenReturn(Optional.empty());
@@ -468,7 +468,7 @@ class OtpServiceImplTest {
         mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
         mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
                 .thenReturn(Optional.empty());
@@ -496,7 +496,7 @@ class OtpServiceImplTest {
         mockConfig(PHONE_VN_PATTERN.name(), "^(0|\\+84)[0-9]{9,10}$");
         mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByPhoneNumberAndActive(PHONE_NUMBER, true))
                 .thenReturn(Optional.empty());
@@ -526,7 +526,7 @@ class OtpServiceImplTest {
         mockConfig(PHONE_VN_PATTERN.name(), "^(0|\\+84)[0-9]{9,10}$");
         mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
 
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
         when(userRepository.findByPhoneNumberAndActive(PHONE_NUMBER, true))
                 .thenReturn(Optional.empty());
@@ -564,7 +564,7 @@ class OtpServiceImplTest {
 
         assertBusinessException(exception, OTP_METHOD_MISSING, OTP.name());
 
-        verify(userRepository, never()).findByUsernameAndActive(anyString(), anyBoolean());
+        verify(userRepository, never()).findByUsernameAndActive(anyString());
         verify(otpCheckRepository, never()).save(any());
     }
 

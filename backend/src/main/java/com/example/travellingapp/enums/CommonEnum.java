@@ -18,6 +18,8 @@ public enum CommonEnum {
     OTP(Group.FLOW),
     SMS(Group.FLOW),
     EMAIL(Group.FLOW),
+    TRIP_MEMBER(Group.FLOW),
+    SUGGESTION(Group.FLOW),
 
     PASSWORD_PATTERN(Group.CONFIG),
     EMAIL_PATTERN(Group.CONFIG),

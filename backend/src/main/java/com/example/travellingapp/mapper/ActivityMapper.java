@@ -18,7 +18,11 @@ public class ActivityMapper {
                 activity.getStartDateTime(),
                 activity.getEndDateTime(),
                 activity.getCreatedDate(),
-                activity.getModifiedDate()
+                activity.getModifiedDate(),
+                activity.getCreatedBy() == null ? null : activity.getCreatedBy().getUserId(),
+                activity.getCreatedBy() == null ? null : activity.getCreatedBy().getUsername(),
+                activity.getModifiedBy() == null ? null : activity.getModifiedBy().getUserId(),
+                activity.getModifiedBy() == null ? null : activity.getModifiedBy().getUsername()
         );
     }
 }

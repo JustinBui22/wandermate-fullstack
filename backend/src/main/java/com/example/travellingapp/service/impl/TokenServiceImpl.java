@@ -63,7 +63,7 @@ public class TokenServiceImpl implements TokenService {
                 log.error("Input format is invalid for token generation!");
                 throw new BusinessException(INPUT_FORMAT_INVALID, TOKEN.name());
             }
-            User user = userRepository.findByUsernameAndActive(username, true).orElseGet(() -> {
+            User user = userRepository.findByUsernameAndActive(username).orElseGet(() -> {
                 log.error("There is user as {}", username);
                 throw new BusinessException(USER_NOT_FOUND, COMMON.name());
             });
@@ -234,7 +234,7 @@ public class TokenServiceImpl implements TokenService {
             String username = claims.getSubject();
             // Validate if the token's user exists
             log.info("Start checking if user {} is registered!", username);
-            Optional<User> userOptional = userRepository.findByUsernameAndActive(username, true);
+            Optional<User> userOptional = userRepository.findByUsernameAndActive(username);
             if (userOptional.isEmpty()) {
                 log.error("There is no user as {}", username);
                 return getCompleteResponse(errorCodeRepository, USER_NOT_FOUND, TOKEN.name(), null);

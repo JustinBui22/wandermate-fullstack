@@ -10,7 +10,9 @@ import com.example.travellingapp.entity.ErrorCodeEntity;
 import com.example.travellingapp.entity.RestaurantEntity;
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.User;
+import com.example.travellingapp.entity.collaboration.TripMemberEntity;
 import com.example.travellingapp.enums.ErrorCodeEnum;
+import com.example.travellingapp.enums.TripMemberRoleEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripMapper;
 import com.example.travellingapp.repository.AccommodationRepository;
@@ -21,8 +23,10 @@ import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.RestaurantRepository;
 import com.example.travellingapp.repository.TripRepository;
 import com.example.travellingapp.repository.UserRepository;
+import com.example.travellingapp.repository.collaboration.TripMemberRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
+import com.example.travellingapp.service.collaboration.TripAccessService;
 import com.example.travellingapp.validator.TripValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,6 +72,12 @@ class TripServiceImplTest {
     private TripRepository tripRepository;
 
     @Mock
+    private TripMemberRepository tripMemberRepository;
+
+    @Mock
+    private TripAccessService tripAccessService;
+
+    @Mock
     private AuthenticatedUserProvider authenticatedUserProvider;
 
     @Mock
@@ -97,7 +107,9 @@ class TripServiceImplTest {
                 authenticatedUserProvider,
                 tripMapper,
                 tripValidator,
-                destinationRepository
+                destinationRepository,
+                tripMemberRepository,
+                tripAccessService
         );
     }
 
@@ -106,7 +118,7 @@ class TripServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void createTrip_shouldCreateTrip_whenInputIsValidAndNoOverlapExists() {
+    void createTrip_shouldCreateTripAndCreateOwnerMember_whenInputIsValidAndNoOverlapExists() {
         CreateTripDTO request = validCreateRequest();
         User user = activeUser();
         TripResponseDTO responseDTO = mock(TripResponseDTO.class);
@@ -117,7 +129,7 @@ class TripServiceImplTest {
                 .thenReturn("Adelaide Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(user));
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCase(USERNAME, "Adelaide Trip"))
                 .thenReturn(false);
@@ -126,6 +138,8 @@ class TripServiceImplTest {
                 request.getEndDate(),
                 request.getStartDate()
         )).thenReturn(false);
+        when(tripRepository.save(any(TripEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(tripMapper.toResponseDTO(any(TripEntity.class)))
                 .thenReturn(responseDTO);
 
@@ -147,6 +161,18 @@ class TripServiceImplTest {
         assertThat(savedTrip.getEndDate()).isEqualTo(request.getEndDate());
         assertThat(savedTrip.getUser()).isEqualTo(user);
         assertThat(savedTrip.getCreatedDate()).isNotNull();
+
+        ArgumentCaptor<TripMemberEntity> memberCaptor =
+                ArgumentCaptor.forClass(TripMemberEntity.class);
+
+        verify(tripMemberRepository).save(memberCaptor.capture());
+
+        TripMemberEntity savedMember = memberCaptor.getValue();
+
+        assertThat(savedMember.getTrip()).isEqualTo(savedTrip);
+        assertThat(savedMember.getUser()).isEqualTo(user);
+        assertThat(savedMember.getRole()).isEqualTo(TripMemberRoleEnum.OWNER);
+        assertThat(savedMember.getCreatedDate()).isNotNull();
     }
 
     @Test
@@ -165,6 +191,7 @@ class TripServiceImplTest {
 
         verify(authenticatedUserProvider, never()).getUsername();
         verify(tripRepository, never()).save(any(TripEntity.class));
+        verify(tripMemberRepository, never()).save(any(TripMemberEntity.class));
     }
 
     @Test
@@ -175,7 +202,7 @@ class TripServiceImplTest {
                 .thenReturn("Adelaide Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -186,6 +213,7 @@ class TripServiceImplTest {
         assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
 
         verify(tripRepository, never()).save(any(TripEntity.class));
+        verify(tripMemberRepository, never()).save(any(TripMemberEntity.class));
     }
 
     @Test
@@ -196,7 +224,7 @@ class TripServiceImplTest {
                 .thenReturn("Adelaide Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(activeUser()));
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCase(USERNAME, "Adelaide Trip"))
                 .thenReturn(true);
@@ -215,6 +243,7 @@ class TripServiceImplTest {
                         any()
                 );
         verify(tripRepository, never()).save(any(TripEntity.class));
+        verify(tripMemberRepository, never()).save(any(TripMemberEntity.class));
     }
 
     @Test
@@ -226,7 +255,7 @@ class TripServiceImplTest {
                 .thenReturn("Adelaide Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(activeUser()));
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCase(USERNAME, "Adelaide Trip"))
                 .thenReturn(false);
@@ -244,6 +273,7 @@ class TripServiceImplTest {
         assertBusinessException(exception, TRIP_OVERLAP_WARNING, TRIP.name());
 
         verify(tripRepository, never()).save(any(TripEntity.class));
+        verify(tripMemberRepository, never()).save(any(TripMemberEntity.class));
     }
 
     @Test
@@ -257,7 +287,7 @@ class TripServiceImplTest {
                 .thenReturn("Adelaide Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(activeUser()));
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCase(USERNAME, "Adelaide Trip"))
                 .thenReturn(false);
@@ -266,6 +296,8 @@ class TripServiceImplTest {
                 request.getEndDate(),
                 request.getStartDate()
         )).thenReturn(true);
+        when(tripRepository.save(any(TripEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(tripMapper.toResponseDTO(any(TripEntity.class)))
                 .thenReturn(mock(TripResponseDTO.class));
 
@@ -275,6 +307,7 @@ class TripServiceImplTest {
                 .isEqualTo(TRIP_CREATED_SUCCESS.getCode());
 
         verify(tripRepository).save(any(TripEntity.class));
+        verify(tripMemberRepository).save(any(TripMemberEntity.class));
     }
 
     @Test
@@ -292,6 +325,7 @@ class TripServiceImplTest {
         assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());
 
         verify(tripRepository, never()).save(any(TripEntity.class));
+        verify(tripMemberRepository, never()).save(any(TripMemberEntity.class));
     }
 
     // -------------------------------------------------------------------------
@@ -299,7 +333,7 @@ class TripServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getTrips_shouldReturnTripsForAuthenticatedUser() {
+    void getTrips_shouldReturnAccessibleTripsForAuthenticatedUser() {
         User user = activeUser();
         TripEntity trip1 = trip("Adelaide Trip");
         TripEntity trip2 = trip("Melbourne Trip");
@@ -311,9 +345,9 @@ class TripServiceImplTest {
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(user));
-        when(tripRepository.findAllByUser(user))
+        when(tripMemberRepository.findAccessibleTripsByUsername(USERNAME))
                 .thenReturn(List.of(trip1, trip2));
         when(tripMapper.toResponseDTO(trip1))
                 .thenReturn(response1);
@@ -326,7 +360,8 @@ class TripServiceImplTest {
                 .isEqualTo(TRIPS_RETRIEVED_SUCCESS.getCode());
 
         @SuppressWarnings("unchecked")
-        List<TripResponseDTO> body = (List<TripResponseDTO>) response.getResponseBody().getBody();
+        List<TripResponseDTO> body =
+                (List<TripResponseDTO>) response.getResponseBody().getBody();
 
         assertThat(body).containsExactly(response1, response2);
     }
@@ -335,7 +370,7 @@ class TripServiceImplTest {
     void getTrips_shouldThrowUserNotFound_whenAuthenticatedUserDoesNotExist() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(userRepository.findByUsernameAndActive(USERNAME, true))
+        when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -345,7 +380,7 @@ class TripServiceImplTest {
 
         assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
 
-        verify(tripRepository, never()).findAllByUser(any(User.class));
+        verify(tripMemberRepository, never()).findAccessibleTripsByUsername(anyString());
     }
 
     @Test
@@ -366,7 +401,7 @@ class TripServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getTripById_shouldReturnTrip_whenTripExistsAndBelongsToUser() {
+    void getTripById_shouldReturnTrip_whenUserCanViewTrip() {
         TripEntity trip = trip("Adelaide Trip");
         TripResponseDTO responseDTO = mock(TripResponseDTO.class);
 
@@ -374,8 +409,8 @@ class TripServiceImplTest {
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip));
+        when(tripAccessService.getTripIfCanView(TRIP_ID, USERNAME))
+                .thenReturn(trip);
         when(tripMapper.toResponseDTO(trip))
                 .thenReturn(responseDTO);
 
@@ -397,29 +432,29 @@ class TripServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
-        verify(tripRepository, never()).findByTripIdAndUser_Username(anyLong(), anyString());
+        verify(tripAccessService, never()).getTripIfCanView(anyLong(), anyString());
     }
 
     @Test
-    void getTripById_shouldThrowTripNotFound_whenTripDoesNotExistForUser() {
+    void getTripById_shouldThrowAccessDenied_whenUserCannotViewTrip() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.empty());
+        when(tripAccessService.getTripIfCanView(TRIP_ID, USERNAME))
+                .thenThrow(new BusinessException(TRIP_ACCESS_DENIED, COMMON.name()));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> tripService.getTripById(TRIP_ID)
         );
 
-        assertBusinessException(exception, TRIP_NOT_FOUND, COMMON.name());
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, COMMON.name());
     }
 
     @Test
     void getTripById_shouldWrapUnexpectedExceptionAsInternalServerError() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
+        when(tripAccessService.getTripIfCanView(TRIP_ID, USERNAME))
                 .thenThrow(new RuntimeException("Database unavailable"));
 
         BusinessException exception = assertThrows(
@@ -435,7 +470,7 @@ class TripServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void updateTrip_shouldUpdateTrip_whenInputIsValidAndNoConflictsExist() {
+    void updateTrip_shouldUpdateTrip_whenUserCanEditTripAndNoConflictsExist() {
         UpdateTripDTO request = validUpdateRequest();
         TripEntity existingTrip = trip("Old Trip");
         TripResponseDTO responseDTO = mock(TripResponseDTO.class);
@@ -446,8 +481,8 @@ class TripServiceImplTest {
                 .thenReturn("Updated Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(existingTrip));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(existingTrip);
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                 USERNAME,
                 "Updated Trip",
@@ -505,22 +540,22 @@ class TripServiceImplTest {
     }
 
     @Test
-    void updateTrip_shouldThrowInvalidInput_whenTripDoesNotExistForUser() {
+    void updateTrip_shouldThrowAccessDenied_whenUserCannotEditTrip() {
         UpdateTripDTO request = validUpdateRequest();
 
         when(tripValidator.validateUpdateInput(TRIP_ID, request))
                 .thenReturn("Updated Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.empty());
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenThrow(new BusinessException(TRIP_ACCESS_DENIED, COMMON.name()));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> tripService.updateTrip(TRIP_ID, request)
         );
 
-        assertBusinessException(exception, INVALID_INPUT, COMMON.name());
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, COMMON.name());
 
         verify(tripRepository, never()).save(any(TripEntity.class));
     }
@@ -533,8 +568,8 @@ class TripServiceImplTest {
                 .thenReturn("Updated Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip("Old Trip")));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip("Old Trip"));
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                 USERNAME,
                 "Updated Trip",
@@ -567,8 +602,8 @@ class TripServiceImplTest {
                 .thenReturn("Updated Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip("Old Trip")));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip("Old Trip"));
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                 USERNAME,
                 "Updated Trip",
@@ -605,8 +640,8 @@ class TripServiceImplTest {
                 .thenReturn("Updated Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(existingTrip));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(existingTrip);
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                 USERNAME,
                 "Updated Trip",
@@ -645,8 +680,8 @@ class TripServiceImplTest {
                 .thenReturn("Updated Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip("Old Trip")));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip("Old Trip"));
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                 USERNAME,
                 "Updated Trip",
@@ -686,8 +721,8 @@ class TripServiceImplTest {
                 .thenReturn("Updated Trip");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip("Old Trip")));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip("Old Trip"));
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                 USERNAME,
                 "Updated Trip",
@@ -744,15 +779,15 @@ class TripServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void deleteTrip_shouldDeleteTrip_whenTripExistsAndBelongsToUser() {
+    void deleteTrip_shouldDeleteTrip_whenUserIsOwner() {
         TripEntity trip = trip("Adelaide Trip");
 
         mockErrorCode(TRIP_DELETED_SUCCESS, TRIP.name());
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip));
+        when(tripAccessService.getTripIfOwner(TRIP_ID, USERNAME))
+                .thenReturn(trip);
 
         CompleteResponse<Object> response = tripService.deleteTrip(TRIP_ID);
 
@@ -773,22 +808,23 @@ class TripServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).getTripIfOwner(anyLong(), anyString());
         verify(tripRepository, never()).delete(any(TripEntity.class));
     }
 
     @Test
-    void deleteTrip_shouldThrowTripNotFound_whenTripDoesNotExistForUser() {
+    void deleteTrip_shouldThrowAccessDenied_whenUserIsNotOwner() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.empty());
+        when(tripAccessService.getTripIfOwner(TRIP_ID, USERNAME))
+                .thenThrow(new BusinessException(TRIP_ACCESS_DENIED, COMMON.name()));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> tripService.deleteTrip(TRIP_ID)
         );
 
-        assertBusinessException(exception, TRIP_NOT_FOUND, TRIP.name());
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, COMMON.name());
 
         verify(tripRepository, never()).delete(any(TripEntity.class));
     }
@@ -797,7 +833,7 @@ class TripServiceImplTest {
     void deleteTrip_shouldWrapUnexpectedExceptionAsInternalServerError() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
+        when(tripAccessService.getTripIfOwner(TRIP_ID, USERNAME))
                 .thenThrow(new RuntimeException("Database unavailable"));
 
         BusinessException exception = assertThrows(
@@ -1085,6 +1121,7 @@ class TripServiceImplTest {
 
     private User activeUser() {
         User user = new User();
+        user.setUserId(1L);
         user.setUsername(USERNAME);
         user.setEmail("justin@example.com");
         user.setActive(true);

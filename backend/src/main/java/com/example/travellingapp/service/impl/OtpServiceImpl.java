@@ -58,7 +58,7 @@ public class OtpServiceImpl implements OtpService {
             // Validate common input for sending otp request
             otpValidator.validateOtpRequest(otpDTO);
             // Check if user already existed to send otp for
-            Optional<User> existingUserOptional = userRepository.findByUsernameAndActive(otpDTO.getUserName(), true);
+            Optional<User> existingUserOptional = userRepository.findByUsernameAndActive(otpDTO.getUserName());
 
             if (existingUserOptional.isPresent()) {
                 log.info("User {} is found to send OTP for!", otpDTO.getUserName());

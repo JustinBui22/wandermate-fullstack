@@ -47,6 +47,7 @@ public class TripEntity implements Serializable {
     @Column(name = "end_date", nullable = false)
     private LocalDateTime endDate;
 
+    // Many trips can belong to one user, but each trip belongs to one user
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -54,6 +55,7 @@ public class TripEntity implements Serializable {
     @Column(name = "modified_date")
     private LocalDateTime modifiedDate;
 
+    // One trip can have multiple destinations, but each destination belongs to one trip
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DestinationEntity> destinations = new ArrayList<>();
 

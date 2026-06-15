@@ -6,12 +6,14 @@ import com.example.travellingapp.dto.response.ActivityResponseDTO;
 import com.example.travellingapp.entity.ActivityEntity;
 import com.example.travellingapp.entity.DestinationEntity;
 import com.example.travellingapp.entity.ErrorCodeEntity;
+import com.example.travellingapp.entity.User;
 import com.example.travellingapp.enums.ErrorCodeEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.ActivityMapper;
 import com.example.travellingapp.repository.ActivityRepository;
 import com.example.travellingapp.repository.DestinationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
+import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.validator.ActivityValidator;
@@ -56,6 +58,9 @@ class ActivityServiceImplTest {
     @Mock
     private ActivityMapper activityMapper;
 
+    @Mock
+    private UserRepository userRepository;
+
     private ActivityServiceImpl activityService;
 
     private static final Long TRIP_ID = 1L;
@@ -71,7 +76,8 @@ class ActivityServiceImplTest {
                 errorCodeRepository,
                 activityValidator,
                 authenticatedUserProvider,
-                activityMapper
+                activityMapper,
+                userRepository
         );
     }
 
@@ -83,6 +89,7 @@ class ActivityServiceImplTest {
     void createActivity_shouldCreateActivity_whenInputIsValidAndNoOverlapExists() {
         CreateActivityDTO request = validCreateRequest();
         DestinationEntity destination = destination();
+        User user = activeUser();
 
         ActivityResponseDTO responseDTO = mock(ActivityResponseDTO.class);
 
@@ -92,6 +99,8 @@ class ActivityServiceImplTest {
                 .thenReturn("Visit Museum");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(user));
         when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
                 DESTINATION_ID,
                 TRIP_ID,
@@ -129,6 +138,8 @@ class ActivityServiceImplTest {
         assertThat(savedActivity.getStartDateTime()).isEqualTo(request.getStartDateTime());
         assertThat(savedActivity.getEndDateTime()).isEqualTo(request.getEndDateTime());
         assertThat(savedActivity.getDestination()).isEqualTo(destination);
+        assertThat(savedActivity.getCreatedBy()).isEqualTo(user);
+        assertThat(savedActivity.getCreatedBy().getUsername()).isEqualTo(USERNAME);
         assertThat(savedActivity.getCreatedDate()).isNotNull();
 
         verify(activityValidator).validateActivityInsideDestination(
@@ -153,6 +164,7 @@ class ActivityServiceImplTest {
         assertBusinessException(exception, ACTIVITY_TIME_INVALID, ACTIVITY.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(userRepository, never()).findByUsernameAndActive(anyString());
         verify(destinationRepository, never())
                 .findByDestinationIdAndTrip_TripIdAndTrip_User_Username(anyLong(), anyLong(), anyString());
         verify(activityRepository, never()).save(any(ActivityEntity.class));
@@ -166,6 +178,8 @@ class ActivityServiceImplTest {
                 .thenReturn("Visit Museum");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(activeUser()));
         when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
                 DESTINATION_ID,
                 TRIP_ID,
@@ -192,6 +206,8 @@ class ActivityServiceImplTest {
                 .thenReturn("Visit Museum");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(activeUser()));
         when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
                 DESTINATION_ID,
                 TRIP_ID,
@@ -230,6 +246,8 @@ class ActivityServiceImplTest {
                 .thenReturn("Visit Museum");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(activeUser()));
         when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
                 DESTINATION_ID,
                 TRIP_ID,
@@ -828,8 +846,18 @@ class ActivityServiceImplTest {
         activity.setStartDateTime(LocalDateTime.of(2026, 7, 10, 9, 0));
         activity.setEndDateTime(LocalDateTime.of(2026, 7, 10, 10, 0));
         activity.setDestination(destination());
+        activity.setCreatedBy(activeUser());
         activity.setCreatedDate(LocalDateTime.now());
         return activity;
+    }
+
+    private User activeUser() {
+        User user = new User();
+        user.setUserId(1L);
+        user.setUsername(USERNAME);
+        user.setEmail("justin@example.com");
+        user.setActive(true);
+        return user;
     }
 
     private void mockErrorCode(ErrorCodeEnum errorCodeEnum, String flow) {

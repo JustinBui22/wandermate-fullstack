@@ -97,7 +97,7 @@ class UserServiceImplTest {
 
         mockErrorCode(USER_DETAILS_VERIFIED, REGISTER.name());
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.empty());
@@ -108,7 +108,7 @@ class UserServiceImplTest {
                 .isEqualTo(USER_DETAILS_VERIFIED.getCode());
 
         verify(userValidator).validateRegisterInput(request);
-        verify(userRepository).findByUsernameAndActive(request.getUsername(), true);
+        verify(userRepository).findByUsernameAndActive(request.getUsername());
         verify(userRepository).findByEmailAndActive(request.getEmail(), true);
         verify(userRepository, never()).findByPhoneNumberAndActive(anyString(), anyBoolean());
         verify(userRepository, never()).save(any(User.class));
@@ -119,7 +119,7 @@ class UserServiceImplTest {
         CreateUserDTO request = validRegisterRequest();
 
         User existingUser = activeUser(request.getUsername());
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.of(existingUser));
 
         BusinessException exception = assertThrows(
@@ -139,7 +139,7 @@ class UserServiceImplTest {
     void checkUserDetails_shouldThrowEmailTaken_whenEmailAlreadyExists() {
         CreateUserDTO request = validRegisterRequest();
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.of(activeUser("OtherUser")));
@@ -161,7 +161,7 @@ class UserServiceImplTest {
         CreateUserDTO request = validRegisterRequest();
         request.setPhoneNumber("0412345678");
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.empty());
@@ -194,7 +194,7 @@ class UserServiceImplTest {
 
         assertBusinessException(exception, PASSWORD_NOT_QUALIFIED, REGISTER.name());
 
-        verify(userRepository, never()).findByUsernameAndActive(anyString(), anyBoolean());
+        verify(userRepository, never()).findByUsernameAndActive(anyString());
         verify(userRepository, never()).findByEmailAndActive(anyString(), anyBoolean());
         verify(userRepository, never()).save(any(User.class));
     }
@@ -238,7 +238,7 @@ class UserServiceImplTest {
         assertBusinessException(exception, PASSWORD_NOT_QUALIFIED, REGISTER.name());
 
         verify(userValidator).validateRegisterInput(request);
-        verify(userRepository, never()).findByUsernameAndActive(anyString(), anyBoolean());
+        verify(userRepository, never()).findByUsernameAndActive(anyString());
         verify(userRepository, never()).findByEmailAndActive(anyString(), anyBoolean());
         verify(userRepository, never()).findByPhoneNumberAndActive(anyString(), anyBoolean());
         verify(otpServiceImpl, never()).verifyOtp(any(OtpDTO.class));
@@ -252,7 +252,7 @@ class UserServiceImplTest {
 
         mockErrorCode(USER_CREATED, REGISTER.name());
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.empty());
@@ -292,7 +292,7 @@ class UserServiceImplTest {
     void createNewUser_shouldThrowUsernameTaken_whenUsernameAlreadyExists() {
         CreateUserDTO request = validRegisterRequest();
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.of(activeUser(request.getUsername())));
 
         BusinessException exception = assertThrows(
@@ -311,7 +311,7 @@ class UserServiceImplTest {
     void createNewUser_shouldThrowEmailTaken_whenEmailAlreadyExists() {
         CreateUserDTO request = validRegisterRequest();
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.of(activeUser("OtherUser")));
@@ -332,7 +332,7 @@ class UserServiceImplTest {
         CreateUserDTO request = validRegisterRequest();
         request.setPhoneNumber("0412345678");
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.empty());
@@ -355,7 +355,7 @@ class UserServiceImplTest {
         CreateUserDTO request = validRegisterRequest();
         request.setOtp("");
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.empty());
@@ -376,7 +376,7 @@ class UserServiceImplTest {
         CreateUserDTO request = validRegisterRequest();
         request.setDob("01/01/2999");
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.empty());
@@ -396,7 +396,7 @@ class UserServiceImplTest {
     void createNewUser_shouldThrowOtpVerificationFail_whenOtpVerificationDoesNotReturnSuccess() {
         CreateUserDTO request = validRegisterRequest();
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.empty());
@@ -419,7 +419,7 @@ class UserServiceImplTest {
     void createNewUser_shouldWrapUnexpectedExceptionAsInternalServerError() {
         CreateUserDTO request = validRegisterRequest();
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenThrow(new RuntimeException("Database unavailable"));
 
         BusinessException exception = assertThrows(
@@ -437,7 +437,7 @@ class UserServiceImplTest {
     void createNewUser_shouldWrapSaveFailureAsInternalServerError_afterOtpVerificationSucceeds() {
         CreateUserDTO request = validRegisterRequest();
 
-        when(userRepository.findByUsernameAndActive(request.getUsername(), true))
+        when(userRepository.findByUsernameAndActive(request.getUsername()))
                 .thenReturn(Optional.empty());
         when(userRepository.findByEmailAndActive(request.getEmail(), true))
                 .thenReturn(Optional.empty());

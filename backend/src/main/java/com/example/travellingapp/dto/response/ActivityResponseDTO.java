@@ -20,5 +20,10 @@ public class ActivityResponseDTO {
     private LocalDateTime endDateTime;
     private LocalDateTime createdDate;
     private LocalDateTime modifiedDate;
+
+    private Long createdByUserId;
+    private String createdByUsername;
+    private Long modifiedByUserId;
+    private String modifiedByUsername;
 }
 
