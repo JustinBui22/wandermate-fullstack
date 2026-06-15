@@ -13,7 +13,7 @@ import com.example.travellingapp.repository.collaboration.TripMemberRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.TripService;
-import com.example.travellingapp.service.collaboration.TripAccessService;
+import com.example.travellingapp.service.TripAccessService;
 import com.example.travellingapp.validator.TripValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;

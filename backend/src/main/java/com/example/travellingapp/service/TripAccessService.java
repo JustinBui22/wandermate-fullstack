@@ -1,4 +1,4 @@
-package com.example.travellingapp.service.collaboration;
+package com.example.travellingapp.service;
 
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.enums.TripMemberRoleEnum;

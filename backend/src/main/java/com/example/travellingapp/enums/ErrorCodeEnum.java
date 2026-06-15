@@ -44,7 +44,7 @@ public enum ErrorCodeEnum {
     SUGGESTION_RETRIEVED_SUCCESS("E000", "Suggestion retrieved successfully", SUGGESTION, HttpStatusCodeEnum.OK),
     SUGGESTION_APPROVED_SUCCESS("E000", "Suggestion approved successfully", SUGGESTION, HttpStatusCodeEnum.OK),
     SUGGESTION_REJECTED_SUCCESS("E000", "Suggestion rejected successfully", SUGGESTION, HttpStatusCodeEnum.OK),
-
+    TRIP_MEMBERS_RETRIEVED_SUCCESS("E000", "Trip members retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
 
     INVALID_INPUT("E001", "Invalid input provided", COMMON, HttpStatusCodeEnum.BAD_REQUEST),
     USERNAME_TAKEN("E002", "Username taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
@@ -123,7 +123,8 @@ public enum ErrorCodeEnum {
     TRIP_OWNER_ROLE_CANNOT_BE_CHANGED("E068", "Trip owner role cannot be changed", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
     SUGGESTION_NOT_FOUND("E069", "Suggestion not found", SUGGESTION, HttpStatusCodeEnum.NOT_FOUND),
     SUGGESTION_ALREADY_APPROVED("E070", "Suggestion already approved", SUGGESTION, HttpStatusCodeEnum.CONFLICT),
-    SUGGESTION_ALREADY_REJECTED("E071", "Suggestion already rejected", SUGGESTION, HttpStatusCodeEnum.CONFLICT),
+    OWNER_CANNOT_BE_ASSIGNED_MANUALLY("E071", "Owner role cannot be assigned manually", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
+    SUGGESTION_ALREADY_REJECTED("E072", "Suggestion already rejected", SUGGESTION, HttpStatusCodeEnum.CONFLICT),
 
     ;
 

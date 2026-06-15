@@ -1,4 +1,4 @@
-package com.example.travellingapp.service.impl.collaboration;
+package com.example.travellingapp.service.impl;
 
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.enums.TripMemberRoleEnum;
@@ -6,7 +6,7 @@ import com.example.travellingapp.entity.collaboration.TripMemberEntity;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.TripRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
-import com.example.travellingapp.service.collaboration.TripAccessService;
+import com.example.travellingapp.service.TripAccessService;
 import org.springframework.stereotype.Service;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;

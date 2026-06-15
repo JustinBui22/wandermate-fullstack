@@ -26,7 +26,7 @@ import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
-import com.example.travellingapp.service.collaboration.TripAccessService;
+import com.example.travellingapp.service.TripAccessService;
 import com.example.travellingapp.validator.TripValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
