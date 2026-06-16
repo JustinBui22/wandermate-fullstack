@@ -181,14 +181,15 @@ public class TripServiceImpl implements TripService {
             String username = authenticatedUserProvider.getUsername();
             // Use TripAccessService to check if the user has edit access to the trip and retrieve it
             TripEntity trip = tripAccessService.getTripIfCanEdit(tripId, username);
+            String tripOwnerUsername = trip.getUser().getUsername();
 
             // Validate trip name uniqueness for the user excluding the current trip
             if (tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
-                    username,
+                    tripOwnerUsername,
                     tripName,
                     tripId
             )) {
-                log.error("Trip name {} already exists for user {}!", tripName, username);
+                log.error("Trip name {} already exists for user {}!", tripName, tripOwnerUsername);
                 throw new BusinessException(TRIP_NAME_ALREADY_EXISTS, COMMON.name());
             }
 
@@ -196,13 +197,13 @@ public class TripServiceImpl implements TripService {
             boolean allowOverlap = Boolean.TRUE.equals(tripDTO.getAllowOverlap());
             boolean hasOverlap = tripRepository
                     .existsByUser_UsernameAndTripIdNotAndStartDateLessThanAndEndDateGreaterThan(
-                            username,
+                            tripOwnerUsername,
                             tripId,
                             tripDTO.getEndDate(),
                             tripDTO.getStartDate()
                     );
             if (hasOverlap && !allowOverlap) {
-                log.error("Updated trip date range overlaps with another existing trip for user {}.", username);
+                log.error("Updated trip date range overlaps with another existing trip for trip owner {}.", tripOwnerUsername);
                 throw new BusinessException(TRIP_OVERLAP_WARNING, TRIP.name());
             }
 

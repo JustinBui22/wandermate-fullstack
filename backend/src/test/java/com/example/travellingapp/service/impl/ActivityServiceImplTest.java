@@ -16,6 +16,7 @@ import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
+import com.example.travellingapp.service.TripAccessService;
 import com.example.travellingapp.validator.ActivityValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,9 +29,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static com.example.travellingapp.enums.CommonEnum.ACTIVITY;
-import static com.example.travellingapp.enums.CommonEnum.COMMON;
-import static com.example.travellingapp.enums.CommonEnum.DESTINATION;
+import static com.example.travellingapp.enums.CommonEnum.*;
 import static com.example.travellingapp.enums.ErrorCodeEnum.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -61,6 +60,9 @@ class ActivityServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private TripAccessService tripAccessService;
+
     private ActivityServiceImpl activityService;
 
     private static final Long TRIP_ID = 1L;
@@ -77,7 +79,8 @@ class ActivityServiceImplTest {
                 activityValidator,
                 authenticatedUserProvider,
                 activityMapper,
-                userRepository
+                userRepository,
+                tripAccessService
         );
     }
 
@@ -101,10 +104,9 @@ class ActivityServiceImplTest {
                 .thenReturn(USERNAME);
         when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(user));
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(destination));
         when(activityRepository.existsByDestination_Trip_TripIdAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
                 TRIP_ID,
@@ -142,6 +144,7 @@ class ActivityServiceImplTest {
         assertThat(savedActivity.getCreatedBy().getUsername()).isEqualTo(USERNAME);
         assertThat(savedActivity.getCreatedDate()).isNotNull();
 
+        verify(tripAccessService).assertCanEdit(TRIP_ID, USERNAME);
         verify(activityValidator).validateActivityInsideDestination(
                 request.getStartDateTime(),
                 request.getEndDateTime(),
@@ -164,14 +167,61 @@ class ActivityServiceImplTest {
         assertBusinessException(exception, ACTIVITY_TIME_INVALID, ACTIVITY.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanEdit(anyLong(), anyString());
         verify(userRepository, never()).findByUsernameAndActive(anyString());
-        verify(destinationRepository, never())
-                .findByDestinationIdAndTrip_TripIdAndTrip_User_Username(anyLong(), anyLong(), anyString());
+        verify(destinationRepository, never()).findByDestinationIdAndTrip_TripId(anyLong(), anyLong());
         verify(activityRepository, never()).save(any(ActivityEntity.class));
     }
 
     @Test
-    void createActivity_shouldThrowDestinationNotFound_whenDestinationDoesNotBelongToUserTrip() {
+    void createActivity_shouldRethrowBusinessException_whenUserCannotEditTrip() {
+        CreateActivityDTO request = validCreateRequest();
+
+        when(activityValidator.validateCreateInput(TRIP_ID, DESTINATION_ID, request))
+                .thenReturn("Visit Museum");
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+
+        doThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()))
+                .when(tripAccessService)
+                .assertCanEdit(TRIP_ID, USERNAME);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> activityService.createActivity(TRIP_ID, DESTINATION_ID, request)
+        );
+
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
+
+        verify(userRepository, never()).findByUsernameAndActive(anyString());
+        verify(destinationRepository, never()).findByDestinationIdAndTrip_TripId(anyLong(), anyLong());
+        verify(activityRepository, never()).save(any(ActivityEntity.class));
+    }
+
+    @Test
+    void createActivity_shouldThrowUserNotFound_whenCurrentUserDoesNotExist() {
+        CreateActivityDTO request = validCreateRequest();
+
+        when(activityValidator.validateCreateInput(TRIP_ID, DESTINATION_ID, request))
+                .thenReturn("Visit Museum");
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> activityService.createActivity(TRIP_ID, DESTINATION_ID, request)
+        );
+
+        assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
+
+        verify(destinationRepository, never()).findByDestinationIdAndTrip_TripId(anyLong(), anyLong());
+        verify(activityRepository, never()).save(any(ActivityEntity.class));
+    }
+
+    @Test
+    void createActivity_shouldThrowDestinationNotFound_whenDestinationDoesNotBelongToTrip() {
         CreateActivityDTO request = validCreateRequest();
 
         when(activityValidator.validateCreateInput(TRIP_ID, DESTINATION_ID, request))
@@ -180,10 +230,9 @@ class ActivityServiceImplTest {
                 .thenReturn(USERNAME);
         when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(activeUser()));
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -208,10 +257,9 @@ class ActivityServiceImplTest {
                 .thenReturn(USERNAME);
         when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(activeUser()));
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(destination));
         doThrow(new BusinessException(ACTIVITY_OUTSIDE_DESTINATION_RANGE, ACTIVITY.name()))
                 .when(activityValidator)
@@ -248,10 +296,9 @@ class ActivityServiceImplTest {
                 .thenReturn(USERNAME);
         when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(activeUser()));
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(destination));
         when(activityRepository.existsByDestination_Trip_TripIdAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
                 TRIP_ID,
@@ -308,15 +355,13 @@ class ActivityServiceImplTest {
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(destination));
-        when(activityRepository.findAllByDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(activityRepository.findAllByDestination_DestinationIdAndDestination_Trip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(List.of(activity1, activity2));
         when(activityMapper.toResponseDTO(activity1)).thenReturn(response1);
         when(activityMapper.toResponseDTO(activity2)).thenReturn(response2);
@@ -334,6 +379,8 @@ class ActivityServiceImplTest {
                 (List<ActivityResponseDTO>) response.getResponseBody().getBody();
 
         assertThat(body).containsExactly(response1, response2);
+
+        verify(tripAccessService).assertCanView(TRIP_ID, USERNAME);
     }
 
     @Test
@@ -346,11 +393,11 @@ class ActivityServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanView(anyLong(), anyString());
         verify(activityRepository, never())
-                .findAllByDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+                .findAllByDestination_DestinationIdAndDestination_Trip_TripId(
                         anyLong(),
-                        anyLong(),
-                        anyString()
+                        anyLong()
                 );
     }
 
@@ -364,16 +411,37 @@ class ActivityServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanView(anyLong(), anyString());
+    }
+
+    @Test
+    void getActivitiesByDestination_shouldRethrowBusinessException_whenUserCannotViewTrip() {
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+
+        doThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()))
+                .when(tripAccessService)
+                .assertCanView(TRIP_ID, USERNAME);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> activityService.getActivitiesByDestination(TRIP_ID, DESTINATION_ID)
+        );
+
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
+
+        verify(destinationRepository, never()).findByDestinationIdAndTrip_TripId(anyLong(), anyLong());
+        verify(activityRepository, never())
+                .findAllByDestination_DestinationIdAndDestination_Trip_TripId(anyLong(), anyLong());
     }
 
     @Test
     void getActivitiesByDestination_shouldThrowDestinationNotFound_whenDestinationDoesNotExist() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -384,10 +452,9 @@ class ActivityServiceImplTest {
         assertBusinessException(exception, DESTINATION_NOT_FOUND, DESTINATION.name());
 
         verify(activityRepository, never())
-                .findAllByDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+                .findAllByDestination_DestinationIdAndDestination_Trip_TripId(
                         anyLong(),
-                        anyLong(),
-                        anyString()
+                        anyLong()
                 );
     }
 
@@ -409,7 +476,7 @@ class ActivityServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getActivityById_shouldReturnActivity_whenActivityExistsAndBelongsToUser() {
+    void getActivityById_shouldReturnActivity_whenActivityExistsAndUserCanViewTrip() {
         ActivityEntity activity = activity("Museum");
         ActivityResponseDTO responseDTO = mock(ActivityResponseDTO.class);
 
@@ -417,11 +484,10 @@ class ActivityServiceImplTest {
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(activity));
         when(activityMapper.toResponseDTO(activity))
                 .thenReturn(responseDTO);
@@ -436,6 +502,8 @@ class ActivityServiceImplTest {
                 .isEqualTo(ACTIVITY_RETRIEVED_SUCCESS.getCode());
         assertThat(response.getResponseBody().getBody())
                 .isEqualTo(responseDTO);
+
+        verify(tripAccessService).assertCanView(TRIP_ID, USERNAME);
     }
 
     @Test
@@ -460,17 +528,41 @@ class ActivityServiceImplTest {
         assertBusinessException(exception3, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanView(anyLong(), anyString());
+    }
+
+    @Test
+    void getActivityById_shouldRethrowBusinessException_whenUserCannotViewTrip() {
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+
+        doThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()))
+                .when(tripAccessService)
+                .assertCanView(TRIP_ID, USERNAME);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> activityService.getActivityById(TRIP_ID, DESTINATION_ID, ACTIVITY_ID)
+        );
+
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
+
+        verify(activityRepository, never())
+                .findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
+                        anyLong(),
+                        anyLong(),
+                        anyLong()
+                );
     }
 
     @Test
     void getActivityById_shouldThrowActivityNotFound_whenActivityDoesNotExist() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -485,11 +577,10 @@ class ActivityServiceImplTest {
     void getActivityById_shouldWrapUnexpectedExceptionAsInternalServerError() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenThrow(new RuntimeException("Database unavailable"));
 
         BusinessException exception = assertThrows(
@@ -512,6 +603,8 @@ class ActivityServiceImplTest {
         ActivityEntity existingActivity = activity("Old Name");
         existingActivity.setDestination(destination);
 
+        User modifier = activeUser();
+
         ActivityResponseDTO responseDTO = mock(ActivityResponseDTO.class);
 
         mockErrorCode(ACTIVITY_UPDATED_SUCCESS, ACTIVITY.name());
@@ -520,11 +613,12 @@ class ActivityServiceImplTest {
                 .thenReturn("Updated Museum");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(modifier));
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(existingActivity));
         when(activityRepository.existsByDestination_Trip_TripIdAndActivityIdNotAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
                 TRIP_ID,
@@ -552,8 +646,10 @@ class ActivityServiceImplTest {
         assertThat(existingActivity.getDescription()).isEqualTo("Updated description");
         assertThat(existingActivity.getStartDateTime()).isEqualTo(request.getStartDateTime());
         assertThat(existingActivity.getEndDateTime()).isEqualTo(request.getEndDateTime());
+        assertThat(existingActivity.getModifiedBy()).isEqualTo(modifier);
         assertThat(existingActivity.getModifiedDate()).isNotNull();
 
+        verify(tripAccessService).assertCanEdit(TRIP_ID, USERNAME);
         verify(activityValidator).validateActivityInsideDestination(
                 request.getStartDateTime(),
                 request.getEndDateTime(),
@@ -577,6 +673,58 @@ class ActivityServiceImplTest {
         assertBusinessException(exception, ACTIVITY_TIME_INVALID, ACTIVITY.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanEdit(anyLong(), anyString());
+        verify(activityRepository, never()).save(any(ActivityEntity.class));
+    }
+
+    @Test
+    void updateActivity_shouldRethrowBusinessException_whenUserCannotEditTrip() {
+        UpdateActivityDTO request = validUpdateRequest();
+
+        when(activityValidator.validateUpdateInput(TRIP_ID, DESTINATION_ID, ACTIVITY_ID, request))
+                .thenReturn("Updated Museum");
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+
+        doThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()))
+                .when(tripAccessService)
+                .assertCanEdit(TRIP_ID, USERNAME);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> activityService.updateActivity(TRIP_ID, DESTINATION_ID, ACTIVITY_ID, request)
+        );
+
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
+
+        verify(userRepository, never()).findByUsernameAndActive(anyString());
+        verify(activityRepository, never()).save(any(ActivityEntity.class));
+    }
+
+    @Test
+    void updateActivity_shouldThrowUserNotFound_whenCurrentUserDoesNotExist() {
+        UpdateActivityDTO request = validUpdateRequest();
+
+        when(activityValidator.validateUpdateInput(TRIP_ID, DESTINATION_ID, ACTIVITY_ID, request))
+                .thenReturn("Updated Museum");
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> activityService.updateActivity(TRIP_ID, DESTINATION_ID, ACTIVITY_ID, request)
+        );
+
+        assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
+
+        verify(activityRepository, never())
+                .findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
+                        anyLong(),
+                        anyLong(),
+                        anyLong()
+                );
         verify(activityRepository, never()).save(any(ActivityEntity.class));
     }
 
@@ -588,11 +736,12 @@ class ActivityServiceImplTest {
                 .thenReturn("Updated Museum");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(activeUser()));
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -618,11 +767,12 @@ class ActivityServiceImplTest {
                 .thenReturn("Updated Museum");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(activeUser()));
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(existingActivity));
         doThrow(new BusinessException(ACTIVITY_OUTSIDE_DESTINATION_RANGE, ACTIVITY.name()))
                 .when(activityValidator)
@@ -661,11 +811,12 @@ class ActivityServiceImplTest {
                 .thenReturn("Updated Museum");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(activeUser()));
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(existingActivity));
         when(activityRepository.existsByDestination_Trip_TripIdAndActivityIdNotAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
                 TRIP_ID,
@@ -710,18 +861,17 @@ class ActivityServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void deleteActivity_shouldDeleteActivity_whenActivityExistsAndBelongsToUser() {
+    void deleteActivity_shouldDeleteActivity_whenActivityExistsAndUserCanEditTrip() {
         ActivityEntity activity = activity("Museum");
 
         mockErrorCode(ACTIVITY_DELETED_SUCCESS, ACTIVITY.name());
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(activity));
 
         CompleteResponse<Object> response = activityService.deleteActivity(
@@ -734,6 +884,7 @@ class ActivityServiceImplTest {
                 .isEqualTo(ACTIVITY_DELETED_SUCCESS.getCode());
         assertThat(response.getResponseBody().getBody()).isNull();
 
+        verify(tripAccessService).assertCanEdit(TRIP_ID, USERNAME);
         verify(activityRepository).delete(activity);
     }
 
@@ -759,6 +910,32 @@ class ActivityServiceImplTest {
         assertBusinessException(exception3, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanEdit(anyLong(), anyString());
+        verify(activityRepository, never()).delete(any(ActivityEntity.class));
+    }
+
+    @Test
+    void deleteActivity_shouldRethrowBusinessException_whenUserCannotEditTrip() {
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+
+        doThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()))
+                .when(tripAccessService)
+                .assertCanEdit(TRIP_ID, USERNAME);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> activityService.deleteActivity(TRIP_ID, DESTINATION_ID, ACTIVITY_ID)
+        );
+
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
+
+        verify(activityRepository, never())
+                .findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
+                        anyLong(),
+                        anyLong(),
+                        anyLong()
+                );
         verify(activityRepository, never()).delete(any(ActivityEntity.class));
     }
 
@@ -766,11 +943,10 @@ class ActivityServiceImplTest {
     void deleteActivity_shouldThrowActivityNotFound_whenActivityDoesNotExist() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -787,11 +963,10 @@ class ActivityServiceImplTest {
     void deleteActivity_shouldWrapUnexpectedExceptionAsInternalServerError() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(
+        when(activityRepository.findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
                 ACTIVITY_ID,
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenThrow(new RuntimeException("Database unavailable"));
 
         BusinessException exception = assertThrows(

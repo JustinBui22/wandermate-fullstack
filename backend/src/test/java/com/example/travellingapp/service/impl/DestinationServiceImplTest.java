@@ -12,9 +12,9 @@ import com.example.travellingapp.mapper.DestinationMapper;
 import com.example.travellingapp.repository.ActivityRepository;
 import com.example.travellingapp.repository.DestinationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
-import com.example.travellingapp.repository.TripRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
+import com.example.travellingapp.service.TripAccessService;
 import com.example.travellingapp.validator.DestinationValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +29,7 @@ import java.util.Optional;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
 import static com.example.travellingapp.enums.CommonEnum.DESTINATION;
-import static com.example.travellingapp.enums.CommonEnum.TRIP;
+import static com.example.travellingapp.enums.CommonEnum.TRIP_MEMBER;
 import static com.example.travellingapp.enums.ErrorCodeEnum.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,9 +41,6 @@ class DestinationServiceImplTest {
 
     @Mock
     private DestinationRepository destinationRepository;
-
-    @Mock
-    private TripRepository tripRepository;
 
     @Mock
     private ErrorCodeRepository errorCodeRepository;
@@ -60,6 +57,9 @@ class DestinationServiceImplTest {
     @Mock
     private ActivityRepository activityRepository;
 
+    @Mock
+    private TripAccessService tripAccessService;
+
     private DestinationServiceImpl destinationService;
 
     private static final Long TRIP_ID = 1L;
@@ -70,12 +70,12 @@ class DestinationServiceImplTest {
     void setUp() {
         destinationService = new DestinationServiceImpl(
                 destinationRepository,
-                tripRepository,
                 errorCodeRepository,
                 destinationValidator,
                 authenticatedUserProvider,
                 destinationMapper,
-                activityRepository
+                activityRepository,
+                tripAccessService
         );
     }
 
@@ -95,8 +95,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip);
         when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
                 TRIP_ID,
                 request.getEndDate(),
@@ -149,26 +149,27 @@ class DestinationServiceImplTest {
         assertBusinessException(exception, DESTINATION_TIME_INVALID, DESTINATION.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).getTripIfCanEdit(anyLong(), anyString());
         verify(destinationRepository, never()).save(any(DestinationEntity.class));
     }
 
     @Test
-    void createDestination_shouldThrowTripNotFound_whenTripDoesNotBelongToUser() {
+    void createDestination_shouldThrowAccessDenied_whenUserCannotEditTrip() {
         CreateDestinationDTO request = validCreateRequest();
 
         when(destinationValidator.validateCreateInput(TRIP_ID, request))
                 .thenReturn("Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.empty());
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> destinationService.createDestination(TRIP_ID, request)
         );
 
-        assertBusinessException(exception, TRIP_NOT_FOUND, TRIP.name());
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
 
         verify(destinationValidator, never()).validateDestinationInsideTrip(any(), any(), any());
         verify(destinationRepository, never()).save(any(DestinationEntity.class));
@@ -183,8 +184,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip);
 
         doThrow(new BusinessException(DESTINATION_DATE_OUTSIDE_TRIP_RANGE, DESTINATION.name()))
                 .when(destinationValidator)
@@ -217,8 +218,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip);
         when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
                 TRIP_ID,
                 request.getEndDate(),
@@ -249,8 +250,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip);
         when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
                 TRIP_ID,
                 request.getEndDate(),
@@ -289,9 +290,7 @@ class DestinationServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getDestinationsByTrip_shouldReturnDestinationList_whenTripExists() {
-        TripEntity trip = trip();
-
+    void getDestinationsByTrip_shouldReturnDestinationList_whenUserCanViewTrip() {
         DestinationEntity destination1 = destination("Adelaide", 1);
         DestinationEntity destination2 = destination("Melbourne", 2);
 
@@ -302,8 +301,6 @@ class DestinationServiceImplTest {
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip));
         when(destinationRepository.findByTrip_TripIdOrderByDestinationOrderAsc(TRIP_ID))
                 .thenReturn(List.of(destination1, destination2));
         when(destinationMapper.toResponseDTO(destination1))
@@ -321,6 +318,8 @@ class DestinationServiceImplTest {
                 (List<DestinationResponseDTO>) response.getResponseBody().getBody();
 
         assertThat(body).containsExactly(response1, response2);
+
+        verify(tripAccessService).assertCanView(TRIP_ID, USERNAME);
     }
 
     @Test
@@ -333,22 +332,25 @@ class DestinationServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanView(anyLong(), anyString());
         verify(destinationRepository, never()).findByTrip_TripIdOrderByDestinationOrderAsc(anyLong());
     }
 
     @Test
-    void getDestinationsByTrip_shouldThrowTripNotFound_whenTripDoesNotBelongToUser() {
+    void getDestinationsByTrip_shouldThrowAccessDenied_whenUserCannotViewTrip() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.empty());
+
+        doThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()))
+                .when(tripAccessService)
+                .assertCanView(TRIP_ID, USERNAME);
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> destinationService.getDestinationsByTrip(TRIP_ID)
         );
 
-        assertBusinessException(exception, TRIP_NOT_FOUND, TRIP.name());
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
 
         verify(destinationRepository, never()).findByTrip_TripIdOrderByDestinationOrderAsc(anyLong());
     }
@@ -371,7 +373,7 @@ class DestinationServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getDestinationById_shouldReturnDestination_whenDestinationExistsAndBelongsToUser() {
+    void getDestinationById_shouldReturnDestination_whenUserCanViewTripAndDestinationExists() {
         DestinationEntity destination = destination("Adelaide", 1);
         DestinationResponseDTO responseDTO = mock(DestinationResponseDTO.class);
 
@@ -379,10 +381,9 @@ class DestinationServiceImplTest {
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(destination));
         when(destinationMapper.toResponseDTO(destination))
                 .thenReturn(responseDTO);
@@ -396,6 +397,8 @@ class DestinationServiceImplTest {
                 .isEqualTo(DESTINATION_RETRIEVED_SUCCESS.getCode());
         assertThat(response.getResponseBody().getBody())
                 .isEqualTo(responseDTO);
+
+        verify(tripAccessService).assertCanView(TRIP_ID, USERNAME);
     }
 
     @Test
@@ -408,6 +411,7 @@ class DestinationServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanView(anyLong(), anyString());
     }
 
     @Test
@@ -420,16 +424,35 @@ class DestinationServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanView(anyLong(), anyString());
+    }
+
+    @Test
+    void getDestinationById_shouldThrowAccessDenied_whenUserCannotViewTrip() {
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+
+        doThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()))
+                .when(tripAccessService)
+                .assertCanView(TRIP_ID, USERNAME);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> destinationService.getDestinationById(TRIP_ID, DESTINATION_ID)
+        );
+
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
+
+        verify(destinationRepository, never()).findByDestinationIdAndTrip_TripId(anyLong(), anyLong());
     }
 
     @Test
     void getDestinationById_shouldThrowDestinationNotFound_whenDestinationDoesNotExist() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -438,16 +461,17 @@ class DestinationServiceImplTest {
         );
 
         assertBusinessException(exception, DESTINATION_NOT_FOUND, DESTINATION.name());
+
+        verify(tripAccessService).assertCanView(TRIP_ID, USERNAME);
     }
 
     @Test
     void getDestinationById_shouldWrapUnexpectedExceptionAsInternalServerError() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenThrow(new RuntimeException("Database unavailable"));
 
         BusinessException exception = assertThrows(
@@ -463,7 +487,7 @@ class DestinationServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void updateDestination_shouldUpdateDestination_whenInputIsValidAndNoOverlapOrActivityConflictExists() {
+    void updateDestination_shouldUpdateDestination_whenUserCanEditAndNoOverlapOrActivityConflictExists() {
         UpdateDestinationDTO request = validUpdateRequest();
 
         TripEntity trip = trip();
@@ -476,8 +500,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Updated Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip);
         when(destinationRepository.findByDestinationIdAndTrip_TripId(DESTINATION_ID, TRIP_ID))
                 .thenReturn(Optional.of(existingDestination));
         when(activityRepository.existsByDestination_DestinationIdAndStartDateTimeBefore(
@@ -538,26 +562,27 @@ class DestinationServiceImplTest {
         assertBusinessException(exception, DESTINATION_TIME_INVALID, DESTINATION.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).getTripIfCanEdit(anyLong(), anyString());
         verify(destinationRepository, never()).save(any(DestinationEntity.class));
     }
 
     @Test
-    void updateDestination_shouldThrowTripNotFound_whenTripDoesNotBelongToUser() {
+    void updateDestination_shouldThrowAccessDenied_whenUserCannotEditTrip() {
         UpdateDestinationDTO request = validUpdateRequest();
 
         when(destinationValidator.validateUpdateInput(TRIP_ID, DESTINATION_ID, request))
                 .thenReturn("Updated Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.empty());
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> destinationService.updateDestination(TRIP_ID, DESTINATION_ID, request)
         );
 
-        assertBusinessException(exception, TRIP_NOT_FOUND, TRIP.name());
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
 
         verify(destinationRepository, never()).findByDestinationIdAndTrip_TripId(anyLong(), anyLong());
         verify(destinationRepository, never()).save(any(DestinationEntity.class));
@@ -571,8 +596,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Updated Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip()));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip());
         when(destinationRepository.findByDestinationIdAndTrip_TripId(DESTINATION_ID, TRIP_ID))
                 .thenReturn(Optional.empty());
 
@@ -596,8 +621,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Updated Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip);
         when(destinationRepository.findByDestinationIdAndTrip_TripId(DESTINATION_ID, TRIP_ID))
                 .thenReturn(Optional.of(destination("Adelaide", 1)));
 
@@ -629,8 +654,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Updated Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip()));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip());
         when(destinationRepository.findByDestinationIdAndTrip_TripId(DESTINATION_ID, TRIP_ID))
                 .thenReturn(Optional.of(destination("Adelaide", 1)));
         when(activityRepository.existsByDestination_DestinationIdAndStartDateTimeBefore(
@@ -669,8 +694,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Updated Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip()));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip());
         when(destinationRepository.findByDestinationIdAndTrip_TripId(DESTINATION_ID, TRIP_ID))
                 .thenReturn(Optional.of(destination("Adelaide", 1)));
         when(activityRepository.existsByDestination_DestinationIdAndStartDateTimeBefore(
@@ -705,8 +730,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Updated Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip()));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip());
         when(destinationRepository.findByDestinationIdAndTrip_TripId(DESTINATION_ID, TRIP_ID))
                 .thenReturn(Optional.of(destination("Adelaide", 1)));
         when(activityRepository.existsByDestination_DestinationIdAndStartDateTimeBefore(
@@ -748,8 +773,8 @@ class DestinationServiceImplTest {
                 .thenReturn("Updated Adelaide");
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(tripRepository.findByTripIdAndUser_Username(TRIP_ID, USERNAME))
-                .thenReturn(Optional.of(trip()));
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(trip());
         when(destinationRepository.findByDestinationIdAndTrip_TripId(DESTINATION_ID, TRIP_ID))
                 .thenReturn(Optional.of(existingDestination));
         when(activityRepository.existsByDestination_DestinationIdAndStartDateTimeBefore(
@@ -803,17 +828,16 @@ class DestinationServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void deleteDestination_shouldDeleteDestination_whenDestinationExistsAndBelongsToUser() {
+    void deleteDestination_shouldDeleteDestination_whenUserCanEditAndDestinationExists() {
         DestinationEntity destination = destination("Adelaide", 1);
 
         mockErrorCode(DESTINATION_DELETED_SUCCESS, DESTINATION.name());
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.of(destination));
 
         CompleteResponse<Object> response = destinationService.deleteDestination(
@@ -825,6 +849,7 @@ class DestinationServiceImplTest {
                 .isEqualTo(DESTINATION_DELETED_SUCCESS.getCode());
         assertThat(response.getResponseBody().getBody()).isNull();
 
+        verify(tripAccessService).assertCanEdit(TRIP_ID, USERNAME);
         verify(destinationRepository).delete(destination);
     }
 
@@ -838,6 +863,7 @@ class DestinationServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanEdit(anyLong(), anyString());
         verify(destinationRepository, never()).delete(any(DestinationEntity.class));
     }
 
@@ -851,6 +877,27 @@ class DestinationServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verify(authenticatedUserProvider, never()).getUsername();
+        verify(tripAccessService, never()).assertCanEdit(anyLong(), anyString());
+        verify(destinationRepository, never()).delete(any(DestinationEntity.class));
+    }
+
+    @Test
+    void deleteDestination_shouldThrowAccessDenied_whenUserCannotEditTrip() {
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+
+        doThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()))
+                .when(tripAccessService)
+                .assertCanEdit(TRIP_ID, USERNAME);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> destinationService.deleteDestination(TRIP_ID, DESTINATION_ID)
+        );
+
+        assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
+
+        verify(destinationRepository, never()).findByDestinationIdAndTrip_TripId(anyLong(), anyLong());
         verify(destinationRepository, never()).delete(any(DestinationEntity.class));
     }
 
@@ -858,10 +905,9 @@ class DestinationServiceImplTest {
     void deleteDestination_shouldThrowDestinationNotFound_whenDestinationDoesNotExist() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -871,6 +917,7 @@ class DestinationServiceImplTest {
 
         assertBusinessException(exception, DESTINATION_NOT_FOUND, DESTINATION.name());
 
+        verify(tripAccessService).assertCanEdit(TRIP_ID, USERNAME);
         verify(destinationRepository, never()).delete(any(DestinationEntity.class));
     }
 
@@ -878,10 +925,9 @@ class DestinationServiceImplTest {
     void deleteDestination_shouldWrapUnexpectedExceptionAsInternalServerError() {
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(USERNAME);
-        when(destinationRepository.findByDestinationIdAndTrip_TripIdAndTrip_User_Username(
+        when(destinationRepository.findByDestinationIdAndTrip_TripId(
                 DESTINATION_ID,
-                TRIP_ID,
-                USERNAME
+                TRIP_ID
         )).thenThrow(new RuntimeException("Database unavailable"));
 
         BusinessException exception = assertThrows(

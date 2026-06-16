@@ -30,6 +30,17 @@ public interface ActivityRepository extends JpaRepository<ActivityEntity, Long> 
             LocalDateTime newStart
     );
 
+    List<ActivityEntity> findAllByDestination_DestinationIdAndDestination_Trip_TripId(
+            Long destinationId,
+            Long tripId
+    );
+
+    Optional<ActivityEntity> findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripId(
+            Long activityId,
+            Long destinationId,
+            Long tripId
+    );
+
     boolean existsByDestination_Trip_TripIdAndActivityIdNotAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
             Long tripId,
             Long activityId,
