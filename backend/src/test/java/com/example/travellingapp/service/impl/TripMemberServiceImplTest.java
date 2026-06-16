@@ -8,7 +8,7 @@ import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
 import com.example.travellingapp.enums.ErrorCodeEnum;
-import com.example.travellingapp.enums.TripMemberRoleEnum;
+import com.example.travellingapp.enums.TripCollaborationEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripMemberMapper;
 import com.example.travellingapp.repository.ErrorCodeRepository;
@@ -88,8 +88,8 @@ class TripMemberServiceImplTest {
 
     @Test
     void getTripMembers_shouldReturnMembers_whenCurrentUserCanViewTrip() {
-        TripMemberEntity ownerMember = tripMember(OWNER_MEMBER_ID, ownerUser(), TripMemberRoleEnum.OWNER);
-        TripMemberEntity editorMember = tripMember(TRIP_MEMBER_ID, targetUser(), TripMemberRoleEnum.EDITOR);
+        TripMemberEntity ownerMember = tripMember(OWNER_MEMBER_ID, ownerUser(), TripCollaborationEnum.OWNER);
+        TripMemberEntity editorMember = tripMember(TRIP_MEMBER_ID, targetUser(), TripCollaborationEnum.EDITOR);
 
         TripMemberResponseDTO ownerResponse = mock(TripMemberResponseDTO.class);
         TripMemberResponseDTO editorResponse = mock(TripMemberResponseDTO.class);
@@ -199,7 +199,7 @@ class TripMemberServiceImplTest {
 
         assertThat(savedMember.getTrip()).isEqualTo(trip);
         assertThat(savedMember.getUser()).isEqualTo(targetUser);
-        assertThat(savedMember.getRole()).isEqualTo(TripMemberRoleEnum.EDITOR);
+        assertThat(savedMember.getRole()).isEqualTo(TripCollaborationEnum.EDITOR);
         assertThat(savedMember.getCreatedDate()).isNotNull();
     }
 
@@ -234,7 +234,7 @@ class TripMemberServiceImplTest {
 
         verify(tripMemberRepository).save(memberCaptor.capture());
 
-        assertThat(memberCaptor.getValue().getRole()).isEqualTo(TripMemberRoleEnum.VIEWER);
+        assertThat(memberCaptor.getValue().getRole()).isEqualTo(TripCollaborationEnum.VIEWER);
     }
 
     @Test
@@ -333,13 +333,13 @@ class TripMemberServiceImplTest {
     @Test
     void updateTripMemberRole_shouldUpdateRole_whenCurrentUserIsOwner() {
         UpdateTripMemberRoleDTO request = updateRequest("VIEWER");
-        TripMemberEntity member = tripMember(TRIP_MEMBER_ID, targetUser(), TripMemberRoleEnum.EDITOR);
+        TripMemberEntity member = tripMember(TRIP_MEMBER_ID, targetUser(), TripCollaborationEnum.EDITOR);
         TripMemberResponseDTO responseDTO = mock(TripMemberResponseDTO.class);
 
         mockErrorCode(TRIP_MEMBER_ROLE_UPDATED_SUCCESS, TRIP_MEMBER.name());
 
         when(tripMemberValidator.validateUpdateTripMemberRoleInput(TRIP_ID, TRIP_MEMBER_ID, request))
-                .thenReturn(TripMemberRoleEnum.VIEWER);
+                .thenReturn(TripCollaborationEnum.VIEWER);
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(OWNER_USERNAME);
         when(tripMemberRepository.findByTripMemberIdAndTrip_TripId(TRIP_MEMBER_ID, TRIP_ID))
@@ -358,7 +358,7 @@ class TripMemberServiceImplTest {
         assertThat(response.getResponseBody().getBody())
                 .isEqualTo(responseDTO);
 
-        assertThat(member.getRole()).isEqualTo(TripMemberRoleEnum.VIEWER);
+        assertThat(member.getRole()).isEqualTo(TripCollaborationEnum.VIEWER);
         assertThat(member.getModifiedDate()).isNotNull();
 
         verify(tripAccessService).assertIsOwner(TRIP_ID, OWNER_USERNAME);
@@ -368,10 +368,10 @@ class TripMemberServiceImplTest {
     @Test
     void updateTripMemberRole_shouldThrowOwnerRoleCannotBeChanged_whenTripMemberIsOwner() {
         UpdateTripMemberRoleDTO request = updateRequest("VIEWER");
-        TripMemberEntity ownerMember = tripMember(OWNER_MEMBER_ID, ownerUser(), TripMemberRoleEnum.OWNER);
+        TripMemberEntity ownerMember = tripMember(OWNER_MEMBER_ID, ownerUser(), TripCollaborationEnum.OWNER);
 
         when(tripMemberValidator.validateUpdateTripMemberRoleInput(TRIP_ID, OWNER_MEMBER_ID, request))
-                .thenReturn(TripMemberRoleEnum.VIEWER);
+                .thenReturn(TripCollaborationEnum.VIEWER);
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(OWNER_USERNAME);
         when(tripMemberRepository.findByTripMemberIdAndTrip_TripId(OWNER_MEMBER_ID, TRIP_ID))
@@ -392,7 +392,7 @@ class TripMemberServiceImplTest {
         UpdateTripMemberRoleDTO request = updateRequest("VIEWER");
 
         when(tripMemberValidator.validateUpdateTripMemberRoleInput(TRIP_ID, TRIP_MEMBER_ID, request))
-                .thenReturn(TripMemberRoleEnum.VIEWER);
+                .thenReturn(TripCollaborationEnum.VIEWER);
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(OWNER_USERNAME);
         when(tripMemberRepository.findByTripMemberIdAndTrip_TripId(TRIP_MEMBER_ID, TRIP_ID))
@@ -431,7 +431,7 @@ class TripMemberServiceImplTest {
         UpdateTripMemberRoleDTO request = updateRequest("VIEWER");
 
         when(tripMemberValidator.validateUpdateTripMemberRoleInput(TRIP_ID, TRIP_MEMBER_ID, request))
-                .thenReturn(TripMemberRoleEnum.VIEWER);
+                .thenReturn(TripCollaborationEnum.VIEWER);
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(OWNER_USERNAME);
         doThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()))
@@ -455,7 +455,7 @@ class TripMemberServiceImplTest {
 
     @Test
     void removeTripMember_shouldRemoveMember_whenCurrentUserIsOwner() {
-        TripMemberEntity member = tripMember(TRIP_MEMBER_ID, targetUser(), TripMemberRoleEnum.VIEWER);
+        TripMemberEntity member = tripMember(TRIP_MEMBER_ID, targetUser(), TripCollaborationEnum.VIEWER);
 
         mockErrorCode(TRIP_MEMBER_REMOVED_SUCCESS, TRIP_MEMBER.name());
 
@@ -480,7 +480,7 @@ class TripMemberServiceImplTest {
 
     @Test
     void removeTripMember_shouldThrowOwnerCannotBeRemoved_whenTripMemberIsOwner() {
-        TripMemberEntity ownerMember = tripMember(OWNER_MEMBER_ID, ownerUser(), TripMemberRoleEnum.OWNER);
+        TripMemberEntity ownerMember = tripMember(OWNER_MEMBER_ID, ownerUser(), TripCollaborationEnum.OWNER);
 
         when(authenticatedUserProvider.getUsername())
                 .thenReturn(OWNER_USERNAME);
@@ -600,7 +600,7 @@ class TripMemberServiceImplTest {
     private TripMemberEntity tripMember(
             Long tripMemberId,
             User user,
-            TripMemberRoleEnum role
+            TripCollaborationEnum role
     ) {
         TripMemberEntity tripMember = new TripMemberEntity();
         tripMember.setTripMemberId(tripMemberId);

@@ -12,7 +12,7 @@ import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
 import com.example.travellingapp.enums.ErrorCodeEnum;
-import com.example.travellingapp.enums.TripMemberRoleEnum;
+import com.example.travellingapp.enums.TripCollaborationEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripMapper;
 import com.example.travellingapp.repository.AccommodationRepository;
@@ -171,7 +171,7 @@ class TripServiceImplTest {
 
         assertThat(savedMember.getTrip()).isEqualTo(savedTrip);
         assertThat(savedMember.getUser()).isEqualTo(user);
-        assertThat(savedMember.getRole()).isEqualTo(TripMemberRoleEnum.OWNER);
+        assertThat(savedMember.getRole()).isEqualTo(TripCollaborationEnum.OWNER);
         assertThat(savedMember.getCreatedDate()).isNotNull();
     }
 

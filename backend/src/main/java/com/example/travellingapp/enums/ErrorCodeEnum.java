@@ -46,6 +46,17 @@ public enum ErrorCodeEnum {
     SUGGESTION_REJECTED_SUCCESS("E000", "Suggestion rejected successfully", SUGGESTION, HttpStatusCodeEnum.OK),
     TRIP_MEMBERS_RETRIEVED_SUCCESS("E000", "Trip members retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
 
+    TRIP_INVITATION_SENT_SUCCESS("E000", "Trip invitation sent successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_INVITATIONS_RETRIEVED_SUCCESS("E000", "Trip invitations retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_INVITATION_ACCEPTED_SUCCESS("E000", "Trip invitation accepted successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_INVITATION_REJECTED_SUCCESS("E000", "Trip invitation rejected successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+
+    TRIP_JOIN_REQUEST_SENT_SUCCESS("E000", "Trip join request sent successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_JOIN_REQUESTS_RETRIEVED_SUCCESS("E000", "Trip join requests retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_JOIN_REQUEST_ACCEPTED_SUCCESS("E000", "Trip join request accepted successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_JOIN_REQUEST_REJECTED_SUCCESS("E000", "Trip join request rejected successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_OVERLAP_WARNINGS_RETRIEVED_SUCCESS("E000", "Trip overlap warnings retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+
     INVALID_INPUT("E001", "Invalid input provided", COMMON, HttpStatusCodeEnum.BAD_REQUEST),
     USERNAME_TAKEN("E002", "Username taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
     EMAIL_TAKEN("E003", "Email taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
@@ -116,7 +127,7 @@ public enum ErrorCodeEnum {
     SMS_ENUM_MISSING("E062", "SMS enum is missing", OTP, HttpStatusCodeEnum.BAD_REQUEST),
     NEW_PASSWORD_SAME_AS_OLD("E063", "New password cannot be the same as the old password", FORGOT_PASSWORD, HttpStatusCodeEnum.BAD_REQUEST),
 
-    TRIP_ACCESS_DENIED("E064", "You do not have permission to access this trip", TRIP, HttpStatusCodeEnum.FORBIDDEN),
+    TRIP_ACCESS_DENIED("E064", "You do not have permission to access this trip", TRIP_MEMBER, HttpStatusCodeEnum.FORBIDDEN),
     TRIP_MEMBER_ALREADY_EXISTS("E065", "This user is already a member of the trip", TRIP_MEMBER, HttpStatusCodeEnum.CONFLICT),
     TRIP_MEMBER_NOT_FOUND("E066", "Trip member not found", TRIP_MEMBER, HttpStatusCodeEnum.NOT_FOUND),
     TRIP_OWNER_CANNOT_BE_REMOVED("E067", "Trip owner cannot be removed from the trip", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
@@ -125,6 +136,11 @@ public enum ErrorCodeEnum {
     SUGGESTION_ALREADY_APPROVED("E070", "Suggestion already approved", SUGGESTION, HttpStatusCodeEnum.CONFLICT),
     OWNER_CANNOT_BE_ASSIGNED_MANUALLY("E071", "Owner role cannot be assigned manually", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
     SUGGESTION_ALREADY_REJECTED("E072", "Suggestion already rejected", SUGGESTION, HttpStatusCodeEnum.CONFLICT),
+
+    TRIP_COLLABORATION_REQUEST_NOT_FOUND("E073", "Trip collaboration request not found", TRIP_MEMBER, HttpStatusCodeEnum.NOT_FOUND),
+    TRIP_COLLABORATION_REQUEST_ALREADY_EXISTS("E074", "A pending collaboration request already exists for this trip and user", TRIP_MEMBER, HttpStatusCodeEnum.CONFLICT),
+    TRIP_CANNOT_INVITE_SELF("E075", "Trip owner cannot invite themselves", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_OWNER_CANNOT_REQUEST_TO_JOIN_OWN_TRIP("E076", "Trip owner cannot request to join their own trip", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
 
     ;
 

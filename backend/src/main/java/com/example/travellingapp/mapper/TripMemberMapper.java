@@ -7,16 +7,21 @@ import org.springframework.stereotype.Component;
 @Component
 public class TripMemberMapper {
 
-    public TripMemberResponseDTO toResponseDTO(TripMemberEntity tripMember) {
-        return new TripMemberResponseDTO(
-                tripMember.getTripMemberId(),
-                tripMember.getTrip().getTripId(),
-                tripMember.getUser().getUserId(),
-                tripMember.getUser().getUsername(),
-                tripMember.getUser().getEmail(),
-                tripMember.getRole(),
-                tripMember.getCreatedDate(),
-                tripMember.getModifiedDate()
-        );
+    public TripMemberResponseDTO toResponseDTO(TripMemberEntity member) {
+        TripMemberResponseDTO dto = new TripMemberResponseDTO();
+
+        dto.setTripMemberId(member.getTripMemberId());
+        dto.setRole(member.getRole());
+        dto.setCreatedDate(member.getCreatedDate());
+        dto.setModifiedDate(member.getModifiedDate());
+        if (member.getTrip() != null) {
+            dto.setTripId(member.getTrip().getTripId());
+        }
+        if (member.getUser() != null) {
+            dto.setUserId(member.getUser().getUserId());
+            dto.setUsername(member.getUser().getUsername());
+            dto.setEmail(member.getUser().getEmail());
+        }
+        return dto;
     }
 }

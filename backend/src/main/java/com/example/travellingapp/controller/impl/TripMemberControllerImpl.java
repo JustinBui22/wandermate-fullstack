@@ -18,15 +18,8 @@ public class TripMemberControllerImpl implements TripMemberController {
         this.tripMemberService = tripMemberService;
     }
 
-    public ResponseEntity<ResponseBody<Object>> getTripMembers(@PathVariable Long tripId) {
+    public ResponseEntity<ResponseBody<Object>> getTripMembers(Long tripId) {
         CompleteResponse<Object> response = tripMemberService.getTripMembers(tripId);
-        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
-    }
-
-    public ResponseEntity<ResponseBody<Object>> addTripMember(
-            Long tripId, AddTripMemberDTO addTripMemberDTO
-    ) {
-        CompleteResponse<Object> response = tripMemberService.addTripMember(tripId, addTripMemberDTO);
         return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 

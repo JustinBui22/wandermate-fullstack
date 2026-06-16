@@ -5,7 +5,7 @@ import com.example.travellingapp.dto.request.update.UpdateTripDTO;
 import com.example.travellingapp.dto.response.TripResponseDTO;
 import com.example.travellingapp.entity.*;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
-import com.example.travellingapp.enums.TripMemberRoleEnum;
+import com.example.travellingapp.enums.TripCollaborationEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripMapper;
 import com.example.travellingapp.repository.*;
@@ -103,7 +103,7 @@ public class TripServiceImpl implements TripService {
             TripMemberEntity ownerMember = new TripMemberEntity(
                     savedTrip,
                     user,
-                    TripMemberRoleEnum.OWNER,
+                    TripCollaborationEnum.OWNER,
                     LocalDateTime.now()
             );
             tripMemberRepository.save(ownerMember);

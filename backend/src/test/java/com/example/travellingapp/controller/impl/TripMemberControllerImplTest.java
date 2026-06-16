@@ -22,7 +22,6 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class TripMemberControllerImplTest {
@@ -79,67 +78,6 @@ class TripMemberControllerImplTest {
                 .andExpect(jsonPath("$.body[1].role").value("EDITOR"));
 
         verify(tripMemberService).getTripMembers(1L);
-    }
-
-    @Test
-    void addTripMember_shouldReturnServiceResponse() throws Exception {
-        AddTripMemberDTO request = new AddTripMemberDTO();
-        request.setUsername("FriendUser");
-        request.setRole("EDITOR");
-
-        ResponseBody<Object> responseBody = new ResponseBody<>(
-                "E000",
-                "Trip member added successfully",
-                TRIP_MEMBER.name(),
-                Map.of(
-                        "tripMemberId", 2,
-                        "username", "FriendUser",
-                        "role", "EDITOR"
-                )
-        );
-
-        when(tripMemberService.addTripMember(eq(1L), any(AddTripMemberDTO.class)))
-                .thenReturn(new CompleteResponse<>(responseBody, 200));
-
-        mockMvc.perform(post("/api/v1/trips/1/members")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("E000"))
-                .andExpect(jsonPath("$.message").value("Trip member added successfully"))
-                .andExpect(jsonPath("$.flow").value(TRIP_MEMBER.name()))
-                .andExpect(jsonPath("$.body.tripMemberId").value(2))
-                .andExpect(jsonPath("$.body.username").value("FriendUser"))
-                .andExpect(jsonPath("$.body.role").value("EDITOR"));
-
-        verify(tripMemberService).addTripMember(eq(1L), any(AddTripMemberDTO.class));
-    }
-
-    @Test
-    void addTripMember_whenServiceReturnsForbidden_shouldReturnForbiddenStatus() throws Exception {
-        AddTripMemberDTO request = new AddTripMemberDTO();
-        request.setUsername("FriendUser");
-        request.setRole("EDITOR");
-
-        ResponseBody<Object> responseBody = new ResponseBody<>(
-                "E064",
-                "You do not have permission to access this trip",
-                TRIP_MEMBER.name(),
-                null
-        );
-
-        when(tripMemberService.addTripMember(eq(1L), any(AddTripMemberDTO.class)))
-                .thenReturn(new CompleteResponse<>(responseBody, 403));
-
-        mockMvc.perform(post("/api/v1/trips/1/members")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("E064"))
-                .andExpect(jsonPath("$.message").value("You do not have permission to access this trip"))
-                .andExpect(jsonPath("$.flow").value(TRIP_MEMBER.name()));
-
-        verify(tripMemberService).addTripMember(eq(1L), any(AddTripMemberDTO.class));
     }
 
     @Test
