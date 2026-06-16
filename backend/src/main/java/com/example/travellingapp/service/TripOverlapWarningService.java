@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface TripOverlapWarningService {
 
-    CompleteResponse<Object> getMyOverlapWarnings(Long tripId);
+    CompleteResponse<Object> getOverlapWarnings(Long tripId);
 
     List<MyTripOverlapWarningDTO> buildWarningsForUser(
             TripEntity currentTrip,

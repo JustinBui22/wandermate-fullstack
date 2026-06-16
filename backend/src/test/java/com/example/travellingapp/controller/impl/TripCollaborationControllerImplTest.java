@@ -270,7 +270,7 @@ class TripCollaborationControllerImplTest {
     }
 
     @Test
-    void getMyOverlapWarnings_shouldReturnServiceResponse() throws Exception {
+    void getOverlapWarnings_shouldReturnServiceResponse() throws Exception {
         ResponseBody<Object> responseBody = new ResponseBody<>(
                 "E000",
                 "Trip overlap warnings retrieved successfully",
@@ -284,7 +284,7 @@ class TripCollaborationControllerImplTest {
                 )
         );
 
-        when(tripOverlapWarningService.getMyOverlapWarnings(1L))
+        when(tripOverlapWarningService.getOverlapWarnings(1L))
                 .thenReturn(new CompleteResponse<>(responseBody, 200));
 
         mockMvc.perform(get("/api/v1/trips/1/my-overlap-warnings")
@@ -293,7 +293,7 @@ class TripCollaborationControllerImplTest {
                 .andExpect(jsonPath("$.body[0].overlappingTripId").value(2))
                 .andExpect(jsonPath("$.body[0].overlappingTripName").value("Melbourne Trip"));
 
-        verify(tripOverlapWarningService).getMyOverlapWarnings(1L);
+        verify(tripOverlapWarningService).getOverlapWarnings(1L);
     }
 
     @Test

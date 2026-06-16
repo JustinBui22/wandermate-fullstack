@@ -43,7 +43,7 @@ public class TripOverlapWarningServiceImpl implements TripOverlapWarningService 
     }
 
     @Override
-    public CompleteResponse<Object> getMyOverlapWarnings(Long tripId) {
+    public CompleteResponse<Object> getOverlapWarnings(Long tripId) {
         try {
             // Validate trip ID
             if (tripId == null) {

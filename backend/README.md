@@ -1,27 +1,27 @@
 # WanderMate Backend
 
-Spring Boot backend for the WanderMate travel planning application. The backend provides authentication, refresh/session token handling, OTP verification, trip/destination/activity management, ownership checks, validation, Docker-based local setup, tests, CI/CD, and Render deployment configuration.
+Spring Boot backend for the WanderMate travel planning application. The backend provides authentication, refresh/session token handling, OTP verification, trip/destination/activity management, role-based collaboration, invitation and join request flows, private overlap warnings, Docker-based local setup, tests, CI/CD, and Render deployment configuration.
 
-This backend is written as a portfolio-grade API project. It demonstrates real backend concerns such as secure authentication, token lifecycle management, database-backed configuration, relational modelling, business validation, testable service design, production profiles, and production-safe documentation.
+This backend is written as a portfolio-grade API project. It demonstrates real backend concerns such as secure authentication, token lifecycle management, database-backed configuration, relational modelling, business validation, collaboration authorization, testable service design, production profiles, and production-safe documentation.
 
 ---
 
 ## Tech Stack
 
-| Area | Technology |
-|---|---|
-| Language | Java 21 |
-| Framework | Spring Boot 3.5.4 |
-| Database | MariaDB |
-| ORM | Spring Data JPA / Hibernate |
-| Security | Spring Security, JWT, refresh tokens, session tokens |
-| Email / OTP | Spring Mail, OAuth/email configuration |
-| API documentation | SpringDoc OpenAPI / Swagger for local development |
-| Build tool | Maven |
-| Testing | JUnit 5, Mockito, Spring MockMvc, Maven Surefire |
-| Containerization | Docker, Docker Compose |
-| Deployment | Render |
-| CI/CD | GitHub Actions + Render deploy hook |
+| Area              | Technology                                           |
+| ----------------- | ---------------------------------------------------- |
+| Language          | Java 21                                              |
+| Framework         | Spring Boot 3.5.4                                    |
+| Database          | MariaDB                                              |
+| ORM               | Spring Data JPA / Hibernate                          |
+| Security          | Spring Security, JWT, refresh tokens, session tokens |
+| Email / OTP       | Spring Mail, OAuth/email configuration               |
+| API documentation | SpringDoc OpenAPI / Swagger for local development    |
+| Build tool        | Maven                                                |
+| Testing           | JUnit 5, Mockito, Spring MockMvc, Maven Surefire     |
+| Containerization  | Docker, Docker Compose                               |
+| Deployment        | Render                                               |
+| CI/CD             | GitHub Actions + Render deploy hook                  |
 
 ---
 
@@ -43,7 +43,16 @@ This backend is written as a portfolio-grade API project. It demonstrates real b
 ✅ Trip/destination/activity date and time validation implemented
 ✅ Trip and destination overlap warnings implemented with allowOverlap support
 ✅ Activity overlap blocked as a hard validation error
-✅ Ownership checks protect user-specific data
+✅ Role-based trip collaboration implemented
+✅ Trip member roles: OWNER, EDITOR, VIEWER
+✅ Centralized collaboration access checks through TripAccessService
+✅ Owner invitation flow implemented
+✅ Invitation accept/reject flow implemented
+✅ User join request flow implemented
+✅ Owner join request approval/rejection implemented
+✅ Members are created only after invitation/join request acceptance
+✅ Private member overlap warning implemented
+✅ Activity createdBy and modifiedBy tracking implemented
 ✅ Standardized response wrapper and error code system
 ✅ Swagger UI available locally
 ✅ Swagger/OpenAPI disabled in production profile
@@ -51,7 +60,7 @@ This backend is written as a portfolio-grade API project. It demonstrates real b
 ✅ Production profile available for Render deployment
 ✅ Public health endpoint implemented
 ✅ Backend CI/CD runs tests before triggering Render deployment
-✅ Focused backend service/controller test suite has 216 passing tests
+✅ Focused backend service/controller test suite has 316 passing tests
 ```
 
 Not enabled yet:
@@ -59,6 +68,8 @@ Not enabled yet:
 ```text
 ⚠️ Real SMS provider integration is not enabled
 ⚠️ Public Docker/demo values do not include real email/OAuth secrets
+⚠️ Viewer suggestion workflow is not implemented yet
+⚠️ Cost sharing is not implemented yet
 ```
 
 Important OTP note: email OTP is the real working OTP flow when email secrets/config are provided. Phone/SMS OTP is prepared at service level and covered with mocked tests, but the current SMS service does not send real SMS.
@@ -73,6 +84,7 @@ flowchart TD
     Security --> TokenFilter[JWT / Session Token Filter]
     TokenFilter --> Controller[Controller Layer]
     Controller --> Service[Service Layer]
+    Service --> Access[Access Control Service]
     Service --> Validator[Validator Layer]
     Service --> Mapper[Mapper Layer]
     Service --> Repository[Repository Layer]
@@ -85,7 +97,7 @@ flowchart TD
 Layering:
 
 ```text
-Controller → Service → Validator / Mapper → Repository → Database
+Controller → Service → Access Control / Validator / Mapper → Repository → Database
 ```
 
 Key design choices:
@@ -93,10 +105,11 @@ Key design choices:
 ```text
 - Controllers stay thin and delegate business logic to services
 - Validators keep input/business rule validation separate from service orchestration
+- TripAccessService centralizes role-based collaboration permissions
 - Repositories isolate persistence logic
 - Response wrappers keep API responses consistent
 - Error codes provide stable frontend mapping
-- Ownership checks prevent cross-user access
+- Collaboration requests prevent direct member insertion from the controller
 - Token/session data is stored and revocable server-side
 ```
 
@@ -107,18 +120,26 @@ Key design choices:
 ```text
 User
 └── Trip
+    ├── TripMember
+    │   ├── OWNER
+    │   ├── EDITOR
+    │   └── VIEWER
     ├── Destination
     │   └── Activity
-    └── Activity can also reference the parent Trip for trip-wide overlap validation
+    └── TripCollaborationRequest
+        ├── INVITATION
+        └── JOIN_REQUEST
 ```
 
 Main entities:
 
 ```text
-UserEntity
+User
 TripEntity
-TripDestinationEntity
+DestinationEntity
 ActivityEntity
+TripMemberEntity
+TripCollaborationRequestEntity
 OtpCheckEntity
 RefreshTokenEntity
 SessionTokenStoreEntity
@@ -130,7 +151,17 @@ Business rules:
 
 ```text
 - Usernames, emails, and phone numbers are unique
-- Users can only access their own trips
+- Trip creator becomes OWNER automatically
+- OWNER can view, edit, delete, and manage trip members
+- EDITOR can view and modify trip plan content
+- VIEWER can view shared trip content only
+- OWNER can invite another user to a trip
+- Invited user must accept before becoming a member
+- User can request to join a trip
+- OWNER must accept before requester becomes a member
+- Direct member creation is not exposed at controller level
+- OWNER does not see other users' private overlapping trip details
+- Affected member can see their own overlap warning
 - Trips require valid start/end dates
 - Destinations must belong to a trip
 - Destinations must fit within the parent trip date range
@@ -139,6 +170,68 @@ Business rules:
 - Trip overlaps can return a warning and continue with allowOverlap=true
 - Destination overlaps can return a warning and continue with allowOverlap=true
 - Activity overlaps are blocked as hard conflicts
+```
+
+---
+
+## Collaboration Model
+
+### Roles
+
+```text
+OWNER
+- Created automatically when a trip is created
+- Can manage members and collaboration requests
+- Can delete the trip
+- Can edit trip content
+
+EDITOR
+- Can view the trip
+- Can modify trip, destination, and activity content
+- Cannot delete the trip
+- Cannot manage members
+
+VIEWER
+- Can view the trip
+- Cannot modify trip, destination, or activity content
+- Can be supported later with suggestion workflow
+```
+
+### Invitation Flow
+
+```text
+1. OWNER sends invitation to another user
+2. Invitation is stored as PENDING
+3. Target user can view received invitations
+4. Target user accepts or rejects
+5. User becomes TripMember only after accepting
+6. Accepting user receives private overlap warnings if relevant
+```
+
+### Join Request Flow
+
+```text
+1. User requests to join a trip
+2. Join request is stored as PENDING
+3. OWNER can view pending join requests
+4. OWNER accepts or rejects
+5. Requester becomes TripMember only after OWNER accepts
+6. OWNER does not receive requester private overlap details
+```
+
+### Private Overlap Warning
+
+```text
+GET /api/v1/trips/{tripId}/my-overlap-warnings
+```
+
+Rules:
+
+```text
+- OWNER receives an empty warning list
+- EDITOR/VIEWER receive warnings only for their own overlapping trips
+- Non-members receive access denied
+- Warning includes overlapping trip name and actual overlap start/end time
 ```
 
 ---
@@ -378,17 +471,42 @@ Password reset behaviour:
 
 ## Main API Areas
 
-| Module | Purpose |
-|---|---|
-| Users | Register, verify registration details, login, forgot password, logout, check user |
-| OTP | Send and verify OTP through email flow or prepared SMS flow |
-| Auth | Refresh access token using refresh token + session token |
-| Trips | Create, list, detail, update, delete trips; overlap warning support |
-| Destinations | Create, list, detail, update, delete destinations under trips; overlap warning support |
-| Activities | Create, list, detail, update, delete activities under destinations; overlap blocking |
-| Health | Public API health check for deployment monitoring |
+| Module                 | Purpose                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| Users                  | Register, verify registration details, login, forgot password, logout, check user          |
+| OTP                    | Send and verify OTP through email flow or prepared SMS flow                                |
+| Auth                   | Refresh access token using refresh token + session token                                   |
+| Trips                  | Create, list, detail, update, delete trips; overlap warning support                        |
+| Destinations           | Create, list, detail, update, delete destinations under trips; overlap warning support     |
+| Activities             | Create, list, detail, update, delete activities under destinations; overlap blocking       |
+| Trip Members           | List members, update member role, remove members                                           |
+| Collaboration Requests | Send invitations, accept/reject invitations, request to join, approve/reject join requests |
+| Overlap Warnings       | Return private overlap warnings for the current member                                     |
+| Health                 | Public API health check for deployment monitoring                                          |
 
 More details: [`docs/API_GUIDE.md`](docs/API_GUIDE.md)
+
+---
+
+## Collaboration Endpoints
+
+```text
+GET    /api/v1/trips/{tripId}/members
+PATCH  /api/v1/trips/{tripId}/members/{tripMemberId}/role
+DELETE /api/v1/trips/{tripId}/members/{tripMemberId}
+
+POST   /api/v1/trips/{tripId}/invitations
+GET    /api/v1/trips/invitations/received
+PATCH  /api/v1/trips/invitations/{requestId}/accept
+PATCH  /api/v1/trips/invitations/{requestId}/reject
+
+POST   /api/v1/trips/{tripId}/join-requests
+GET    /api/v1/trips/{tripId}/join-requests
+PATCH  /api/v1/trips/join-requests/{requestId}/accept
+PATCH  /api/v1/trips/join-requests/{requestId}/reject
+
+GET    /api/v1/trips/{tripId}/my-overlap-warnings
+```
 
 ---
 
@@ -411,39 +529,10 @@ cd backend
 Focused backend suite status:
 
 ```text
-216 passed
+316 passed
 0 failures
 0 errors
 0 skipped
-```
-
-Service tests:
-
-```text
-ActivityServiceImplTest      25 passed
-DestinationServiceImplTest   31 passed
-EmailServiceImplTest          9 passed
-OtpServiceImplTest           30 passed
-SmsServiceImplTest            3 passed
-TokenServiceImplTest         33 passed
-TripServiceImplTest          39 passed
-UserServiceImplTest          35 passed
-
-Total service tests: 205 passed
-```
-
-Controller/API tests:
-
-```text
-HealthControllerImplTest       1 passed
-UserControllerImplTest         1 passed
-TripControllerImplTest         2 passed
-DestinationControllerImplTest  1 passed
-ActivityControllerImplTest     1 passed
-OtpControllerImplTest          3 passed
-TokenControllerImplTest        2 passed
-
-Total controller/API tests: 11 passed
 ```
 
 Coverage includes:
@@ -455,10 +544,46 @@ Coverage includes:
 - OTP send/verify retry, expiry, destination mismatch, and consume-on-success
 - Forgot-password password validation before OTP consumption
 - Trip/destination/activity CRUD business rules
-- Ownership checks
+- Role-based trip access checks
+- Trip member management
+- Trip invitation and join request flows
+- Private current-user overlap warnings
+- Activity createdBy and modifiedBy mapping
 - Trip/destination overlap warnings
 - Activity overlap blocking
 - Controller/API status mapping and edge cases
+```
+
+Test areas:
+
+```text
+Service tests:
+- UserServiceImplTest
+- OtpServiceImplTest
+- TokenServiceImplTest
+- TripServiceImplTest
+- DestinationServiceImplTest
+- ActivityServiceImplTest
+- TripAccessServiceImplTest
+- TripMemberServiceImplTest
+- TripCollaborationRequestServiceImplTest
+- TripOverlapWarningServiceImplTest
+- EmailServiceImplTest
+- SmsServiceImplTest
+
+Validator tests:
+- TripCollaborationRequestValidatorTest
+
+Controller/API tests:
+- HealthControllerImplTest
+- UserControllerImplTest
+- OtpControllerImplTest
+- TokenControllerImplTest
+- TripControllerImplTest
+- DestinationControllerImplTest
+- ActivityControllerImplTest
+- TripMemberControllerImplTest
+- TripCollaborationControllerImplTest
 ```
 
 Note: a generated full Spring `contextLoads` test, if reintroduced, may require real DB env variables or a dedicated test profile because it starts the full Spring application context. The main portfolio test proof is the focused service/controller test suite.
@@ -494,19 +619,19 @@ RENDER_DEPLOY_HOOK_URL
 
 ## Documentation Index
 
-| Document | Purpose |
-|---|---|
-| [`docs/API_GUIDE.md`](docs/API_GUIDE.md) | Endpoints, request bodies, headers, response format |
-| [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md) | Login, refresh, logout, OTP, session/token logic |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layers, domain model, ownership checks, validation rules |
-| [`docs/DATABASE_SEED.md`](docs/DATABASE_SEED.md) | Seed file purpose and safe data rules |
-| [`docs/DOCKER_SETUP.md`](docs/DOCKER_SETUP.md) | Docker setup and troubleshooting |
-| [`docs/POSTMAN_GUIDE.md`](docs/POSTMAN_GUIDE.md) | Manual API testing flow |
-| [`docs/TESTING.md`](docs/TESTING.md) | Test coverage and test commands |
-| [`docs/FRONTEND_INTEGRATION.md`](docs/FRONTEND_INTEGRATION.md) | Frontend URL, token, refresh, and warning handling |
-| [`docs/PRODUCTION_API_DOCS.md`](docs/PRODUCTION_API_DOCS.md) | Production-safe API documentation strategy |
-| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Health check, production profile, logging, deployment troubleshooting |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Suggested V1/V2/V2.5/V3/V4 improvement plan |
+| Document                                                       | Purpose                                                                |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [`docs/API_GUIDE.md`](docs/API_GUIDE.md)                       | Endpoints, request bodies, headers, response format                    |
+| [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md)                       | Login, refresh, logout, OTP, session/token logic                       |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)                 | Layers, domain model, ownership/collaboration checks, validation rules |
+| [`docs/DATABASE_SEED.md`](docs/DATABASE_SEED.md)               | Seed file purpose and safe data rules                                  |
+| [`docs/DOCKER_SETUP.md`](docs/DOCKER_SETUP.md)                 | Docker setup and troubleshooting                                       |
+| [`docs/POSTMAN_GUIDE.md`](docs/POSTMAN_GUIDE.md)               | Manual API testing flow                                                |
+| [`docs/TESTING.md`](docs/TESTING.md)                           | Test coverage and test commands                                        |
+| [`docs/FRONTEND_INTEGRATION.md`](docs/FRONTEND_INTEGRATION.md) | Frontend URL, token, refresh, and warning handling                     |
+| [`docs/PRODUCTION_API_DOCS.md`](docs/PRODUCTION_API_DOCS.md)   | Production-safe API documentation strategy                             |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md)                     | Health check, production profile, logging, deployment troubleshooting  |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md)                           | Suggested V1/V2/V2.5/V3/V4 improvement plan                            |
 
 ---
 
@@ -528,12 +653,24 @@ Use `.env.example` for safe templates and cloud provider environment settings fo
 
 ## Current Next Phase
 
-Backend V2 is complete and supports the polished frontend V2.5 flow.
+Backend V3 collaboration is implemented and tested.
 
 Next project phase:
 
 ```text
-V3 portfolio proof:
+V3 frontend collaboration integration:
+1. Add frontend collaboration types and API functions
+2. Add member list and role management UI
+3. Add invitation send/receive UI
+4. Add join request UI
+5. Apply role-based UI permissions
+6. Show private overlap warning to affected member only
+```
+
+After frontend V3 collaboration is complete:
+
+```text
+V4 portfolio proof:
 1. Take screenshots
 2. Record 60-90 second demo video
 3. Add screenshot/demo section to root README

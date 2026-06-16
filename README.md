@@ -3,24 +3,33 @@
 [![Backend CI/CD](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/backend-ci-cd.yml/badge.svg?branch=main)](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/backend-ci-cd.yml)
 [![Frontend CI](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/frontend-ci.yml/badge.svg?branch=main)](https://github.com/JustinBui22/wandermate-fullstack/actions/workflows/frontend-ci.yml)
 
-WanderMate is a full-stack mobile travel planning application built with a Spring Boot backend and an Expo React Native frontend. Users can register, verify with OTP, log in securely, manage trips, organise destinations, and schedule activities with date/time validation and overlap handling.
+WanderMate is a full-stack mobile travel planning application built with a Spring Boot backend and an Expo React Native frontend. Users can register, verify with OTP, log in securely, manage trips, organise destinations, schedule activities, and collaborate on shared trip plans through role-based access, invitations, join requests, and private overlap warnings.
 
-This repository is a portfolio project focused on production-style backend API design, secure auth/session handling, relational data modelling, Docker setup, CI/CD, cloud deployment, and mobile frontend integration.
+This repository is a portfolio project focused on production-style backend API design, secure auth/session handling, relational data modelling, collaboration permissions, Docker setup, CI/CD, cloud deployment, backend testing, and mobile frontend integration.
 
 ---
 
 ## Project Status
 
 ```text
-Current phase: V2.5 frontend polish completed
-Next phase: V3 portfolio proof - screenshots, demo video, README media, CV summary
+Current phase: V3 backend collaboration completed
+Next phase: V3 frontend collaboration UI
 ```
 
 ### Completed
 
 ```text
 ✅ Backend CRUD for trips, destinations, and activities
-✅ User ownership checks for protected resources
+✅ Role-based trip collaboration: OWNER, EDITOR, VIEWER
+✅ Trip member access control through TripAccessService
+✅ Invitation-based collaboration flow
+✅ Owner can invite users to a trip
+✅ Invited user can accept/reject invitation
+✅ User can request to join a trip
+✅ Owner can accept/reject join requests
+✅ Members are only added after invitation/join request acceptance
+✅ Private overlap warning visible only to the affected member
+✅ Activity createdBy and modifiedBy tracking
 ✅ JWT access token + refresh token + session token auth flow
 ✅ Refresh token rotation, revocation, logout, and reuse detection
 ✅ Max active session handling with frontend confirmation flow
@@ -42,6 +51,7 @@ Next phase: V3 portfolio proof - screenshots, demo video, README media, CV summa
 ✅ Reusable frontend date/time picker components extracted
 ✅ Frontend API error messages polished
 ✅ Frontend debug/console logs removed from app/src code
+✅ Backend test suite passing with 316 tests
 ✅ Frontend TypeScript check passing
 ```
 
@@ -49,8 +59,10 @@ Next phase: V3 portfolio proof - screenshots, demo video, README media, CV summa
 
 ```text
 ⚠️ Real SMS provider integration is not enabled
-⚠️ Map, AI suggestions, collaboration, and cost sharing are future roadmap features
-⚠️ Final screenshots/demo video are planned for V3
+⚠️ Frontend collaboration UI is not implemented yet
+⚠️ Viewer suggestion workflow is not implemented yet
+⚠️ Cost sharing is not implemented yet
+⚠️ Final screenshots/demo video are planned after V3 frontend integration
 ```
 
 Phone/SMS OTP should be treated as prepared logic only. The current backend SMS service is a stub/mocked service path and does not prove real SMS delivery. A real provider such as Twilio, AWS SNS, Vonage, or another SMS gateway would be required.
@@ -61,7 +73,7 @@ Phone/SMS OTP should be treated as prepared logic only. The current backend SMS 
 
 ```text
 wandermate-fullstack/
-├── backend/                 # Spring Boot API, auth, MariaDB, tests, Docker, docs
+├── backend/                 # Spring Boot API, auth, collaboration, MariaDB, tests, Docker, docs
 ├── frontend/                # Expo React Native app, routing, API integration, UI components
 ├── .github/workflows/       # Backend CI/CD and frontend CI workflows
 └── README.md                # Full-stack project overview
@@ -71,24 +83,24 @@ wandermate-fullstack/
 
 ## Tech Stack
 
-| Area | Technology |
-|---|---|
-| Backend language | Java 21 |
-| Backend framework | Spring Boot 3.5.4 |
-| Security | Spring Security, JWT, refresh tokens, session tokens |
-| Database | MariaDB, Spring Data JPA / Hibernate |
-| OTP / Email | Spring Mail, OAuth/email configuration |
-| API docs | SpringDoc OpenAPI / Swagger for local development |
-| Backend tests | JUnit 5, Mockito, Spring MockMvc, Maven Surefire |
-| Frontend framework | Expo React Native 56 |
-| Frontend language | TypeScript |
-| Routing | Expo Router |
-| State / storage | Zustand, Expo SecureStore |
-| HTTP client | Axios with auth/refresh interceptors |
-| Frontend UI | Shared custom UI components + theme constants |
-| Containerization | Docker, Docker Compose |
-| Deployment | Render |
-| CI/CD | GitHub Actions + Render deploy hook |
+| Area               | Technology                                           |
+| ------------------ | ---------------------------------------------------- |
+| Backend language   | Java 21                                              |
+| Backend framework  | Spring Boot 3.5.4                                    |
+| Security           | Spring Security, JWT, refresh tokens, session tokens |
+| Database           | MariaDB, Spring Data JPA / Hibernate                 |
+| OTP / Email        | Spring Mail, OAuth/email configuration               |
+| API docs           | SpringDoc OpenAPI / Swagger for local development    |
+| Backend tests      | JUnit 5, Mockito, Spring MockMvc, Maven Surefire     |
+| Frontend framework | Expo React Native 56                                 |
+| Frontend language  | TypeScript                                           |
+| Routing            | Expo Router                                          |
+| State / storage    | Zustand, Expo SecureStore                            |
+| HTTP client        | Axios with auth/refresh interceptors                 |
+| Frontend UI        | Shared custom UI components + theme constants        |
+| Containerization   | Docker, Docker Compose                               |
+| Deployment         | Render                                               |
+| CI/CD              | GitHub Actions + Render deploy hook                  |
 
 ---
 
@@ -150,15 +162,30 @@ Swagger/OpenAPI is disabled in the production profile for safer deployment.
 ```text
 User
 └── Trip
+    ├── Trip Members
+    │   ├── OWNER
+    │   ├── EDITOR
+    │   └── VIEWER
     ├── Destination
     │   └── Activity
-    └── Activity time validation within trip/destination dates
+    └── Collaboration Requests
+        ├── Invitations
+        └── Join Requests
 ```
 
 Implemented behaviour:
 
 ```text
-- Users can only access their own trips
+- Trip creator becomes OWNER automatically
+- OWNER can view, edit, delete, and manage members
+- EDITOR can view and modify trip plan content
+- VIEWER can view shared trip content only
+- OWNER can invite another user to a trip
+- Invited user must accept before becoming a member
+- User can request to join a trip
+- OWNER must accept before requester becomes a member
+- OWNER does not see other users' private trip overlap details
+- Affected member can see their own overlap warning
 - Trips require valid start/end dates
 - Destinations must fit inside the parent trip date range
 - Activities must fit inside the parent destination/trip range
@@ -166,6 +193,28 @@ Implemented behaviour:
 - Destination overlap can trigger a warning and continue with allowOverlap=true
 - Activity overlap is blocked as a hard validation error
 ```
+
+### Collaboration API Areas
+
+```text
+GET    /api/v1/trips/{tripId}/members
+PATCH  /api/v1/trips/{tripId}/members/{tripMemberId}/role
+DELETE /api/v1/trips/{tripId}/members/{tripMemberId}
+
+POST   /api/v1/trips/{tripId}/invitations
+GET    /api/v1/trips/invitations/received
+PATCH  /api/v1/trips/invitations/{requestId}/accept
+PATCH  /api/v1/trips/invitations/{requestId}/reject
+
+POST   /api/v1/trips/{tripId}/join-requests
+GET    /api/v1/trips/{tripId}/join-requests
+PATCH  /api/v1/trips/join-requests/{requestId}/accept
+PATCH  /api/v1/trips/join-requests/{requestId}/reject
+
+GET    /api/v1/trips/{tripId}/my-overlap-warnings
+```
+
+Direct member creation through `POST /members` is not exposed at controller level. Collaboration should go through invitations or join requests.
 
 ### Frontend V2.5 Polish
 
@@ -387,7 +436,7 @@ env:
 Focused backend test suite status:
 
 ```text
-216 passing tests
+316 passing tests
 0 failures
 0 errors
 0 skipped
@@ -402,7 +451,11 @@ Coverage includes:
 - OTP send/verify retry, expiry, destination mismatch, and consume-on-success
 - Forgot-password password validation before OTP consumption
 - Trip/destination/activity CRUD business rules
-- Ownership checks
+- Role-based collaboration access checks
+- Trip member management
+- Invitation and join request collaboration flow
+- Private current-user overlap warning
+- Activity createdBy/modifiedBy mapping
 - Trip/destination overlap warning logic
 - Activity overlap blocking
 - Controller/API status mapping and edge cases
@@ -448,6 +501,13 @@ Manual regression checklist:
 - Create/edit/delete activity
 - Trip/destination overlap confirmation
 - Activity overlap error display
+- Owner sends trip invitation
+- Invited user accepts/rejects invitation
+- User requests to join trip
+- Owner accepts/rejects join request
+- Member sees private overlap warning only for their own trips
+- Viewer cannot modify trip content
+- Editor can modify trip plan content
 - App reopen while logged in
 - Logout clears session and returns to login
 ```
@@ -456,21 +516,21 @@ Manual regression checklist:
 
 ## Documentation Index
 
-| Document | Purpose |
-|---|---|
-| `backend/README.md` | Backend-specific setup, architecture, tests, deployment, and API overview |
-| `backend/docs/API_GUIDE.md` | Endpoint list, headers, request examples, response shape |
-| `backend/docs/AUTH_FLOW.md` | Login, token refresh, logout, max session, and OTP flows |
-| `backend/docs/ARCHITECTURE.md` | Layers, domain model, ownership checks, validation rules |
-| `backend/docs/DOCKER_SETUP.md` | Docker Compose setup, ports, env variables, troubleshooting |
-| `backend/docs/DATABASE_SEED.md` | Safe local seed data rules and seed file purpose |
-| `backend/docs/POSTMAN_GUIDE.md` | Manual API testing order and sample payloads |
-| `backend/docs/TESTING.md` | Test coverage and test commands |
-| `backend/docs/FRONTEND_INTEGRATION.md` | Frontend/backend URL, token, env switching, and error-handling notes |
-| `backend/docs/PRODUCTION_API_DOCS.md` | Production-safe API documentation strategy |
-| `backend/docs/OPERATIONS.md` | Health check, production profile, logging, deployment troubleshooting |
-| `backend/docs/ROADMAP.md` | Suggested V1/V2/V2.5/V3/V4 roadmap |
-| `frontend/README.md` | Frontend setup, app structure, auth integration, and V2.5 UI notes |
+| Document                               | Purpose                                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------- |
+| `backend/README.md`                    | Backend-specific setup, architecture, tests, deployment, and API overview |
+| `backend/docs/API_GUIDE.md`            | Endpoint list, headers, request examples, response shape                  |
+| `backend/docs/AUTH_FLOW.md`            | Login, token refresh, logout, max session, and OTP flows                  |
+| `backend/docs/ARCHITECTURE.md`         | Layers, domain model, ownership/collaboration checks, validation rules    |
+| `backend/docs/DOCKER_SETUP.md`         | Docker Compose setup, ports, env variables, troubleshooting               |
+| `backend/docs/DATABASE_SEED.md`        | Safe local seed data rules and seed file purpose                          |
+| `backend/docs/POSTMAN_GUIDE.md`        | Manual API testing order and sample payloads                              |
+| `backend/docs/TESTING.md`              | Test coverage and test commands                                           |
+| `backend/docs/FRONTEND_INTEGRATION.md` | Frontend/backend URL, token, env switching, and error-handling notes      |
+| `backend/docs/PRODUCTION_API_DOCS.md`  | Production-safe API documentation strategy                                |
+| `backend/docs/OPERATIONS.md`           | Health check, production profile, logging, deployment troubleshooting     |
+| `backend/docs/ROADMAP.md`              | Suggested V1/V2/V2.5/V3/V4 roadmap                                        |
+| `frontend/README.md`                   | Frontend setup, app structure, auth integration, and V2.5 UI notes        |
 
 ---
 
@@ -527,21 +587,37 @@ Do not commit or share real `.env`, local DB dumps, OAuth refresh tokens, access
 ✅ TypeScript check passing
 ```
 
-### V3 - Portfolio proof
+### V3 - Collaboration
 
 ```text
+✅ Backend role-based collaboration
+✅ Backend trip member access control
+✅ Backend invitation and join request flow
+✅ Backend private member overlap warning
+✅ Backend collaboration tests
+
 Next:
-1. Take screenshots
-2. Record 60-90 second demo video
-3. Add screenshots/demo link to README
-4. Add architecture diagram images if desired
-5. Add final project summary to CV/GitHub portfolio
+1. Build frontend collaboration API/types
+2. Build frontend member/invitation/join-request screens
+3. Show role-based UI controls
+4. Show private overlap warning to affected member
+5. Update Postman/API documentation
 ```
 
-### V4 - Future product features
+### V4 - Portfolio proof
 
 ```text
-- Collaborators and shared trips
+- Take screenshots
+- Record 60-90 second demo video
+- Add screenshots/demo link to README
+- Add architecture diagram images if desired
+- Add final project summary to CV/GitHub portfolio
+```
+
+### Future product features
+
+```text
+- Viewer activity/destination suggestion workflow
 - Cost estimation and cost sharing
 - AI itinerary suggestions
 - Maps/geolocation integration
@@ -561,8 +637,9 @@ Next:
 5. Create a trip
 6. Add a destination
 7. Add an activity
-8. Edit one item
-9. Show overlap validation/warning
-10. Logout
-11. Show GitHub Actions backend/frontend CI
+8. Invite another user to the trip
+9. Accept invitation as the invited user
+10. Show role-based access behaviour
+11. Show private overlap warning
+12. Show GitHub Actions backend/frontend CI
 ```

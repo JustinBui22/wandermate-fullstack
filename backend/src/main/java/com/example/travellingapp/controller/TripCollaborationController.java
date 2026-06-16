@@ -50,7 +50,7 @@ public interface TripCollaborationController {
     );
 
     @GetMapping("/{tripId}/my-overlap-warnings")
-    ResponseEntity<ResponseBody<Object>> getMyOverlapWarnings(
+    ResponseEntity<ResponseBody<Object>> getOverlapWarnings(
             @PathVariable Long tripId
     );
 }

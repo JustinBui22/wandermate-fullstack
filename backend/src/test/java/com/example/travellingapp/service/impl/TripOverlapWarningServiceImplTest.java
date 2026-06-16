@@ -60,7 +60,7 @@ class TripOverlapWarningServiceImplTest {
     }
 
     @Test
-    void getMyOverlapWarnings_shouldReturnEmptyList_whenCurrentUserIsOwner() {
+    void getOverlapWarnings_shouldReturnEmptyList_whenCurrentUserIsOwner() {
         TripEntity currentTrip = currentTrip();
 
         mockErrorCode(TRIP_OVERLAP_WARNINGS_RETRIEVED_SUCCESS, TRIP_MEMBER.name());
@@ -71,7 +71,7 @@ class TripOverlapWarningServiceImplTest {
         when(tripAccessService.getUserRole(CURRENT_TRIP_ID, OWNER_USERNAME))
                 .thenReturn(TripCollaborationEnum.OWNER);
 
-        CompleteResponse<Object> response = tripOverlapWarningService.getMyOverlapWarnings(CURRENT_TRIP_ID);
+        CompleteResponse<Object> response = tripOverlapWarningService.getOverlapWarnings(CURRENT_TRIP_ID);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TRIP_OVERLAP_WARNINGS_RETRIEVED_SUCCESS.getCode());
@@ -86,7 +86,7 @@ class TripOverlapWarningServiceImplTest {
     }
 
     @Test
-    void getMyOverlapWarnings_shouldReturnWarnings_whenCurrentUserIsEditorAndHasOverlap() {
+    void getOverlapWarnings_shouldReturnWarnings_whenCurrentUserIsEditorAndHasOverlap() {
         TripEntity currentTrip = currentTrip();
         TripEntity overlappingTrip = overlappingTrip();
 
@@ -104,7 +104,7 @@ class TripOverlapWarningServiceImplTest {
                 currentTrip.getEndDate()
         )).thenReturn(List.of(overlappingTrip));
 
-        CompleteResponse<Object> response = tripOverlapWarningService.getMyOverlapWarnings(CURRENT_TRIP_ID);
+        CompleteResponse<Object> response = tripOverlapWarningService.getOverlapWarnings(CURRENT_TRIP_ID);
 
         @SuppressWarnings("unchecked")
         List<MyTripOverlapWarningDTO> body =
@@ -122,10 +122,10 @@ class TripOverlapWarningServiceImplTest {
     }
 
     @Test
-    void getMyOverlapWarnings_shouldThrowInvalidInput_whenTripIdIsNull() {
+    void getOverlapWarnings_shouldThrowInvalidInput_whenTripIdIsNull() {
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tripOverlapWarningService.getMyOverlapWarnings(null)
+                () -> tripOverlapWarningService.getOverlapWarnings(null)
         );
 
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
@@ -134,14 +134,14 @@ class TripOverlapWarningServiceImplTest {
     }
 
     @Test
-    void getMyOverlapWarnings_shouldRethrowBusinessException_whenUserCannotViewTrip() {
+    void getOverlapWarnings_shouldRethrowBusinessException_whenUserCannotViewTrip() {
         when(authenticatedUserProvider.getUsername()).thenReturn(MEMBER_USERNAME);
         when(tripAccessService.getTripIfCanView(CURRENT_TRIP_ID, MEMBER_USERNAME))
                 .thenThrow(new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name()));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tripOverlapWarningService.getMyOverlapWarnings(CURRENT_TRIP_ID)
+                () -> tripOverlapWarningService.getOverlapWarnings(CURRENT_TRIP_ID)
         );
 
         assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());

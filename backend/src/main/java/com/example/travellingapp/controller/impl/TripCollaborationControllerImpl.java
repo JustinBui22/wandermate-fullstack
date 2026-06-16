@@ -120,9 +120,9 @@ public class TripCollaborationControllerImpl implements TripCollaborationControl
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> getMyOverlapWarnings(Long tripId) {
+    public ResponseEntity<ResponseBody<Object>> getOverlapWarnings(Long tripId) {
         CompleteResponse<Object> response =
-                tripOverlapWarningService.getMyOverlapWarnings(tripId);
+                tripOverlapWarningService.getOverlapWarnings(tripId);
 
         return new ResponseEntity<>(
                 response.getResponseBody(),
