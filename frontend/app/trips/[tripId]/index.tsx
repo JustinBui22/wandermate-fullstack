@@ -10,7 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import { getDestinationsByTrip } from "@/src/api/destinationApi";
-import { getMyOverlapWarnings } from "@/src/api/tripCollaborationApi";
+import { getMyOverlapWarnings, getTripMembers } from "@/src/api/tripCollaborationApi";
 import { deleteTrip, getTripById } from "@/src/api/tripApi";
 import { OverlapWarningCard } from "@/src/components/collaboration/OverlapWarningCard";
 import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
@@ -21,12 +21,21 @@ import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAuthStore } from "@/src/stores/authStore";
 import type { Destination } from "@/src/types/destination";
 import type { Trip } from "@/src/types/trip";
-import type { MyTripOverlapWarning, TripCollaborationRole } from "@/src/types/tripCollaboration";
+import type {
+    MyTripOverlapWarning,
+    TripCollaborationRole,
+    TripMember,
+} from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
-import { canDeleteTrip, canEditTripPlan, canManageTripMembers, getCurrentUserTripRole } from "@/src/utils/tripRoleUtils";
+import {
+    canDeleteTrip,
+    canEditTripPlan,
+    canManageTripMembers,
+} from "@/src/utils/tripRoleUtils";
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
@@ -38,10 +47,45 @@ function getApiMessage(error: any) {
     return data?.message || error.message || "Failed to load trip detail.";
 }
 
+function normalizeText(value?: string | null) {
+    return value?.trim().toLowerCase();
+}
+
+function getBodyArray<T>(response: T[] | { body?: T[] } | null | undefined): T[] {
+    if (Array.isArray(response)) {
+        return response;
+    }
+
+    if (Array.isArray(response?.body)) {
+        return response.body;
+    }
+
+    return [];
+}
+
+function findCurrentUserRole(
+    members: TripMember[],
+    currentUsername: string | null
+): TripCollaborationRole | null {
+    if (!currentUsername) {
+        return null;
+    }
+
+    const normalizedCurrentUsername = normalizeText(currentUsername);
+
+    const currentMember = members.find(
+        (member) => normalizeText(member.username) === normalizedCurrentUsername
+    );
+
+    return currentMember?.role ?? null;
+}
+
 export default function TripDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
+    const currentUsername = useAuthStore((state) => state.username);
 
     const [trip, setTrip] = useState<Trip | null>(null);
     const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -65,17 +109,25 @@ export default function TripDetailScreen() {
             setIsLoading(true);
             setError(null);
 
-            const [tripData, destinationData, roleData, warningData] = await Promise.all([
+            const [
+                tripData,
+                destinationData,
+                membersData,
+                warningData,
+            ] = await Promise.all([
                 getTripById(tripNumberId),
                 getDestinationsByTrip(tripNumberId),
-                getCurrentUserTripRole(tripNumberId),
+                getTripMembers(tripNumberId),
                 getMyOverlapWarnings(tripNumberId),
             ]);
 
+            const members = getBodyArray<TripMember>(membersData);
+            const detectedRole = findCurrentUserRole(members, currentUsername);
+
             setTrip(tripData);
             setDestinations(Array.isArray(destinationData) ? destinationData : []);
-            setCurrentRole(roleData.role);
-            setOverlapWarnings(Array.isArray(warningData) ? warningData : []);
+            setCurrentRole(detectedRole);
+            setOverlapWarnings(getBodyArray<MyTripOverlapWarning>(warningData));
         } catch (error: any) {
             setError(getApiMessage(error));
         } finally {
@@ -86,7 +138,7 @@ export default function TripDetailScreen() {
     useFocusEffect(
         useCallback(() => {
             loadTripDetail();
-        }, [tripIdParam])
+        }, [tripIdParam, currentUsername])
     );
 
     function handleAddDestination() {
@@ -247,20 +299,36 @@ export default function TripDetailScreen() {
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTextGroup}>
                     <Text style={styles.sectionTitle}>Destinations</Text>
-                    <Text style={styles.sectionSubtitle}>Add each city or place for this trip.</Text>
+                    <Text style={styles.sectionSubtitle}>
+                        Add each city or place for this trip.
+                    </Text>
                 </View>
-
-                {canEditPlan ? (
-                    <AppButton
-                        title=""
-                        onPress={handleAddDestination}
-                        fullWidth={false}
-                        style={styles.addButton}
-                        leftIcon={<Ionicons name="add" size={23} color={colors.textLight} />}
-                        testID="add-destination-button"
-                    />
-                ) : null}
             </View>
+
+            {canEditPlan ? (
+                <AppButton
+                    title="Add Destination"
+                    onPress={handleAddDestination}
+                    leftIcon={<Ionicons name="add" size={20} color={colors.textLight} />}
+                    testID="add-destination-button"
+                />
+            ) : (
+                <AppCard variant="soft" contentStyle={styles.permissionCardContent}>
+                    <Ionicons name="lock-closed-outline" size={22} color={colors.textMuted} />
+
+                    <View style={styles.permissionTextGroup}>
+                        <Text style={styles.permissionTitle}>
+                            {currentRole ? "Read-only trip" : "Role not loaded"}
+                        </Text>
+
+                        <Text style={styles.permissionText}>
+                            {currentRole
+                                ? "Only the owner or editors can add destinations to this trip."
+                                : "Your role for this trip could not be detected. Try logging out and signing in again."}
+                        </Text>
+                    </View>
+                </AppCard>
+            )}
 
             {destinations.length === 0 ? (
                 <EmptyState
@@ -327,6 +395,7 @@ function InfoCard({ icon, label, value }: InfoCardProps) {
             <View style={styles.infoIconBadge}>
                 <Ionicons name={icon} size={20} color={colors.primary} />
             </View>
+
             <View style={styles.infoTextGroup}>
                 <Text style={styles.infoLabel}>{label}</Text>
                 <Text style={styles.infoValue}>{value}</Text>
@@ -508,12 +577,24 @@ const styles = StyleSheet.create({
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
-    addButton: {
-        width: 48,
-        height: 48,
-        minHeight: 48,
-        borderRadius: radius.lg,
-        paddingHorizontal: 0,
+    permissionCardContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    permissionTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    permissionTitle: {
+        color: colors.text,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
+    },
+    permissionText: {
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        lineHeight: 18,
     },
     destinationList: {
         gap: spacing.md,

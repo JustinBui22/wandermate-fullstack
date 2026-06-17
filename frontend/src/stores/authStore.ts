@@ -6,6 +6,7 @@ import {
     getAccessToken,
     getRefreshToken,
     getSessionToken,
+    getStoredUsername,
     saveTokens,
 } from "../stores/tokenStore";
 import type { LoginRequest } from "../types/auth";
@@ -16,6 +17,7 @@ type AuthState = {
     isLoading: boolean;
     error: string | null;
     errorCode: string | null;
+    username: string | null;
 
     loginUser: (data: LoginRequest) => Promise<boolean>;
     logoutUser: () => Promise<void>;
@@ -28,6 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     isLoading: false,
     error: null,
     errorCode: null,
+    username: null,
 
     loginUser: async (data) => {
         try {
@@ -37,14 +40,21 @@ export const useAuthStore = create<AuthState>((set) => ({
                 errorCode: null,
             });
 
-            const tokens = await login(data);
-            await saveTokens(tokens, data.username);
+            const normalizedUsername = data.username.trim();
+
+            const tokens = await login({
+                ...data,
+                username: normalizedUsername,
+            });
+
+            await saveTokens(tokens, normalizedUsername);
 
             set({
                 isAuthenticated: true,
                 isLoading: false,
                 error: null,
                 errorCode: null,
+                username: normalizedUsername,
             });
 
             return true;
@@ -61,6 +71,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 isLoading: false,
                 error: errorMessage,
                 errorCode,
+                username: null,
             });
 
             return false;
@@ -80,6 +91,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 isLoading: false,
                 error: null,
                 errorCode: null,
+                username: null,
             });
         }
     },
@@ -87,6 +99,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     restoreAuthSession: async () => {
         try {
             logger.debug("Restore session started");
+
             set({
                 isLoading: true,
                 error: null,
@@ -96,8 +109,9 @@ export const useAuthStore = create<AuthState>((set) => ({
             const accessToken = await getAccessToken();
             const refreshToken = await getRefreshToken();
             const sessionToken = await getSessionToken();
+            const storedUsername = await getStoredUsername();
 
-            if (!accessToken || !refreshToken || !sessionToken) {
+            if (!accessToken || !refreshToken || !sessionToken || !storedUsername) {
                 await clearTokens();
 
                 set({
@@ -105,6 +119,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                     isLoading: false,
                     error: null,
                     errorCode: null,
+                    username: null,
                 });
 
                 return;
@@ -119,18 +134,22 @@ export const useAuthStore = create<AuthState>((set) => ({
                 isLoading: false,
                 error: null,
                 errorCode: null,
+                username: storedUsername,
             });
         } catch (error: any) {
             logger.error(
                 "Restore session failed:",
                 error.response?.data || error.message
             );
+
             await clearTokens();
+
             set({
                 isAuthenticated: false,
                 isLoading: false,
                 error: null,
                 errorCode: null,
+                username: null,
             });
         }
     },
