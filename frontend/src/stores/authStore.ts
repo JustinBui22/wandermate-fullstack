@@ -38,7 +38,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             });
 
             const tokens = await login(data);
-            await saveTokens(tokens);
+            await saveTokens(tokens, data.username);
 
             set({
                 isAuthenticated: true,

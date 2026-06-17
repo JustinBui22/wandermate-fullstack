@@ -79,6 +79,21 @@ export default function TabLayout() {
                     ),
                 }}
             />
+
+            <Tabs.Screen
+                name="collaboration"
+                options={{
+                    title: "Collab",
+                    tabBarIcon: ({ color, focused }) => (
+                        <TabIcon
+                            focused={focused}
+                            color={color}
+                            activeIcon="people"
+                            inactiveIcon="people-outline"
+                        />
+                    ),
+                }}
+            />
         </Tabs>
     );
 }

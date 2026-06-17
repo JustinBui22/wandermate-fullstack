@@ -13,6 +13,7 @@ import {
     deleteActivity,
     getActivityById,
 } from "@/src/api/activityApi";
+import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
@@ -20,8 +21,10 @@ import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import type { Activity } from "@/src/types/activity";
+import type { TripCollaborationRole } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
+import { canEditTripPlan, getCurrentUserTripRole } from "@/src/utils/tripRoleUtils";
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
@@ -56,6 +59,7 @@ export default function ActivityDetailScreen() {
         && !Number.isNaN(activityNumberId);
 
     const [activity, setActivity] = useState<Activity | null>(null);
+    const [currentRole, setCurrentRole] = useState<TripCollaborationRole | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -71,13 +75,17 @@ export default function ActivityDetailScreen() {
             setIsLoading(true);
             setError(null);
 
-            const data = await getActivityById(
-                tripNumberId,
-                destinationNumberId,
-                activityNumberId
-            );
+            const [data, roleData] = await Promise.all([
+                getActivityById(
+                    tripNumberId,
+                    destinationNumberId,
+                    activityNumberId
+                ),
+                getCurrentUserTripRole(tripNumberId),
+            ]);
 
             setActivity(data);
+            setCurrentRole(roleData.role);
         } catch (error: any) {
             setError(getApiMessage(error));
         } finally {
@@ -173,6 +181,8 @@ export default function ActivityDetailScreen() {
         );
     }
 
+    const canEditPlan = canEditTripPlan(currentRole);
+
     return (
         <AppScreen contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
@@ -182,11 +192,13 @@ export default function ActivityDetailScreen() {
                     onPress={() => router.back()}
                 />
 
-                <HeaderIconButton
-                    icon="create-outline"
-                    accessibilityLabel="Edit activity"
-                    onPress={handleEditActivity}
-                />
+                {canEditPlan ? (
+                    <HeaderIconButton
+                        icon="create-outline"
+                        accessibilityLabel="Edit activity"
+                        onPress={handleEditActivity}
+                    />
+                ) : null}
             </View>
 
             <AppCard style={styles.heroCard} contentStyle={styles.heroCardContent}>
@@ -197,6 +209,7 @@ export default function ActivityDetailScreen() {
                 <View style={styles.heroTextGroup}>
                     <Text style={styles.activityLabel}>Activity</Text>
                     <Text style={styles.activityName}>{activity.activityName || "Untitled activity"}</Text>
+                    <RoleBadge role={currentRole} />
 
                     {activity.location ? (
                         <View style={styles.locationRow}>
@@ -232,14 +245,16 @@ export default function ActivityDetailScreen() {
 
             <ErrorMessage message={error} title="Activity detail error" />
 
-            <AppButton
-                title="Delete Activity"
-                onPress={handleDeleteActivity}
-                loading={isDeleting}
-                variant="danger"
-                leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
-                style={styles.deleteButton}
-            />
+            {canEditPlan ? (
+                <AppButton
+                    title="Delete Activity"
+                    onPress={handleDeleteActivity}
+                    loading={isDeleting}
+                    variant="danger"
+                    leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
+                    style={styles.deleteButton}
+                />
+            ) : null}
         </AppScreen>
     );
 }

@@ -14,6 +14,7 @@ import {
     deleteDestination,
     getDestinationById,
 } from "@/src/api/destinationApi";
+import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
@@ -23,8 +24,10 @@ import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import type { Activity } from "@/src/types/activity";
 import type { Destination } from "@/src/types/destination";
+import type { TripCollaborationRole } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
+import { canEditTripPlan, getCurrentUserTripRole } from "@/src/utils/tripRoleUtils";
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
@@ -54,6 +57,7 @@ export default function DestinationDetailScreen() {
 
     const [destination, setDestination] = useState<Destination | null>(null);
     const [activities, setActivities] = useState<Activity[]>([]);
+    const [currentRole, setCurrentRole] = useState<TripCollaborationRole | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -69,13 +73,15 @@ export default function DestinationDetailScreen() {
             setIsLoading(true);
             setError(null);
 
-            const [destinationData, activityData] = await Promise.all([
+            const [destinationData, activityData, roleData] = await Promise.all([
                 getDestinationById(tripNumberId, destinationNumberId),
                 getActivitiesByDestination(tripNumberId, destinationNumberId),
+                getCurrentUserTripRole(tripNumberId),
             ]);
 
             setDestination(destinationData);
             setActivities(Array.isArray(activityData) ? activityData : []);
+            setCurrentRole(roleData.role);
         } catch (error: any) {
             setError(getApiMessage(error));
         } finally {
@@ -183,6 +189,8 @@ export default function DestinationDetailScreen() {
         );
     }
 
+    const canEditPlan = canEditTripPlan(currentRole);
+
     return (
         <AppScreen contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
@@ -192,11 +200,13 @@ export default function DestinationDetailScreen() {
                     onPress={() => router.back()}
                 />
 
-                <HeaderIconButton
-                    icon="create-outline"
-                    accessibilityLabel="Edit destination"
-                    onPress={handleEditDestination}
-                />
+                {canEditPlan ? (
+                    <HeaderIconButton
+                        icon="create-outline"
+                        accessibilityLabel="Edit destination"
+                        onPress={handleEditDestination}
+                    />
+                ) : null}
             </View>
 
             <AppCard style={styles.heroCard} contentStyle={styles.heroCardContent}>
@@ -207,6 +217,7 @@ export default function DestinationDetailScreen() {
                 <View style={styles.heroTextGroup}>
                     <Text style={styles.destinationLabel}>Destination</Text>
                     <Text style={styles.destinationName}>{destination.destinationName || "Untitled destination"}</Text>
+                    <RoleBadge role={currentRole} />
 
                     {destination.notes ? (
                         <Text style={styles.notes}>{destination.notes}</Text>
@@ -242,14 +253,16 @@ export default function DestinationDetailScreen() {
                     <Text style={styles.sectionSubtitle}>Add plans inside this destination.</Text>
                 </View>
 
-                <AppButton
-                    title=""
-                    onPress={handleAddActivity}
-                    fullWidth={false}
-                    style={styles.addButton}
-                    leftIcon={<Ionicons name="add" size={23} color={colors.textLight} />}
-                    testID="add-activity-button"
-                />
+                {canEditPlan ? (
+                    <AppButton
+                        title=""
+                        onPress={handleAddActivity}
+                        fullWidth={false}
+                        style={styles.addButton}
+                        leftIcon={<Ionicons name="add" size={23} color={colors.textLight} />}
+                        testID="add-activity-button"
+                    />
+                ) : null}
             </View>
 
             {activities.length === 0 ? (
@@ -257,8 +270,8 @@ export default function DestinationDetailScreen() {
                     title="No activities yet"
                     message="Add sightseeing, meals, transport, check-ins, or other plans for this destination."
                     icon={<Ionicons name="walk-outline" size={30} color={colors.primary} />}
-                    actionLabel="Add first activity"
-                    onActionPress={handleAddActivity}
+                    actionLabel={canEditPlan ? "Add first activity" : undefined}
+                    onActionPress={canEditPlan ? handleAddActivity : undefined}
                 />
             ) : (
                 <View style={styles.activityList}>
@@ -272,14 +285,16 @@ export default function DestinationDetailScreen() {
                 </View>
             )}
 
-            <AppButton
-                title="Delete Destination"
-                onPress={handleDeleteDestination}
-                loading={isDeleting}
-                variant="danger"
-                leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
-                style={styles.deleteButton}
-            />
+            {canEditPlan ? (
+                <AppButton
+                    title="Delete Destination"
+                    onPress={handleDeleteDestination}
+                    loading={isDeleting}
+                    variant="danger"
+                    leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
+                    style={styles.deleteButton}
+                />
+            ) : null}
         </AppScreen>
     );
 }

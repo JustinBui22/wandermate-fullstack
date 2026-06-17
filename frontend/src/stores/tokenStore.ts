@@ -4,11 +4,16 @@ import type { LoginTokens } from "../types/auth";
 const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
 const SESSION_TOKEN_KEY = "sessionToken";
+const USERNAME_KEY = "username";
 
-export async function saveTokens(tokens: LoginTokens) {
+export async function saveTokens(tokens: LoginTokens, username?: string) {
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokens.accessToken);
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken);
     await SecureStore.setItemAsync(SESSION_TOKEN_KEY, tokens.sessionToken);
+
+    if (username) {
+        await SecureStore.setItemAsync(USERNAME_KEY, username);
+    }
 }
 
 export async function getAccessToken() {
@@ -23,10 +28,15 @@ export async function getSessionToken() {
     return SecureStore.getItemAsync(SESSION_TOKEN_KEY);
 }
 
+export async function getStoredUsername() {
+    return SecureStore.getItemAsync(USERNAME_KEY);
+}
+
 export async function clearTokens() {
     await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(USERNAME_KEY);
 }
 
 export async function saveAccessToken(accessToken: string) {
