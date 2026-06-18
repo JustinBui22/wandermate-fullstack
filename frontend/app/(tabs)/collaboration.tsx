@@ -24,9 +24,20 @@ import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
-import type { TripCollaborationRequest, TripCollaborationRole } from "@/src/types/tripCollaboration";
+import type {
+    TripCollaborationRequest,
+    TripCollaborationRole,
+} from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
+
+type JoinRole = Exclude<TripCollaborationRole, "OWNER">;
+type InvitationAction = "ACCEPT" | "REJECT";
+
+type LoadingInvitationAction = {
+    requestId: number;
+    action: InvitationAction;
+} | null;
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
@@ -40,18 +51,22 @@ function getApiMessage(error: any) {
 
 export default function CollaborationScreen() {
     const router = useRouter();
+
     const [invitations, setInvitations] = useState<TripCollaborationRequest[]>([]);
     const [tripIdInput, setTripIdInput] = useState("");
-    const [joinRole, setJoinRole] = useState<Exclude<TripCollaborationRole, "OWNER">>("VIEWER");
+    const [joinRole, setJoinRole] = useState<JoinRole>("VIEWER");
+
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSubmittingJoinRequest, setIsSubmittingJoinRequest] = useState(false);
-    const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
+    const [loadingInvitationAction, setLoadingInvitationAction] =
+        useState<LoadingInvitationAction>(null);
     const [error, setError] = useState<string | null>(null);
 
     async function loadInvitations() {
         try {
             setError(null);
+
             const data = await getMyPendingInvitations();
             setInvitations(Array.isArray(data) ? data : []);
         } catch (error: any) {
@@ -76,7 +91,11 @@ export default function CollaborationScreen() {
 
     async function handleAcceptInvitation(invitation: TripCollaborationRequest) {
         try {
-            setActiveRequestId(invitation.requestId);
+            setLoadingInvitationAction({
+                requestId: invitation.requestId,
+                action: "ACCEPT",
+            });
+
             const response = await acceptInvitation(invitation.requestId);
             const warnings = response.overlapWarnings ?? [];
 
@@ -93,13 +112,16 @@ export default function CollaborationScreen() {
 
             router.push(`/trips/${invitation.tripId}` as any);
         } catch (error: any) {
-            Alert.alert("Accept invitation failed", getApiErrorMessage(error, "Please try again."));
+            Alert.alert(
+                "Accept invitation failed",
+                getApiErrorMessage(error, "Please try again.")
+            );
         } finally {
-            setActiveRequestId(null);
+            setLoadingInvitationAction(null);
         }
     }
 
-    async function handleRejectInvitation(invitation: TripCollaborationRequest) {
+    function handleRejectInvitation(invitation: TripCollaborationRequest) {
         Alert.alert(
             "Reject invitation",
             `Reject invitation to ${invitation.tripName}?`,
@@ -110,13 +132,25 @@ export default function CollaborationScreen() {
                     style: "destructive",
                     onPress: async () => {
                         try {
-                            setActiveRequestId(invitation.requestId);
+                            setLoadingInvitationAction({
+                                requestId: invitation.requestId,
+                                action: "REJECT",
+                            });
+
                             await rejectInvitation(invitation.requestId);
                             await loadInvitations();
+
+                            Alert.alert(
+                                "Invitation rejected",
+                                `You rejected the invitation to ${invitation.tripName}.`
+                            );
                         } catch (error: any) {
-                            Alert.alert("Reject invitation failed", getApiErrorMessage(error, "Please try again."));
+                            Alert.alert(
+                                "Reject invitation failed",
+                                getApiErrorMessage(error, "Please try again.")
+                            );
                         } finally {
-                            setActiveRequestId(null);
+                            setLoadingInvitationAction(null);
                         }
                     },
                 },
@@ -125,20 +159,33 @@ export default function CollaborationScreen() {
     }
 
     async function handleSendJoinRequest() {
-        const tripId = Number(tripIdInput.trim());
+        const trimmedTripId = tripIdInput.trim();
+        const tripId = Number(trimmedTripId);
 
-        if (!tripIdInput.trim() || Number.isNaN(tripId)) {
-            Alert.alert("Invalid trip ID", "Enter a valid trip ID to request access.");
+        if (!trimmedTripId || Number.isNaN(tripId) || tripId <= 0) {
+            Alert.alert("Invalid trip ID", "Enter a valid trip ID shared by the trip owner.");
             return;
         }
 
         try {
             setIsSubmittingJoinRequest(true);
-            await requestToJoinTrip(tripId, { role: joinRole });
+
+            await requestToJoinTrip(tripId, {
+                role: joinRole,
+            });
+
             setTripIdInput("");
-            Alert.alert("Request sent", "The trip owner can now accept or reject your join request.");
+            setJoinRole("VIEWER");
+
+            Alert.alert(
+                "Request sent",
+                "The trip owner can now accept or reject your join request from their Members screen."
+            );
         } catch (error: any) {
-            Alert.alert("Join request failed", getApiErrorMessage(error, "Please try again."));
+            Alert.alert(
+                "Join request failed",
+                getApiErrorMessage(error, "Please try again.")
+            );
         } finally {
             setIsSubmittingJoinRequest(false);
         }
@@ -174,23 +221,45 @@ export default function CollaborationScreen() {
                     <View style={styles.headerIconBadge}>
                         <Ionicons name="people-outline" size={28} color={colors.primary} />
                     </View>
+
                     <View style={styles.headerTextGroup}>
                         <Text style={styles.eyebrow}>WanderMate</Text>
                         <Text style={styles.title}>Collaboration</Text>
-                        <Text style={styles.subtitle}>Manage invitations and request access to shared trips.</Text>
+                        <Text style={styles.subtitle}>
+                            Manage invitations and request access to shared trips.
+                        </Text>
                     </View>
                 </View>
 
                 <ErrorMessage message={error} title="Could not load invitations" />
 
-                <AppCard title="Request to join a trip" contentStyle={styles.formCardContent}>
+                <AppCard
+                    title="Join a trip"
+                    subtitle="Enter the Trip ID shared by the owner and ask to join."
+                    contentStyle={styles.formCardContent}
+                >
+                    <View style={styles.infoBox}>
+                        <Ionicons
+                            name="information-circle-outline"
+                            size={22}
+                            color={colors.primary}
+                        />
+
+                        <View style={styles.infoTextGroup}>
+                            <Text style={styles.infoTitle}>How do I find the Trip ID?</Text>
+                            <Text style={styles.infoText}>
+                                For V3, the owner shares the Trip ID with you manually. Later this can become a share code or invite link.
+                            </Text>
+                        </View>
+                    </View>
+
                     <AppInput
                         label="Trip ID"
                         value={tripIdInput}
                         onChangeText={setTripIdInput}
                         keyboardType="number-pad"
-                        placeholder="Enter shared trip ID"
-                        helperText="For now, use the trip ID shared by the trip owner."
+                        placeholder="Example: 12"
+                        helperText="Ask the trip owner for this ID."
                     />
 
                     <View style={styles.roleToggleRow}>
@@ -199,6 +268,7 @@ export default function CollaborationScreen() {
                             selected={joinRole === "VIEWER"}
                             onPress={() => setJoinRole("VIEWER")}
                         />
+
                         <RoleOption
                             label="Editor"
                             selected={joinRole === "EDITOR"}
@@ -207,17 +277,27 @@ export default function CollaborationScreen() {
                     </View>
 
                     <AppButton
-                        title="Send Join Request"
+                        title="Request to Join"
                         onPress={handleSendJoinRequest}
                         loading={isSubmittingJoinRequest}
-                        leftIcon={<Ionicons name="send-outline" size={19} color={colors.textLight} />}
+                        leftIcon={
+                            !isSubmittingJoinRequest ? (
+                                <Ionicons
+                                    name="send-outline"
+                                    size={19}
+                                    color={colors.textLight}
+                                />
+                            ) : null
+                        }
                     />
                 </AppCard>
 
                 <View style={styles.sectionHeader}>
                     <View style={styles.sectionTextGroup}>
                         <Text style={styles.sectionTitle}>Received invitations</Text>
-                        <Text style={styles.sectionSubtitle}>Accepting an invitation adds you to the shared trip.</Text>
+                        <Text style={styles.sectionSubtitle}>
+                            Accepting an invitation adds you to the shared trip.
+                        </Text>
                     </View>
                 </View>
 
@@ -225,7 +305,13 @@ export default function CollaborationScreen() {
                     <EmptyState
                         title="No pending invitations"
                         message="Trip invitations sent to you will appear here."
-                        icon={<Ionicons name="mail-open-outline" size={30} color={colors.primary} />}
+                        icon={
+                            <Ionicons
+                                name="mail-open-outline"
+                                size={30}
+                                color={colors.primary}
+                            />
+                        }
                     />
                 ) : (
                     <View style={styles.requestList}>
@@ -233,7 +319,7 @@ export default function CollaborationScreen() {
                             <InvitationCard
                                 key={invitation.requestId}
                                 invitation={invitation}
-                                activeRequestId={activeRequestId}
+                                loadingInvitationAction={loadingInvitationAction}
                                 onAccept={() => handleAcceptInvitation(invitation)}
                                 onReject={() => handleRejectInvitation(invitation)}
                             />
@@ -266,13 +352,27 @@ function RoleOption({ label, selected, onPress }: RoleOptionProps) {
 
 type InvitationCardProps = Readonly<{
     invitation: TripCollaborationRequest;
-    activeRequestId: number | null;
+    loadingInvitationAction: LoadingInvitationAction;
     onAccept: () => void;
     onReject: () => void;
 }>;
 
-function InvitationCard({ invitation, activeRequestId, onAccept, onReject }: InvitationCardProps) {
-    const isLoading = activeRequestId === invitation.requestId;
+function InvitationCard({
+                            invitation,
+                            loadingInvitationAction,
+                            onAccept,
+                            onReject,
+                        }: InvitationCardProps) {
+    const isAcceptLoading =
+        loadingInvitationAction?.requestId === invitation.requestId &&
+        loadingInvitationAction.action === "ACCEPT";
+
+    const isRejectLoading =
+        loadingInvitationAction?.requestId === invitation.requestId &&
+        loadingInvitationAction.action === "REJECT";
+
+    const isActionDisabled =
+        loadingInvitationAction?.requestId === invitation.requestId;
 
     return (
         <AppCard contentStyle={styles.invitationCardContent}>
@@ -280,8 +380,12 @@ function InvitationCard({ invitation, activeRequestId, onAccept, onReject }: Inv
                 <View style={styles.tripIconBadge}>
                     <Ionicons name="map-outline" size={22} color={colors.primary} />
                 </View>
+
                 <View style={styles.invitationTextGroup}>
-                    <Text style={styles.invitationTitle}>{invitation.tripName || "Untitled trip"}</Text>
+                    <Text style={styles.invitationTitle}>
+                        {invitation.tripName || "Untitled trip"}
+                    </Text>
+
                     <Text style={styles.invitationMeta}>
                         Invited by {invitation.requesterUsername} as {invitation.requestedRole}
                     </Text>
@@ -298,18 +402,19 @@ function InvitationCard({ invitation, activeRequestId, onAccept, onReject }: Inv
                 <AppButton
                     title="Reject"
                     onPress={onReject}
-                    loading={isLoading}
-                    disabled={isLoading}
+                    loading={isRejectLoading}
+                    disabled={isActionDisabled}
                     variant="outline"
                     size="sm"
                     fullWidth={false}
                     style={styles.actionButton}
                 />
+
                 <AppButton
                     title="Accept"
                     onPress={onAccept}
-                    loading={isLoading}
-                    disabled={isLoading}
+                    loading={isAcceptLoading}
+                    disabled={isActionDisabled}
                     size="sm"
                     fullWidth={false}
                     style={styles.actionButton}
@@ -364,6 +469,28 @@ const styles = StyleSheet.create({
     },
     formCardContent: {
         gap: spacing.md,
+    },
+    infoBox: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+        borderRadius: radius.lg,
+        backgroundColor: colors.primarySoft,
+        padding: spacing.md,
+    },
+    infoTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    infoTitle: {
+        color: colors.text,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
+    },
+    infoText: {
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        lineHeight: 18,
     },
     roleToggleRow: {
         flexDirection: "row",

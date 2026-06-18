@@ -2,8 +2,6 @@ import { useCallback, useState } from "react";
 import {
     Alert,
     Pressable,
-    RefreshControl,
-    ScrollView,
     StyleSheet,
     Text,
     View,
@@ -20,22 +18,36 @@ import {
     sendTripInvitation,
     updateTripMemberRole,
 } from "@/src/api/tripCollaborationApi";
-import { getTripById } from "@/src/api/tripApi";
 import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { EmptyState } from "@/src/components/ui/EmptyState";
-import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
-import type { Trip } from "@/src/types/trip";
-import type { TripCollaborationRequest, TripCollaborationRole, TripMember } from "@/src/types/tripCollaboration";
+import type {
+    TripCollaborationRequest,
+    TripCollaborationRole,
+    TripMember,
+} from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
-import { getCurrentUsernameFromAccessToken } from "@/src/utils/authTokenUtils";
-import { formatDateTime } from "@/src/utils/dateFormat";
-import { canManageTripMembers, getRoleLabel } from "@/src/utils/tripRoleUtils";
+
+type InvitableTripRole = "EDITOR" | "VIEWER";
+
+const INVITABLE_ROLES: InvitableTripRole[] = ["EDITOR", "VIEWER"];
+
+function getBodyArray<T>(response: T[] | { body?: T[] } | null | undefined): T[] {
+    if (Array.isArray(response)) {
+        return response;
+    }
+
+    if (Array.isArray(response?.body)) {
+        return response.body;
+    }
+
+    return [];
+}
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
@@ -44,33 +56,58 @@ function getApiMessage(error: any) {
         return data.body;
     }
 
-    return data?.message || error.message || "Failed to load trip members.";
+    return data?.message || error.message || "Failed to load members.";
+}
+
+function getMemberUsername(member: TripMember) {
+    const value = member as any;
+
+    return (
+        value.username ||
+        value.memberUsername ||
+        value.userUsername ||
+        value.user?.username ||
+        "Unknown user"
+    );
+}
+
+function getRequestUsername(request: TripCollaborationRequest) {
+    const value = request as any;
+
+    return (
+        value.requesterUsername ||
+        value.requester ||
+        value.requesterUser?.username ||
+        value.username ||
+        "Unknown user"
+    );
+}
+
+function getRequestRole(request: TripCollaborationRequest): TripCollaborationRole {
+    const value = request as any;
+
+    return value.requestedRole || "VIEWER";
 }
 
 export default function TripMembersScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const tripNumberId = Number(tripIdParam);
     const hasValidTripId = Boolean(tripIdParam) && !Number.isNaN(tripNumberId);
 
-    const [trip, setTrip] = useState<Trip | null>(null);
     const [members, setMembers] = useState<TripMember[]>([]);
     const [joinRequests, setJoinRequests] = useState<TripCollaborationRequest[]>([]);
-    const [currentUsername, setCurrentUsername] = useState<string | null>(null);
-    const [currentRole, setCurrentRole] = useState<TripCollaborationRole | null>(null);
     const [inviteUsername, setInviteUsername] = useState("");
-    const [inviteRole, setInviteRole] = useState<Exclude<TripCollaborationRole, "OWNER">>("VIEWER");
+    const [inviteRole, setInviteRole] = useState<InvitableTripRole>("VIEWER");
+
     const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isSendingInvitation, setIsSendingInvitation] = useState(false);
-    const [activeMemberId, setActiveMemberId] = useState<number | null>(null);
-    const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
+    const [isSendingInvite, setIsSendingInvite] = useState(false);
+    const [isRefreshingAction, setIsRefreshingAction] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const canManageMembers = canManageTripMembers(currentRole);
-
-    async function loadMembers() {
+    async function loadMembersScreen() {
         if (!hasValidTripId) {
             setError("Trip ID is missing or invalid.");
             setIsLoading(false);
@@ -78,100 +115,138 @@ export default function TripMembersScreen() {
         }
 
         try {
+            setIsLoading(true);
             setError(null);
-            const username = await getCurrentUsernameFromAccessToken();
-            const [tripData, memberData] = await Promise.all([
-                getTripById(tripNumberId),
+
+            const [membersResponse, joinRequestsResponse] = await Promise.all([
                 getTripMembers(tripNumberId),
+                getPendingJoinRequests(tripNumberId),
             ]);
 
-            const currentMember = username
-                ? memberData.find((member) => member.username === username)
-                : null;
-
-            setCurrentUsername(username);
-            setCurrentRole(currentMember?.role ?? null);
-            setTrip(tripData);
-            setMembers(Array.isArray(memberData) ? memberData : []);
-
-            if (currentMember?.role === "OWNER") {
-                const requests = await getPendingJoinRequests(tripNumberId);
-                setJoinRequests(Array.isArray(requests) ? requests : []);
-            } else {
-                setJoinRequests([]);
-            }
+            setMembers(getBodyArray<TripMember>(membersResponse));
+            setJoinRequests(getBodyArray<TripCollaborationRequest>(joinRequestsResponse));
         } catch (error: any) {
             setError(getApiMessage(error));
         } finally {
             setIsLoading(false);
-            setIsRefreshing(false);
         }
     }
 
     useFocusEffect(
         useCallback(() => {
-            setIsLoading(true);
-            loadMembers();
+            loadMembersScreen();
         }, [tripIdParam])
     );
 
-    async function handleRefresh() {
-        setIsRefreshing(true);
-        await loadMembers();
-    }
-
     async function handleSendInvitation() {
-        if (!inviteUsername.trim()) {
+        const username = inviteUsername.trim();
+
+        if (!username) {
             Alert.alert("Missing username", "Enter the username you want to invite.");
             return;
         }
 
+        if (!hasValidTripId) {
+            Alert.alert("Missing trip", "Trip ID is missing or invalid.");
+            return;
+        }
+
         try {
-            setIsSendingInvitation(true);
+            setIsSendingInvite(true);
+
             await sendTripInvitation(tripNumberId, {
-                username: inviteUsername.trim(),
+                username,
                 role: inviteRole,
             });
+
             setInviteUsername("");
-            Alert.alert("Invitation sent", "The user must accept before they become a member.");
-            await loadMembers();
+            setInviteRole("VIEWER");
+
+            Alert.alert(
+                "Invitation sent",
+                `${username} has been invited as ${inviteRole.toLowerCase()}.`
+            );
+
+            await loadMembersScreen();
         } catch (error: any) {
-            Alert.alert("Send invitation failed", getApiErrorMessage(error, "Please try again."));
+            Alert.alert(
+                "Invitation failed",
+                getApiErrorMessage(error, "Please check the username and try again.")
+            );
         } finally {
-            setIsSendingInvitation(false);
+            setIsSendingInvite(false);
         }
     }
 
-    function handleChangeMemberRole(member: TripMember) {
-        const nextRole: Exclude<TripCollaborationRole, "OWNER"> = member.role === "EDITOR" ? "VIEWER" : "EDITOR";
+    async function handleAcceptJoinRequest(requestId: number) {
+        try {
+            setIsRefreshingAction(true);
+            await acceptJoinRequest(requestId);
+            await loadMembersScreen();
+        } catch (error: any) {
+            Alert.alert(
+                "Accept request failed",
+                getApiErrorMessage(error, "Please try again.")
+            );
+        } finally {
+            setIsRefreshingAction(false);
+        }
+    }
 
-        Alert.alert(
-            "Change role",
-            `Change ${member.username} to ${getRoleLabel(nextRole)}?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Change",
-                    onPress: async () => {
-                        try {
-                            setActiveMemberId(member.tripMemberId);
-                            await updateTripMemberRole(tripNumberId, member.tripMemberId, { role: nextRole });
-                            await loadMembers();
-                        } catch (error: any) {
-                            Alert.alert("Update role failed", getApiErrorMessage(error, "Please try again."));
-                        } finally {
-                            setActiveMemberId(null);
-                        }
-                    },
-                },
-            ]
-        );
+    async function handleRejectJoinRequest(requestId: number) {
+        try {
+            setIsRefreshingAction(true);
+            await rejectJoinRequest(requestId);
+            await loadMembersScreen();
+        } catch (error: any) {
+            Alert.alert(
+                "Reject request failed",
+                getApiErrorMessage(error, "Please try again.")
+            );
+        } finally {
+            setIsRefreshingAction(false);
+        }
+    }
+
+    async function handleUpdateRole(member: TripMember, nextRole: InvitableTripRole) {
+        if (member.role === "OWNER") {
+            Alert.alert("Owner role locked", "The trip owner role cannot be changed.");
+            return;
+        }
+
+        if (member.role === nextRole) {
+            return;
+        }
+
+        try {
+            setIsRefreshingAction(true);
+
+            await updateTripMemberRole(tripNumberId, member.tripMemberId, {
+                role: nextRole,
+            });
+
+            await loadMembersScreen();
+        } catch (error: any) {
+            Alert.alert(
+                "Update role failed",
+                getApiErrorMessage(error, "Please try again.")
+            );
+        } finally {
+            setIsRefreshingAction(false);
+        }
     }
 
     function handleRemoveMember(member: TripMember) {
+        if (member.role === "OWNER") {
+            Alert.alert("Cannot remove owner", "The trip owner cannot be removed.");
+            return;
+        }
+
+        const username = getMemberUsername(member);
+
         Alert.alert(
             "Remove member",
-            `Remove ${member.username} from this trip?`,
+            `Remove ${username} from this trip?`,
             [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -179,13 +254,16 @@ export default function TripMembersScreen() {
                     style: "destructive",
                     onPress: async () => {
                         try {
-                            setActiveMemberId(member.tripMemberId);
+                            setIsRefreshingAction(true);
                             await removeTripMember(tripNumberId, member.tripMemberId);
-                            await loadMembers();
+                            await loadMembersScreen();
                         } catch (error: any) {
-                            Alert.alert("Remove member failed", getApiErrorMessage(error, "Please try again."));
+                            Alert.alert(
+                                "Remove member failed",
+                                getApiErrorMessage(error, "Please try again.")
+                            );
                         } finally {
-                            setActiveMemberId(null);
+                            setIsRefreshingAction(false);
                         }
                     },
                 },
@@ -193,37 +271,12 @@ export default function TripMembersScreen() {
         );
     }
 
-    async function handleAcceptJoinRequest(request: TripCollaborationRequest) {
-        try {
-            setActiveRequestId(request.requestId);
-            await acceptJoinRequest(request.requestId);
-            Alert.alert("Join request accepted", `${request.requesterUsername} is now a trip member.`);
-            await loadMembers();
-        } catch (error: any) {
-            Alert.alert("Accept request failed", getApiErrorMessage(error, "Please try again."));
-        } finally {
-            setActiveRequestId(null);
-        }
-    }
-
-    async function handleRejectJoinRequest(request: TripCollaborationRequest) {
-        try {
-            setActiveRequestId(request.requestId);
-            await rejectJoinRequest(request.requestId);
-            await loadMembers();
-        } catch (error: any) {
-            Alert.alert("Reject request failed", getApiErrorMessage(error, "Please try again."));
-        } finally {
-            setActiveRequestId(null);
-        }
-    }
-
     if (isLoading) {
         return (
             <AppScreen scroll={false} centerContent>
                 <LoadingState
                     title="Loading members..."
-                    subtitle="Getting collaboration details."
+                    subtitle="Getting trip members and pending requests."
                     fullScreen
                 />
             </AppScreen>
@@ -236,268 +289,308 @@ export default function TripMembersScreen() {
                 <View style={styles.errorIconBadge}>
                     <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
                 </View>
-                <Text style={styles.centerTitle}>Unable to load members</Text>
-                <Text style={styles.centerSubtitle}>{error}</Text>
-                <AppButton title="Try again" onPress={loadMembers} />
+
+                <View style={styles.centerTextGroup}>
+                    <Text style={styles.centerTitle}>Unable to load members</Text>
+                    <Text style={styles.centerSubtitle}>{error}</Text>
+                </View>
+
+                <AppButton title="Try again" onPress={loadMembersScreen} />
                 <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
             </AppScreen>
         );
     }
 
     return (
-        <AppScreen scroll={false} contentContainerStyle={styles.screenContent}>
-            <ScrollView
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isRefreshing}
-                        onRefresh={handleRefresh}
-                        tintColor={colors.primary}
-                        colors={[colors.primary]}
-                    />
-                }
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.header}>
-                    <HeaderIconButton
-                        icon="chevron-back"
-                        accessibilityLabel="Go back"
-                        onPress={() => router.back()}
-                    />
-                    <View style={styles.headerTextGroup}>
-                        <Text style={styles.eyebrow}>Collaboration</Text>
-                        <Text style={styles.title}>{trip?.tripName || "Trip members"}</Text>
-                        <Text style={styles.subtitle}>Your role: {getRoleLabel(currentRole)}</Text>
-                    </View>
+        <AppScreen contentContainerStyle={styles.screenContent}>
+            <View style={styles.header}>
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Go back"
+                    onPress={() => router.back()}
+                    style={({ pressed }) => [
+                        styles.headerIconButton,
+                        pressed && styles.pressed,
+                    ]}
+                >
+                    <Ionicons name="chevron-back" size={23} color={colors.text} />
+                </Pressable>
+
+                <View style={styles.headerTextGroup}>
+                    <Text style={styles.headerTitle}>Trip Members</Text>
+                    <Text style={styles.headerSubtitle}>
+                        Invite people and manage trip access.
+                    </Text>
                 </View>
-
-                {canManageMembers ? (
-                    <AppCard title="Invite member" contentStyle={styles.formCardContent}>
-                        <AppInput
-                            label="Username"
-                            value={inviteUsername}
-                            onChangeText={setInviteUsername}
-                            placeholder="Enter username"
-                            autoCapitalize="none"
-                            helperText="User becomes a member only after accepting the invitation."
-                        />
-                        <View style={styles.roleToggleRow}>
-                            <RoleOption
-                                label="Viewer"
-                                selected={inviteRole === "VIEWER"}
-                                onPress={() => setInviteRole("VIEWER")}
-                            />
-                            <RoleOption
-                                label="Editor"
-                                selected={inviteRole === "EDITOR"}
-                                onPress={() => setInviteRole("EDITOR")}
-                            />
-                        </View>
-                        <AppButton
-                            title="Send Invitation"
-                            onPress={handleSendInvitation}
-                            loading={isSendingInvitation}
-                            leftIcon={<Ionicons name="mail-outline" size={19} color={colors.textLight} />}
-                        />
-                    </AppCard>
-                ) : null}
-
-                {canManageMembers ? (
-                    <View style={styles.sectionGroup}>
-                        <Text style={styles.sectionTitle}>Pending join requests</Text>
-                        {joinRequests.length === 0 ? (
-                            <EmptyState
-                                title="No pending requests"
-                                message="Requests to join this trip will appear here."
-                                icon={<Ionicons name="person-add-outline" size={30} color={colors.primary} />}
-                            />
-                        ) : (
-                            <View style={styles.listGroup}>
-                                {joinRequests.map((request) => (
-                                    <JoinRequestCard
-                                        key={request.requestId}
-                                        request={request}
-                                        activeRequestId={activeRequestId}
-                                        onAccept={() => handleAcceptJoinRequest(request)}
-                                        onReject={() => handleRejectJoinRequest(request)}
-                                    />
-                                ))}
-                            </View>
-                        )}
-                    </View>
-                ) : null}
-
-                <View style={styles.sectionGroup}>
-                    <Text style={styles.sectionTitle}>Members</Text>
-                    <View style={styles.listGroup}>
-                        {members.map((member) => (
-                            <MemberCard
-                                key={member.tripMemberId}
-                                member={member}
-                                currentUsername={currentUsername}
-                                canManageMembers={canManageMembers}
-                                isLoading={activeMemberId === member.tripMemberId}
-                                onChangeRole={() => handleChangeMemberRole(member)}
-                                onRemove={() => handleRemoveMember(member)}
-                            />
-                        ))}
-                    </View>
-                </View>
-            </ScrollView>
-        </AppScreen>
-    );
-}
-
-type HeaderIconButtonProps = Readonly<{
-    icon: keyof typeof Ionicons.glyphMap;
-    accessibilityLabel: string;
-    onPress: () => void;
-}>;
-
-function HeaderIconButton({ icon, accessibilityLabel, onPress }: HeaderIconButtonProps) {
-    return (
-        <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={accessibilityLabel}
-            onPress={onPress}
-            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
-        >
-            <Ionicons name={icon} size={23} color={colors.text} />
-        </Pressable>
-    );
-}
-
-type RoleOptionProps = Readonly<{
-    label: string;
-    selected: boolean;
-    onPress: () => void;
-}>;
-
-function RoleOption({ label, selected, onPress }: RoleOptionProps) {
-    return (
-        <AppButton
-            title={label}
-            onPress={onPress}
-            variant={selected ? "primary" : "outline"}
-            size="sm"
-            fullWidth={false}
-            style={styles.roleOption}
-        />
-    );
-}
-
-type MemberCardProps = Readonly<{
-    member: TripMember;
-    currentUsername: string | null;
-    canManageMembers: boolean;
-    isLoading: boolean;
-    onChangeRole: () => void;
-    onRemove: () => void;
-}>;
-
-function MemberCard({ member, currentUsername, canManageMembers, isLoading, onChangeRole, onRemove }: MemberCardProps) {
-    const isCurrentUser = member.username === currentUsername;
-    const canManageThisMember = canManageMembers && member.role !== "OWNER";
-
-    return (
-        <AppCard contentStyle={styles.memberCardContent}>
-            <View style={styles.memberTopRow}>
-                <View style={styles.memberAvatar}>
-                    <Text style={styles.memberAvatarText}>{member.username?.charAt(0).toUpperCase() || "?"}</Text>
-                </View>
-                <View style={styles.memberTextGroup}>
-                    <Text style={styles.memberUsername}>{member.username}{isCurrentUser ? " (You)" : ""}</Text>
-                    {member.email ? <Text style={styles.memberEmail}>{member.email}</Text> : null}
-                </View>
-                <RoleBadge role={member.role} />
             </View>
 
-            {canManageThisMember ? (
-                <View style={styles.actionRow}>
-                    <AppButton
-                        title={`Make ${member.role === "EDITOR" ? "Viewer" : "Editor"}`}
-                        onPress={onChangeRole}
-                        loading={isLoading}
-                        variant="outline"
-                        size="sm"
-                        fullWidth={false}
-                        style={styles.actionButton}
-                    />
-                    <AppButton
-                        title="Remove"
-                        onPress={onRemove}
-                        loading={isLoading}
-                        variant="danger"
-                        size="sm"
-                        fullWidth={false}
-                        style={styles.actionButton}
-                    />
+            <AppCard
+                title="Invite member"
+                subtitle="Only the owner can invite users to this trip."
+                contentStyle={styles.inviteCardContent}
+            >
+                <AppInput
+                    label="Username"
+                    value={inviteUsername}
+                    onChangeText={setInviteUsername}
+                    placeholder="Enter username"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    leftIcon={<Ionicons name="person-add-outline" size={20} color={colors.textMuted} />}
+                />
+
+                <View style={styles.rolePicker}>
+                    {INVITABLE_ROLES.map((role) => {
+                        const selected = inviteRole === role;
+
+                        return (
+                            <Pressable
+                                key={role}
+                                accessibilityRole="button"
+                                onPress={() => setInviteRole(role)}
+                                style={[
+                                    styles.roleOption,
+                                    selected && styles.roleOptionSelected,
+                                ]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.roleOptionText,
+                                        selected && styles.roleOptionTextSelected,
+                                    ]}
+                                >
+                                    {role === "EDITOR" ? "Editor" : "Viewer"}
+                                </Text>
+                            </Pressable>
+                        );
+                    })}
                 </View>
-            ) : null}
-        </AppCard>
+
+                <AppButton
+                    title="Send Invitation"
+                    onPress={handleSendInvitation}
+                    loading={isSendingInvite}
+                    leftIcon={!isSendingInvite ? <Ionicons name="send-outline" size={20} color={colors.textLight} /> : null}
+                    testID="send-trip-invitation-button"
+                />
+            </AppCard>
+
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionTextGroup}>
+                    <Text style={styles.sectionTitle}>Pending join requests</Text>
+                    <Text style={styles.sectionSubtitle}>
+                        Accept or reject users asking to join this trip.
+                    </Text>
+                </View>
+            </View>
+
+            {joinRequests.length === 0 ? (
+                <EmptyState
+                    title="No pending requests"
+                    message="Join requests will appear here when users ask to join this trip."
+                    icon={<Ionicons name="mail-open-outline" size={30} color={colors.primary} />}
+                />
+            ) : (
+                <View style={styles.list}>
+                    {joinRequests.map((request) => (
+                        <JoinRequestCard
+                            key={request.requestId}
+                            request={request}
+                            disabled={isRefreshingAction}
+                            onAccept={() => handleAcceptJoinRequest(request.requestId)}
+                            onReject={() => handleRejectJoinRequest(request.requestId)}
+                        />
+                    ))}
+                </View>
+            )}
+
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionTextGroup}>
+                    <Text style={styles.sectionTitle}>Members</Text>
+                    <Text style={styles.sectionSubtitle}>
+                        Owner can change editor/viewer roles or remove members.
+                    </Text>
+                </View>
+            </View>
+
+            {members.length === 0 ? (
+                <EmptyState
+                    title="No members found"
+                    message="This trip has no member records yet."
+                    icon={<Ionicons name="people-outline" size={30} color={colors.primary} />}
+                />
+            ) : (
+                <View style={styles.list}>
+                    {members.map((member) => (
+                        <MemberCard
+                            key={member.tripMemberId}
+                            member={member}
+                            disabled={isRefreshingAction}
+                            onUpdateRole={(role) => handleUpdateRole(member, role)}
+                            onRemove={() => handleRemoveMember(member)}
+                        />
+                    ))}
+                </View>
+            )}
+        </AppScreen>
     );
 }
 
 type JoinRequestCardProps = Readonly<{
     request: TripCollaborationRequest;
-    activeRequestId: number | null;
+    disabled: boolean;
     onAccept: () => void;
     onReject: () => void;
 }>;
 
-function JoinRequestCard({ request, activeRequestId, onAccept, onReject }: JoinRequestCardProps) {
-    const isLoading = activeRequestId === request.requestId;
+function JoinRequestCard({
+                             request,
+                             disabled,
+                             onAccept,
+                             onReject,
+                         }: JoinRequestCardProps) {
+    const username = getRequestUsername(request);
+    const requestedRole = getRequestRole(request);
 
     return (
-        <AppCard contentStyle={styles.joinRequestContent}>
-            <View style={styles.joinRequestTopRow}>
-                <View style={styles.memberAvatar}>
-                    <Text style={styles.memberAvatarText}>{request.requesterUsername?.charAt(0).toUpperCase() || "?"}</Text>
-                </View>
-                <View style={styles.memberTextGroup}>
-                    <Text style={styles.memberUsername}>{request.requesterUsername}</Text>
-                    <Text style={styles.memberEmail}>Requested {request.requestedRole}</Text>
-                    {request.createdDate ? (
-                        <Text style={styles.dateText}>{formatDateTime(request.createdDate)}</Text>
-                    ) : null}
-                </View>
+        <AppCard contentStyle={styles.requestCardContent}>
+            <View style={styles.avatarBadge}>
+                <Ionicons name="person-outline" size={22} color={colors.primary} />
             </View>
-            <View style={styles.actionRow}>
-                <AppButton
-                    title="Reject"
+
+            <View style={styles.memberMainContent}>
+                <Text style={styles.memberName}>{username}</Text>
+                <Text style={styles.memberSubtitle}>
+                    Wants to join as {requestedRole.toLowerCase()}.
+                </Text>
+                <RoleBadge role={requestedRole} />
+            </View>
+
+            <View style={styles.requestActions}>
+                <Pressable
+                    accessibilityRole="button"
+                    disabled={disabled}
                     onPress={onReject}
-                    loading={isLoading}
-                    disabled={isLoading}
-                    variant="outline"
-                    size="sm"
-                    fullWidth={false}
-                    style={styles.actionButton}
-                />
-                <AppButton
-                    title="Accept"
+                    style={({ pressed }) => [
+                        styles.smallIconButton,
+                        styles.rejectButton,
+                        pressed && styles.pressed,
+                        disabled && styles.disabledButton,
+                    ]}
+                >
+                    <Ionicons name="close" size={20} color={colors.danger} />
+                </Pressable>
+
+                <Pressable
+                    accessibilityRole="button"
+                    disabled={disabled}
                     onPress={onAccept}
-                    loading={isLoading}
-                    disabled={isLoading}
-                    size="sm"
-                    fullWidth={false}
-                    style={styles.actionButton}
-                />
+                    style={({ pressed }) => [
+                        styles.smallIconButton,
+                        styles.acceptButton,
+                        pressed && styles.pressed,
+                        disabled && styles.disabledButton,
+                    ]}
+                >
+                    <Ionicons name="checkmark" size={20} color={colors.success} />
+                </Pressable>
             </View>
+        </AppCard>
+    );
+}
+
+type MemberCardProps = Readonly<{
+    member: TripMember;
+    disabled: boolean;
+    onUpdateRole: (role: InvitableTripRole) => void;
+    onRemove: () => void;
+}>;
+
+function MemberCard({
+                        member,
+                        disabled,
+                        onUpdateRole,
+                        onRemove,
+                    }: MemberCardProps) {
+    const username = getMemberUsername(member);
+    const isOwner = member.role === "OWNER";
+
+    return (
+        <AppCard contentStyle={styles.memberCardContent}>
+            <View style={styles.avatarBadge}>
+                <Ionicons name="person" size={22} color={colors.primary} />
+            </View>
+
+            <View style={styles.memberMainContent}>
+                <Text style={styles.memberName}>{username}</Text>
+                <RoleBadge role={member.role} />
+
+                {!isOwner ? (
+                    <View style={styles.memberRoleActions}>
+                        {INVITABLE_ROLES.map((role) => {
+                            const selected = member.role === role;
+
+                            return (
+                                <Pressable
+                                    key={role}
+                                    accessibilityRole="button"
+                                    disabled={disabled}
+                                    onPress={() => onUpdateRole(role)}
+                                    style={[
+                                        styles.memberRoleChip,
+                                        selected && styles.memberRoleChipSelected,
+                                        disabled && styles.disabledButton,
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.memberRoleChipText,
+                                            selected && styles.memberRoleChipTextSelected,
+                                        ]}
+                                    >
+                                        {role === "EDITOR" ? "Editor" : "Viewer"}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
+                    </View>
+                ) : (
+                    <Text style={styles.ownerHint}>
+                        Owner role cannot be changed.
+                    </Text>
+                )}
+            </View>
+
+            {!isOwner ? (
+                <Pressable
+                    accessibilityRole="button"
+                    disabled={disabled}
+                    onPress={onRemove}
+                    style={({ pressed }) => [
+                        styles.removeButton,
+                        pressed && styles.pressed,
+                        disabled && styles.disabledButton,
+                    ]}
+                >
+                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                </Pressable>
+            ) : null}
         </AppCard>
     );
 }
 
 const styles = StyleSheet.create({
     screenContent: {
-        flex: 1,
-    },
-    scrollContent: {
         paddingTop: spacing.lg,
         paddingBottom: spacing.xxl,
         gap: spacing.lg,
     },
     centerContent: {
         gap: spacing.lg,
+    },
+    centerTextGroup: {
+        alignItems: "center",
+        gap: spacing.sm,
     },
     centerTitle: {
         color: colors.text,
@@ -534,61 +627,86 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    pressed: {
-        opacity: 0.86,
-        transform: [{ scale: 0.99 }],
-    },
     headerTextGroup: {
         flex: 1,
         gap: spacing.xs,
     },
-    eyebrow: {
-        color: colors.primary,
-        fontSize: typography.caption,
-        fontWeight: fontWeight.bold,
-        textTransform: "uppercase",
-        letterSpacing: 0.7,
-    },
-    title: {
+    headerTitle: {
         color: colors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
     },
-    subtitle: {
+    headerSubtitle: {
         color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
-    formCardContent: {
+    pressed: {
+        opacity: 0.86,
+        transform: [{ scale: 0.99 }],
+    },
+    inviteCardContent: {
         gap: spacing.md,
     },
-    roleToggleRow: {
+    rolePicker: {
         flexDirection: "row",
         gap: spacing.sm,
     },
     roleOption: {
         flex: 1,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        paddingVertical: spacing.md,
+        alignItems: "center",
     },
-    sectionGroup: {
+    roleOptionSelected: {
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySoft,
+    },
+    roleOptionText: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
+    },
+    roleOptionTextSelected: {
+        color: colors.primary,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         gap: spacing.md,
+    },
+    sectionTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
     },
     sectionTitle: {
         color: colors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
     },
-    listGroup: {
+    sectionSubtitle: {
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+    },
+    list: {
         gap: spacing.md,
     },
-    memberCardContent: {
-        gap: spacing.md,
-    },
-    memberTopRow: {
+    requestCardContent: {
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.md,
     },
-    memberAvatar: {
+    memberCardContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    avatarBadge: {
         width: 44,
         height: 44,
         borderRadius: radius.lg,
@@ -596,44 +714,80 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    memberAvatarText: {
-        color: colors.primaryDark,
-        fontSize: typography.body,
-        fontWeight: fontWeight.bold,
-    },
-    memberTextGroup: {
+    memberMainContent: {
         flex: 1,
         gap: spacing.xs,
     },
-    memberUsername: {
+    memberName: {
         color: colors.text,
         fontSize: typography.body,
         fontWeight: fontWeight.bold,
     },
-    memberEmail: {
+    memberSubtitle: {
         color: colors.textMuted,
-        fontSize: typography.caption,
-        lineHeight: 18,
-        fontWeight: fontWeight.semibold,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
     },
-    dateText: {
-        color: colors.textMuted,
-        fontSize: typography.caption,
-        lineHeight: 18,
-    },
-    actionRow: {
+    requestActions: {
         flexDirection: "row",
         gap: spacing.sm,
     },
-    actionButton: {
-        flex: 1,
-    },
-    joinRequestContent: {
-        gap: spacing.md,
-    },
-    joinRequestTopRow: {
-        flexDirection: "row",
+    smallIconButton: {
+        width: 40,
+        height: 40,
+        borderRadius: radius.md,
         alignItems: "center",
-        gap: spacing.md,
+        justifyContent: "center",
+        borderWidth: 1,
+    },
+    rejectButton: {
+        backgroundColor: colors.dangerSoft,
+        borderColor: colors.dangerSoft,
+    },
+    acceptButton: {
+        backgroundColor: colors.successSoft,
+        borderColor: colors.successSoft,
+    },
+    removeButton: {
+        width: 40,
+        height: 40,
+        borderRadius: radius.md,
+        backgroundColor: colors.dangerSoft,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    memberRoleActions: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    memberRoleChip: {
+        borderRadius: radius.pill,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        backgroundColor: colors.surface,
+    },
+    memberRoleChipSelected: {
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySoft,
+    },
+    memberRoleChipText: {
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+    },
+    memberRoleChipTextSelected: {
+        color: colors.primary,
+    },
+    ownerHint: {
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        lineHeight: 18,
+        marginTop: spacing.xs,
+    },
+    disabledButton: {
+        opacity: 0.5,
     },
 });

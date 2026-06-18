@@ -22,11 +22,11 @@ export type TripMember = {
 
 export type SendTripInvitationRequest = {
     username: string;
-    role: Exclude<TripCollaborationRole, "OWNER">;
+    role: "EDITOR" | "VIEWER";
 };
 
 export type SendTripJoinRequest = {
-    role: Exclude<TripCollaborationRole, "OWNER">;
+    role: "EDITOR" | "VIEWER";
 };
 
 export type UpdateTripMemberRoleRequest = {

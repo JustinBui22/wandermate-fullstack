@@ -129,7 +129,6 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             );
 
             TripCollaborationRequestEntity savedInvitation = requestRepository.save(invitation);
-
             return getCompleteResponse(
                     errorCodeRepository,
                     TRIP_INVITATION_SENT_SUCCESS,
