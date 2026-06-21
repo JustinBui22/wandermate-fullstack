@@ -1,9 +1,29 @@
 import { axiosClient } from "./axiosClient";
-import type {ApiResponse, CreateTripRequest, Trip, UpdateTripRequest} from "../types/trip";
+import type {
+    ApiResponse,
+    CreateTripRequest,
+    GetTripsParams,
+    Trip,
+    UpdateTripRequest,
+} from "../types/trip";
 import { logger } from "../utils/logger";
 
-export async function getMyTrips(): Promise<Trip[]> {
-    const response = await axiosClient.get<ApiResponse<Trip[]>>("/api/v1/trips");
+function cleanGetTripsParams(params?: GetTripsParams) {
+    if (!params) {
+        return undefined;
+    }
+
+    return {
+        ownership: params.ownership ?? "ALL",
+        status: params.status ?? "ALL",
+        sort: params.sort ?? "MODIFIED_DATE_DESC",
+    };
+}
+
+export async function getMyTrips(params?: GetTripsParams): Promise<Trip[]> {
+    const response = await axiosClient.get<ApiResponse<Trip[]>>("/api/v1/trips", {
+        params: cleanGetTripsParams(params),
+    });
 
     logger.debug("Trips response:", response.data);
 

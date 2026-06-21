@@ -2,11 +2,13 @@ import { useCallback, useState } from "react";
 import {
     Alert,
     Pressable,
+    Share,
     StyleSheet,
     Text,
     View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import {
@@ -14,6 +16,7 @@ import {
     getPendingJoinRequests,
     getTripMembers,
     rejectJoinRequest,
+    regenerateTripShareCode,
     removeTripMember,
     sendTripInvitation,
     updateTripMemberRole,
@@ -30,8 +33,10 @@ import type {
     TripCollaborationRequest,
     TripCollaborationRole,
     TripMember,
+    TripShareCode,
 } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
+import { formatDateTime } from "@/src/utils/dateFormat";
 
 type InvitableTripRole = "EDITOR" | "VIEWER";
 
@@ -101,9 +106,13 @@ export default function TripMembersScreen() {
     const [joinRequests, setJoinRequests] = useState<TripCollaborationRequest[]>([]);
     const [inviteUsername, setInviteUsername] = useState("");
     const [inviteRole, setInviteRole] = useState<InvitableTripRole>("VIEWER");
+    const [shareCodeRole, setShareCodeRole] = useState<InvitableTripRole>("VIEWER");
+    const [generatedShareCode, setGeneratedShareCode] = useState<TripShareCode | null>(null);
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSendingInvite, setIsSendingInvite] = useState(false);
+    const [isGeneratingShareCode, setIsGeneratingShareCode] = useState(false);
+    const [isSharingCode, setIsSharingCode] = useState(false);
     const [isRefreshingAction, setIsRefreshingAction] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -175,6 +184,91 @@ export default function TripMembersScreen() {
             );
         } finally {
             setIsSendingInvite(false);
+        }
+    }
+
+    async function handleGenerateShareCode() {
+        if (!hasValidTripId) {
+            Alert.alert("Missing trip", "Trip ID is missing or invalid.");
+            return;
+        }
+
+        try {
+            setIsGeneratingShareCode(true);
+
+            const shareCode = await regenerateTripShareCode(tripNumberId, {
+                defaultRole: shareCodeRole,
+            });
+
+            setGeneratedShareCode(shareCode);
+
+            Alert.alert(
+                "Invite code ready",
+                "Share this code or link with one person. It becomes invalid after successful use."
+            );
+        } catch (error: any) {
+            Alert.alert(
+                "Generate code failed",
+                getApiErrorMessage(error, "Please wait a moment and try again.")
+            );
+        } finally {
+            setIsGeneratingShareCode(false);
+        }
+    }
+
+    async function handleCopyInviteCode() {
+        if (!generatedShareCode) {
+            Alert.alert("No invite code", "Generate an invite code first.");
+            return;
+        }
+
+        await Clipboard.setStringAsync(generatedShareCode.code);
+
+        Alert.alert(
+            "Code copied",
+            "Only the invite code was copied. Paste it into the Join Trip code box."
+        );
+    }
+
+    async function handleCopyInviteLink() {
+        if (!generatedShareCode) {
+            Alert.alert("No invite link", "Generate an invite code first.");
+            return;
+        }
+
+        await Clipboard.setStringAsync(generatedShareCode.inviteLink);
+
+        Alert.alert(
+            "Link copied",
+            "The invite link was copied. Opening it on a device with WanderMate installed will open the Join Trip screen."
+        );
+    }
+
+    async function handleShareGeneratedCode() {
+        if (!generatedShareCode) {
+            Alert.alert("No invite code", "Generate an invite code first.");
+            return;
+        }
+
+        const message = [
+            `Join my WanderMate trip: ${generatedShareCode.tripName}`,
+            `Invite code: ${generatedShareCode.code}`,
+            `Link: ${generatedShareCode.inviteLink}`,
+        ].join("\n");
+
+        try {
+            setIsSharingCode(true);
+            await Share.share({
+                title: "WanderMate trip invite",
+                message,
+            });
+        } catch (error: any) {
+            Alert.alert(
+                "Share failed",
+                error?.message || "Could not open the share sheet."
+            );
+        } finally {
+            setIsSharingCode(false);
         }
     }
 
@@ -373,6 +467,103 @@ export default function TripMembersScreen() {
                     leftIcon={!isSendingInvite ? <Ionicons name="send-outline" size={20} color={colors.textLight} /> : null}
                     testID="send-trip-invitation-button"
                 />
+            </AppCard>
+
+            <AppCard
+                title="Invite code / link"
+                subtitle="Generate a single-use code. Once someone successfully requests to join, the code becomes invalid."
+                contentStyle={styles.inviteCardContent}
+            >
+                <View style={styles.rolePicker}>
+                    {INVITABLE_ROLES.map((role) => {
+                        const selected = shareCodeRole === role;
+
+                        return (
+                            <Pressable
+                                key={role}
+                                accessibilityRole="button"
+                                onPress={() => setShareCodeRole(role)}
+                                style={[
+                                    styles.roleOption,
+                                    selected && styles.roleOptionSelected,
+                                ]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.roleOptionText,
+                                        selected && styles.roleOptionTextSelected,
+                                    ]}
+                                >
+                                    {role === "EDITOR" ? "Editor" : "Viewer"}
+                                </Text>
+                            </Pressable>
+                        );
+                    })}
+                </View>
+
+                <AppButton
+                    title={generatedShareCode ? "Regenerate Invite Code" : "Generate Invite Code"}
+                    onPress={handleGenerateShareCode}
+                    loading={isGeneratingShareCode}
+                    leftIcon={!isGeneratingShareCode ? <Ionicons name="key-outline" size={20} color={colors.textLight} /> : null}
+                    testID="generate-trip-share-code-button"
+                />
+
+                {generatedShareCode ? (
+                    <View style={styles.shareCodeBox}>
+                        <View style={styles.shareCodeHeaderRow}>
+                            <View style={styles.shareCodeIconBadge}>
+                                <Ionicons name="link-outline" size={21} color={colors.primary} />
+                            </View>
+
+                            <View style={styles.shareCodeTextGroup}>
+                                <Text style={styles.shareCodeLabel}>Single-use invite code</Text>
+                                <Text selectable style={styles.shareCodeValue}>
+                                    {generatedShareCode.code}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <Text selectable style={styles.shareLinkText}>
+                            {generatedShareCode.inviteLink}
+                        </Text>
+
+                        <View style={styles.shareCodeNoticeBox}>
+                            <Ionicons name="time-outline" size={18} color={colors.warning} />
+                            <Text style={styles.shareCodeNoticeText}>
+                                Expires {formatDateTime(generatedShareCode.expiresAt)}. Role: {generatedShareCode.defaultRole.toLowerCase()}.
+                            </Text>
+                        </View>
+
+                        <View style={styles.shareActionGrid}>
+                            <AppButton
+                                title="Copy Code"
+                                onPress={handleCopyInviteCode}
+                                variant="secondary"
+                                fullWidth={false}
+                                style={styles.shareActionButton}
+                                leftIcon={<Ionicons name="copy-outline" size={20} color={colors.primaryDark} />}
+                            />
+
+                            <AppButton
+                                title="Copy Link"
+                                onPress={handleCopyInviteLink}
+                                variant="secondary"
+                                fullWidth={false}
+                                style={styles.shareActionButton}
+                                leftIcon={<Ionicons name="link-outline" size={20} color={colors.primaryDark} />}
+                            />
+                        </View>
+
+                        <AppButton
+                            title="Share Invite Message"
+                            onPress={handleShareGeneratedCode}
+                            loading={isSharingCode}
+                            variant="secondary"
+                            leftIcon={!isSharingCode ? <Ionicons name="share-outline" size={20} color={colors.primaryDark} /> : null}
+                        />
+                    </View>
+                ) : null}
             </AppCard>
 
             <View style={styles.sectionHeader}>
@@ -672,6 +863,74 @@ const styles = StyleSheet.create({
     },
     roleOptionTextSelected: {
         color: colors.primary,
+    },
+    shareCodeBox: {
+        gap: spacing.md,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceSoft,
+        padding: spacing.md,
+    },
+    shareCodeHeaderRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    shareCodeIconBadge: {
+        width: 42,
+        height: 42,
+        borderRadius: radius.md,
+        backgroundColor: colors.primarySoft,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    shareCodeTextGroup: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    shareCodeLabel: {
+        color: colors.textMuted,
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    shareCodeValue: {
+        color: colors.text,
+        fontSize: typography.title,
+        fontWeight: fontWeight.bold,
+        letterSpacing: 0.6,
+    },
+    shareLinkText: {
+        color: colors.primary,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+        fontWeight: fontWeight.semibold,
+    },
+    shareCodeNoticeBox: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.warningSoft,
+        backgroundColor: colors.warningSoft,
+        padding: spacing.md,
+    },
+    shareCodeNoticeText: {
+        flex: 1,
+        color: colors.warning,
+        fontSize: typography.bodySmall,
+        fontWeight: fontWeight.bold,
+        lineHeight: 20,
+    },
+    shareActionGrid: {
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    shareActionButton: {
+        flex: 1,
     },
     sectionHeader: {
         flexDirection: "row",

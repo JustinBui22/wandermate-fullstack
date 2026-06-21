@@ -26,6 +26,13 @@ const FRIENDLY_ERROR_MESSAGES: Record<string, string> = {
     E060: "Please choose an OTP verification method.",
     E061: "Email OTP configuration is missing. Please try again later.",
     E062: "SMS OTP configuration is missing. Please try again later.",
+    E078: "Invite code was not found. Please check the code and try again.",
+    E079: "This invite code has expired. Ask the owner to generate a new one.",
+    E080: "This invite code is not active anymore.",
+    E081: "This invite code has already been used. Ask the owner to generate a new one.",
+    E082: "This invite code has been revoked. Ask the owner to generate a new one.",
+    E083: "Please wait before generating another invite code.",
+    E084: "Too many invalid invite code attempts. Please try again later.",
 };
 
 const FRIENDLY_ERROR_TITLES: Record<string, string> = {
@@ -49,6 +56,13 @@ const FRIENDLY_ERROR_TITLES: Record<string, string> = {
     E060: "Missing OTP method",
     E061: "Missing email config",
     E062: "Missing SMS config",
+    E078: "Invite code not found",
+    E079: "Invite code expired",
+    E080: "Invite code inactive",
+    E081: "Invite code used",
+    E082: "Invite code revoked",
+    E083: "Generate too soon",
+    E084: "Too many attempts",
 };
 
 function getResponseData(error: ApiErrorLike) {

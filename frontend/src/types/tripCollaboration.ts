@@ -1,6 +1,7 @@
 export type TripCollaborationRole = "OWNER" | "EDITOR" | "VIEWER";
 export type TripCollaborationRequestType = "INVITATION" | "JOIN_REQUEST";
 export type TripCollaborationRequestStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+export type TripShareCodeStatus = "ACTIVE" | "USED" | "EXPIRED" | "REVOKED";
 
 export type ApiResponse<T> = {
     code: string;
@@ -27,6 +28,32 @@ export type SendTripInvitationRequest = {
 
 export type SendTripJoinRequest = {
     role: "EDITOR" | "VIEWER";
+};
+
+export type GenerateTripShareCodeRequest = {
+    defaultRole?: "EDITOR" | "VIEWER";
+};
+
+export type TripShareCode = {
+    tripId: number;
+    tripName: string;
+    code: string;
+    inviteLink: string;
+    defaultRole: "EDITOR" | "VIEWER";
+    codeStatus: TripShareCodeStatus;
+    expiresAt: string;
+    createdDate: string;
+};
+
+export type TripShareCodePreview = {
+    tripId: number;
+    tripName: string;
+    destination?: string;
+    startDate?: string;
+    endDate?: string;
+    ownerUsername: string;
+    defaultRole: "EDITOR" | "VIEWER";
+    expiresAt: string;
 };
 
 export type UpdateTripMemberRoleRequest = {

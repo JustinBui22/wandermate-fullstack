@@ -235,31 +235,39 @@ export default function CollaborationScreen() {
 
                 <AppCard
                     title="Join a trip"
-                    subtitle="Enter the Trip ID shared by the owner and ask to join."
+                    subtitle="Use an invite code/link, or enter a Trip ID manually."
                     contentStyle={styles.formCardContent}
                 >
                     <View style={styles.infoBox}>
                         <Ionicons
-                            name="information-circle-outline"
+                            name="key-outline"
                             size={22}
                             color={colors.primary}
                         />
 
                         <View style={styles.infoTextGroup}>
-                            <Text style={styles.infoTitle}>How do I find the Trip ID?</Text>
+                            <Text style={styles.infoTitle}>Have an invite code?</Text>
                             <Text style={styles.infoText}>
-                                For V3, the owner shares the Trip ID with you manually. Later this can become a share code or invite link.
+                                Preview the shared trip and send a join request to the owner.
                             </Text>
                         </View>
                     </View>
 
+                    <AppButton
+                        title="Join with Invite Code"
+                        onPress={() => router.push("/join-trip" as any)}
+                        leftIcon={<Ionicons name="link-outline" size={19} color={colors.textLight} />}
+                    />
+
+                    <View style={styles.divider} />
+
                     <AppInput
-                        label="Trip ID"
+                        label="Trip ID fallback"
                         value={tripIdInput}
                         onChangeText={setTripIdInput}
                         keyboardType="number-pad"
                         placeholder="Example: 12"
-                        helperText="Ask the trip owner for this ID."
+                        helperText="Use this only if the owner shared a raw trip ID instead of an invite code."
                     />
 
                     <View style={styles.roleToggleRow}>
@@ -491,6 +499,11 @@ const styles = StyleSheet.create({
         color: colors.textMuted,
         fontSize: typography.caption,
         lineHeight: 18,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: colors.border,
+        marginVertical: spacing.xs,
     },
     roleToggleRow: {
         flexDirection: "row",

@@ -1,11 +1,14 @@
 import { axiosClient } from "./axiosClient";
 import type {
     ApiResponse,
+    GenerateTripShareCodeRequest,
     MyTripOverlapWarning,
     SendTripInvitationRequest,
     SendTripJoinRequest,
     TripCollaborationActionResponse,
     TripCollaborationRequest,
+    TripShareCode,
+    TripShareCodePreview,
     TripMember,
     UpdateTripMemberRoleRequest,
 } from "../types/tripCollaboration";
@@ -153,6 +156,44 @@ export async function getMyOverlapWarnings(
     );
 
     logger.debug("My overlap warnings response:", response.data);
+
+    return response.data.body;
+}
+
+export async function regenerateTripShareCode(
+    tripId: number,
+    data?: GenerateTripShareCodeRequest
+): Promise<TripShareCode> {
+    const response = await axiosClient.post<ApiResponse<TripShareCode>>(
+        `/api/v1/trips/${tripId}/share-codes/regenerate`,
+        data ?? {}
+    );
+
+    logger.debug("Regenerate trip share code response:", response.data);
+
+    return response.data.body;
+}
+
+export async function previewTripShareCode(
+    code: string
+): Promise<TripShareCodePreview> {
+    const response = await axiosClient.get<ApiResponse<TripShareCodePreview>>(
+        `/api/v1/trips/share-codes/${encodeURIComponent(code)}`
+    );
+
+    logger.debug("Preview trip share code response:", response.data);
+
+    return response.data.body;
+}
+
+export async function requestToJoinByShareCode(
+    code: string
+): Promise<TripCollaborationRequest> {
+    const response = await axiosClient.post<ApiResponse<TripCollaborationRequest>>(
+        `/api/v1/trips/share-codes/${encodeURIComponent(code)}/join-requests`
+    );
+
+    logger.debug("Request to join by share code response:", response.data);
 
     return response.data.body;
 }
