@@ -1,4 +1,5 @@
 package com.example.travellingapp.dto.request.create;
+import com.example.travellingapp.enums.TripEnum;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -24,5 +25,7 @@ public class CreateTripDTO {
     private LocalDateTime endDate;
 
     private Boolean allowOverlap;
+
+    private TripEnum tripStatus;
 }
 

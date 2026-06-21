@@ -1,11 +1,11 @@
 package com.example.travellingapp.dto.request;
 
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 public class SendTripJoinRequestDTO {
-    private TripCollaborationEnum role;
+    private TripEnum role;
 }

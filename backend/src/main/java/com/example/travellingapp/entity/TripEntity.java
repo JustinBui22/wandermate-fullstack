@@ -1,5 +1,6 @@
 package com.example.travellingapp.entity;
 
+import com.example.travellingapp.enums.TripEnum;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -58,6 +59,10 @@ public class TripEntity implements Serializable {
     // One trip can have multiple destinations, but each destination belongs to one trip
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DestinationEntity> destinations = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "trip_status", nullable = false, length = 20)
+    private TripEnum tripStatus = TripEnum.PLANNING;
 
     public TripEntity(String tripName, String destination, LocalDateTime createdDate, LocalDateTime startDate, LocalDateTime endDate, User user) {
         this.tripName = tripName;

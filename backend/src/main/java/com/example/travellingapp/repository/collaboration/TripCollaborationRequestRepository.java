@@ -1,7 +1,7 @@
 package com.example.travellingapp.repository.collaboration;
 
 import com.example.travellingapp.entity.collaboration.TripCollaborationRequestEntity;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -13,25 +13,25 @@ public interface TripCollaborationRequestRepository extends JpaRepository<TripCo
             Long tripId,
             long requesterUserId,
             long targetUserId,
-            TripCollaborationEnum status
+            TripEnum status
     );
 
     Optional<TripCollaborationRequestEntity> findByRequestIdAndRequestTypeAndStatus(
             Long requestId,
-            TripCollaborationEnum requestType,
-            TripCollaborationEnum status
+            TripEnum requestType,
+            TripEnum status
     );
 
     List<TripCollaborationRequestEntity> findAllByTargetUser_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
             String username,
-            TripCollaborationEnum requestType,
-            TripCollaborationEnum status
+            TripEnum requestType,
+            TripEnum status
     );
 
     List<TripCollaborationRequestEntity> findAllByTrip_TripIdAndTargetUser_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
             Long tripId,
             String targetUsername,
-            TripCollaborationEnum requestType,
-            TripCollaborationEnum status
+            TripEnum requestType,
+            TripEnum status
     );
 }

@@ -2,7 +2,7 @@ package com.example.travellingapp.service.impl;
 
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.TripRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
@@ -28,7 +28,7 @@ public class TripAccessServiceImpl implements TripAccessService {
     }
 
     @Override
-    public TripCollaborationEnum getUserRole(Long tripId, String username) {
+    public TripEnum getUserRole(Long tripId, String username) {
         return tripMemberRepository
                 .findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(tripId, username)
                 .map(TripMemberEntity::getRole)
@@ -72,8 +72,8 @@ public class TripAccessServiceImpl implements TripAccessService {
 
     @Override
     public void assertCanEdit(Long tripId, String username) {
-        TripCollaborationEnum role = getUserRole(tripId, username);
-        if (role != TripCollaborationEnum.OWNER && role != TripCollaborationEnum.EDITOR) {
+        TripEnum role = getUserRole(tripId, username);
+        if (role != TripEnum.OWNER && role != TripEnum.EDITOR) {
             log.error("User {} attempted to edit trip {} without permission. User role: {}", username, tripId, role);
             throw new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
         }
@@ -81,8 +81,8 @@ public class TripAccessServiceImpl implements TripAccessService {
 
     @Override
     public void assertIsOwner(Long tripId, String username) {
-        TripCollaborationEnum role = getUserRole(tripId, username);
-        if (role != TripCollaborationEnum.OWNER) {
+        TripEnum role = getUserRole(tripId, username);
+        if (role != TripEnum.OWNER) {
             log.error("User {} attempted to perform owner-only action on trip {} without permission. User role: {}", username, tripId, role);
             throw new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
         }

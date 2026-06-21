@@ -2,7 +2,7 @@ package com.example.travellingapp.service.impl;
 
 import com.example.travellingapp.dto.response.MyTripOverlapWarningDTO;
 import com.example.travellingapp.entity.TripEntity;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
@@ -57,10 +57,10 @@ public class TripOverlapWarningServiceImpl implements TripOverlapWarningService 
             TripEntity currentTrip = tripAccessService.getTripIfCanView(tripId, username);
 
             // Get current user's role in this trip
-            TripCollaborationEnum role = tripAccessService.getUserRole(tripId, username);
+            TripEnum role = tripAccessService.getUserRole(tripId, username);
 
             // Owner should not receive overlap warning from this endpoint
-            if (role == TripCollaborationEnum.OWNER) {
+            if (role == TripEnum.OWNER) {
                 return getCompleteResponse(
                         errorCodeRepository,
                         TRIP_OVERLAP_WARNINGS_RETRIEVED_SUCCESS,

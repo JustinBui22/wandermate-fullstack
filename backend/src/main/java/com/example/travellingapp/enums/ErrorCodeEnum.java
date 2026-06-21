@@ -37,7 +37,6 @@ public enum ErrorCodeEnum {
     DESTINATION_DELETED_SUCCESS("E000", "Destination deleted successfully", DESTINATION, HttpStatusCodeEnum.OK),
 
     TRIP_MEMBER_ADDED_SUCCESS("E000", "Trip member added successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
-    TRIP_MEMBER_RETRIEVED_SUCCESS("E000", "Trip member retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
     TRIP_MEMBER_ROLE_UPDATED_SUCCESS("E000", "Trip member role updated successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
     TRIP_MEMBER_REMOVED_SUCCESS("E000", "Trip member removed successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
     SUGGESTION_CREATED_SUCCESS("E000", "Suggestion created successfully", SUGGESTION, HttpStatusCodeEnum.OK),
@@ -56,6 +55,11 @@ public enum ErrorCodeEnum {
     TRIP_JOIN_REQUEST_ACCEPTED_SUCCESS("E000", "Trip join request accepted successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
     TRIP_JOIN_REQUEST_REJECTED_SUCCESS("E000", "Trip join request rejected successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
     TRIP_OVERLAP_WARNINGS_RETRIEVED_SUCCESS("E000", "Trip overlap warnings retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+
+    TRIP_SHARE_CODE_CREATED_SUCCESS("E000", "Trip share code created successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_SHARE_CODE_RETRIEVED_SUCCESS("E000", "Trip share code retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+    TRIP_SHARE_CODE_JOIN_REQUEST_SENT_SUCCESS("E000", "Trip share code join request sent successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
+
 
     INVALID_INPUT("E001", "Invalid input provided", COMMON, HttpStatusCodeEnum.BAD_REQUEST),
     USERNAME_TAKEN("E002", "Username taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
@@ -141,6 +145,16 @@ public enum ErrorCodeEnum {
     TRIP_COLLABORATION_REQUEST_ALREADY_EXISTS("E074", "A pending collaboration request already exists for this trip and user", TRIP_MEMBER, HttpStatusCodeEnum.CONFLICT),
     TRIP_CANNOT_INVITE_SELF("E075", "Trip owner cannot invite themselves", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
     TRIP_OWNER_CANNOT_REQUEST_TO_JOIN_OWN_TRIP("E076", "Trip owner cannot request to join their own trip", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_STATUS_INVALID("E077", "Trip status is not valid", TRIP, HttpStatusCodeEnum.BAD_REQUEST),
+
+    TRIP_SHARE_CODE_NOT_FOUND("E078", "Trip share code not found", TRIP_MEMBER, HttpStatusCodeEnum.NOT_FOUND),
+    TRIP_SHARE_CODE_EXPIRED("E079", "Trip share code has expired", TRIP_MEMBER, HttpStatusCodeEnum.GONE),
+    TRIP_SHARE_CODE_INACTIVE("E080", "Trip share code is inactive", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_SHARE_CODE_USED("E081", "Trip share code has already been used", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_SHARE_CODE_REVOKED("E082", "Trip share code has been revoked", TRIP_MEMBER, HttpStatusCodeEnum.BAD_REQUEST),
+    TRIP_SHARE_CODE_GENERATE_TOO_SOON("E083", "Please wait before generating another trip share code", TRIP_MEMBER, HttpStatusCodeEnum.TOO_MANY_REQUESTS),
+    TRIP_SHARE_CODE_ATTEMPT_RESTRICTED("E084", "Too many invalid invite code attempts. Please try again later", TRIP_MEMBER, HttpStatusCodeEnum.TOO_MANY_REQUESTS),
+
 
     ;
 

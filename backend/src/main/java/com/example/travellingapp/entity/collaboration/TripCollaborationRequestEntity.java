@@ -2,7 +2,7 @@ package com.example.travellingapp.entity.collaboration;
 
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.User;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,15 +38,15 @@ public class TripCollaborationRequestEntity implements Serializable {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "requested_role", nullable = false, length = 20)
-    private TripCollaborationEnum requestedRole;
+    private TripEnum requestedRole;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "request_type", nullable = false, length = 30)
-    private TripCollaborationEnum requestType;
+    private TripEnum requestType;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private TripCollaborationEnum status;
+    private TripEnum status;
 
     @Column(name = "created_date", nullable = false)
     private LocalDateTime createdDate;
@@ -64,9 +64,9 @@ public class TripCollaborationRequestEntity implements Serializable {
             TripEntity trip,
             User requester,
             User targetUser,
-            TripCollaborationEnum requestedRole,
-            TripCollaborationEnum requestType,
-            TripCollaborationEnum status,
+            TripEnum requestedRole,
+            TripEnum requestType,
+            TripEnum status,
             LocalDateTime createdDate
     ) {
         this.trip = trip;

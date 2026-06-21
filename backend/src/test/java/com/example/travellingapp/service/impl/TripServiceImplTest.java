@@ -12,7 +12,7 @@ import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
 import com.example.travellingapp.enums.ErrorCodeEnum;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripMapper;
 import com.example.travellingapp.repository.AccommodationRepository;
@@ -171,7 +171,7 @@ class TripServiceImplTest {
 
         assertThat(savedMember.getTrip()).isEqualTo(savedTrip);
         assertThat(savedMember.getUser()).isEqualTo(user);
-        assertThat(savedMember.getRole()).isEqualTo(TripCollaborationEnum.OWNER);
+        assertThat(savedMember.getRole()).isEqualTo(TripEnum.OWNER);
         assertThat(savedMember.getCreatedDate()).isNotNull();
     }
 
@@ -354,7 +354,11 @@ class TripServiceImplTest {
         when(tripMapper.toResponseDTO(trip2))
                 .thenReturn(response2);
 
-        CompleteResponse<Object> response = tripService.getTrips();
+        CompleteResponse<Object> response = tripService.getTrips(
+        TripEnum.ALL,
+        "ALL",
+        TripEnum.MODIFIED_DATE_DESC
+);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TRIPS_RETRIEVED_SUCCESS.getCode());
@@ -375,7 +379,11 @@ class TripServiceImplTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tripService.getTrips()
+                () -> tripService.getTrips(
+        TripEnum.ALL,
+        "ALL",
+        TripEnum.MODIFIED_DATE_DESC
+)
         );
 
         assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
@@ -390,7 +398,11 @@ class TripServiceImplTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tripService.getTrips()
+                () -> tripService.getTrips(
+        TripEnum.ALL,
+        "ALL",
+        TripEnum.MODIFIED_DATE_DESC
+)
         );
 
         assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());

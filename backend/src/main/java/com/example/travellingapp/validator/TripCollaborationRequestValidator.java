@@ -4,7 +4,7 @@ import com.example.travellingapp.dto.request.SendTripInvitationDTO;
 import com.example.travellingapp.dto.request.SendTripJoinRequestDTO;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripCollaborationRequestEntity;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.collaboration.TripCollaborationRequestRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
@@ -71,10 +71,10 @@ public class TripCollaborationRequestValidator {
         }
     }
 
-    public void validateRequestedRole(TripCollaborationEnum role) {
+    public void validateRequestedRole(TripEnum role) {
         // OWNER role cannot be invited or requested
         // Role must be EDITOR or VIEWER only
-        if (role == null || role.getGroup() != TripCollaborationEnum.Group.MEMBER_ROLE || role == TripCollaborationEnum.OWNER) {
+        if (role == null || role.getGroup() != TripEnum.Group.MEMBER_ROLE || role == TripEnum.OWNER) {
             throw new BusinessException(TRIP_OWNER_ROLE_CANNOT_BE_CHANGED, TRIP_MEMBER.name());
         }
     }
@@ -137,7 +137,7 @@ public class TripCollaborationRequestValidator {
                         tripId,
                         firstUser.getUserId(),
                         secondUser.getUserId(),
-                        TripCollaborationEnum.PENDING
+                        TripEnum.PENDING
                 );
 
         // Check if second user already sent a pending request to first user
@@ -146,7 +146,7 @@ public class TripCollaborationRequestValidator {
                         tripId,
                         secondUser.getUserId(),
                         firstUser.getUserId(),
-                        TripCollaborationEnum.PENDING
+                        TripEnum.PENDING
                 );
 
         if (firstToSecondPending || secondToFirstPending) {

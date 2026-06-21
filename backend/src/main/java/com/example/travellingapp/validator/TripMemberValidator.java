@@ -2,7 +2,7 @@ package com.example.travellingapp.validator;
 
 import com.example.travellingapp.dto.request.AddTripMemberDTO;
 import com.example.travellingapp.dto.request.update.UpdateTripMemberRoleDTO;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -52,7 +52,7 @@ public class TripMemberValidator {
         return username;
     }
 
-    public TripCollaborationEnum validateUpdateTripMemberRoleInput(
+    public TripEnum validateUpdateTripMemberRoleInput(
             Long tripId,
             Long tripMemberId,
             UpdateTripMemberRoleDTO updateTripMemberRoleDTO
@@ -76,7 +76,7 @@ public class TripMemberValidator {
         validateTripMemberId(tripMemberId);
     }
 
-    private TripCollaborationEnum validateNonOwnerRole(String role) {
+    private TripEnum validateNonOwnerRole(String role) {
         String normalizedRole = normalizeKeyword(role);
 
         if (normalizedRole.isBlank()) {
@@ -84,10 +84,10 @@ public class TripMemberValidator {
             throw new BusinessException(INVALID_INPUT, TRIP_MEMBER.name());
         }
         try {
-            TripCollaborationEnum tripMemberRole =
-                    TripCollaborationEnum.valueOf(normalizedRole.toUpperCase());
+            TripEnum tripMemberRole =
+                    TripEnum.valueOf(normalizedRole.toUpperCase());
 
-            if (tripMemberRole.getGroup() != TripCollaborationEnum.Group.MEMBER_ROLE || tripMemberRole == TripCollaborationEnum.OWNER) {
+            if (tripMemberRole.getGroup() != TripEnum.Group.MEMBER_ROLE || tripMemberRole == TripEnum.OWNER) {
                 log.error("Invalid trip member role: {}", normalizedRole);
                 throw new BusinessException(OWNER_CANNOT_BE_ASSIGNED_MANUALLY, TRIP_MEMBER.name());
             }

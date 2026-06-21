@@ -1,6 +1,6 @@
 package com.example.travellingapp.dto.response;
 
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,7 +18,7 @@ public class TripMemberResponseDTO {
     private Long userId;
     private String username;
     private String email;
-    private TripCollaborationEnum role;
+    private TripEnum role;
     private LocalDateTime createdDate;
     private LocalDateTime modifiedDate;
 }

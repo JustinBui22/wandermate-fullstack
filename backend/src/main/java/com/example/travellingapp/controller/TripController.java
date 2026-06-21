@@ -2,6 +2,7 @@ package com.example.travellingapp.controller;
 
 import com.example.travellingapp.dto.request.create.CreateTripDTO;
 import com.example.travellingapp.dto.request.update.UpdateTripDTO;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.response_template.ResponseBody;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -17,7 +18,11 @@ public interface TripController {
     ResponseEntity<ResponseBody<Object>> searchCityList(@NotNull @RequestParam(name = "keyword") String keyword);
 
     @GetMapping
-    ResponseEntity<ResponseBody<Object>> getTrips();
+    ResponseEntity<ResponseBody<Object>> getTrips(
+            @RequestParam(required = false, defaultValue = "ALL") TripEnum ownership,
+            @RequestParam(required = false, defaultValue = "ALL") String status,
+            @RequestParam(required = false, defaultValue = "MODIFIED_DATE_DESC") TripEnum sort
+    );
 
     @GetMapping("/{tripId}")
     ResponseEntity<ResponseBody<Object>> getTripById(

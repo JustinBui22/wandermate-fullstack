@@ -7,7 +7,7 @@ import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripCollaborationRequestEntity;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripCollaborationRequestMapper;
 import com.example.travellingapp.mapper.TripMemberMapper;
@@ -123,8 +123,8 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     owner,
                     invitedUser,
                     request.getRole(),
-                    TripCollaborationEnum.INVITATION,
-                    TripCollaborationEnum.PENDING,
+                    TripEnum.INVITATION,
+                    TripEnum.PENDING,
                     LocalDateTime.now()
             );
 
@@ -154,8 +154,8 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             List<?> invitations = requestRepository
                     .findAllByTargetUser_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
                             username,
-                            TripCollaborationEnum.INVITATION,
-                            TripCollaborationEnum.PENDING
+                            TripEnum.INVITATION,
+                            TripEnum.PENDING
                     )
                     .stream()
                     .map(requestMapper::toResponseDTO)
@@ -190,8 +190,8 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             TripCollaborationRequestEntity invitation = requestRepository
                     .findByRequestIdAndRequestTypeAndStatus(
                             requestId,
-                            TripCollaborationEnum.INVITATION,
-                            TripCollaborationEnum.PENDING
+                            TripEnum.INVITATION,
+                            TripEnum.PENDING
                     )
                     .orElseThrow(() -> new BusinessException(TRIP_COLLABORATION_REQUEST_NOT_FOUND, TRIP_MEMBER.name()));
 
@@ -221,7 +221,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             // Mark invitation as accepted
             markRequestAsResponded(
                     invitation,
-                    TripCollaborationEnum.ACCEPTED
+                    TripEnum.ACCEPTED
             );
 
             // Return request detail, new member detail and private overlap warnings
@@ -264,8 +264,8 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             TripCollaborationRequestEntity invitation = requestRepository
                     .findByRequestIdAndRequestTypeAndStatus(
                             requestId,
-                            TripCollaborationEnum.INVITATION,
-                            TripCollaborationEnum.PENDING
+                            TripEnum.INVITATION,
+                            TripEnum.PENDING
                     )
                     .orElseThrow(() -> new BusinessException(TRIP_COLLABORATION_REQUEST_NOT_FOUND, TRIP_MEMBER.name()));
 
@@ -278,7 +278,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             // Mark invitation as rejected
             markRequestAsResponded(
                     invitation,
-                    TripCollaborationEnum.REJECTED
+                    TripEnum.REJECTED
             );
 
             return getCompleteResponse(
@@ -342,8 +342,8 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     requester,
                     owner,
                     request.getRole(),
-                    TripCollaborationEnum.JOIN_REQUEST,
-                    TripCollaborationEnum.PENDING,
+                    TripEnum.JOIN_REQUEST,
+                    TripEnum.PENDING,
                     LocalDateTime.now()
             );
 
@@ -383,8 +383,8 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     .findAllByTrip_TripIdAndTargetUser_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
                             tripId,
                             username,
-                            TripCollaborationEnum.JOIN_REQUEST,
-                            TripCollaborationEnum.PENDING
+                            TripEnum.JOIN_REQUEST,
+                            TripEnum.PENDING
                     )
                     .stream()
                     .map(requestMapper::toResponseDTO)
@@ -432,7 +432,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             // Mark join request as accepted
             markRequestAsResponded(
                     joinRequest,
-                    TripCollaborationEnum.ACCEPTED
+                    TripEnum.ACCEPTED
             );
 
             // Do not show requester overlap warnings to owner
@@ -468,7 +468,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             // Mark join request as rejected
             markRequestAsResponded(
                     joinRequest,
-                    TripCollaborationEnum.REJECTED
+                    TripEnum.REJECTED
             );
 
             return getCompleteResponse(
@@ -488,7 +488,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
 
     private void markRequestAsResponded(
             TripCollaborationRequestEntity request,
-            TripCollaborationEnum status
+            TripEnum status
     ) {
         // Update pending request after user/owner responds
         request.setStatus(status);
@@ -508,8 +508,8 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
         TripCollaborationRequestEntity joinRequest = requestRepository
                 .findByRequestIdAndRequestTypeAndStatus(
                         requestId,
-                        TripCollaborationEnum.JOIN_REQUEST,
-                        TripCollaborationEnum.PENDING
+                        TripEnum.JOIN_REQUEST,
+                        TripEnum.PENDING
                 )
                 .orElseThrow(() -> new BusinessException(TRIP_COLLABORATION_REQUEST_NOT_FOUND, TRIP_MEMBER.name()));
 

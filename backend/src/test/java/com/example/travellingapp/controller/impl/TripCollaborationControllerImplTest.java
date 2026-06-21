@@ -2,7 +2,7 @@ package com.example.travellingapp.controller.impl;
 
 import com.example.travellingapp.dto.request.SendTripInvitationDTO;
 import com.example.travellingapp.dto.request.SendTripJoinRequestDTO;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.response_template.ResponseBody;
 import com.example.travellingapp.service.TripCollaborationRequestService;
@@ -54,7 +54,7 @@ class TripCollaborationControllerImplTest {
     void sendInvitation_shouldReturnServiceResponse() throws Exception {
         SendTripInvitationDTO request = new SendTripInvitationDTO();
         request.setUsername("FriendUser");
-        request.setRole(TripCollaborationEnum.EDITOR);
+        request.setRole(TripEnum.EDITOR);
 
         ResponseBody<Object> responseBody = new ResponseBody<>(
                 "E000",
@@ -167,7 +167,7 @@ class TripCollaborationControllerImplTest {
     @Test
     void requestToJoinTrip_shouldReturnServiceResponse() throws Exception {
         SendTripJoinRequestDTO request = new SendTripJoinRequestDTO();
-        request.setRole(TripCollaborationEnum.VIEWER);
+        request.setRole(TripEnum.VIEWER);
 
         ResponseBody<Object> responseBody = new ResponseBody<>(
                 "E000",

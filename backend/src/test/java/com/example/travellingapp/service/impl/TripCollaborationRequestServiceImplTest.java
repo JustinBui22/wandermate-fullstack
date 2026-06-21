@@ -12,7 +12,7 @@ import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripCollaborationRequestEntity;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
 import com.example.travellingapp.enums.ErrorCodeEnum;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripCollaborationRequestMapper;
 import com.example.travellingapp.mapper.TripMemberMapper;
@@ -138,9 +138,9 @@ class TripCollaborationRequestServiceImplTest {
         assertThat(captured.getTrip()).isEqualTo(trip);
         assertThat(captured.getRequester()).isEqualTo(owner);
         assertThat(captured.getTargetUser()).isEqualTo(invitedUser);
-        assertThat(captured.getRequestedRole()).isEqualTo(TripCollaborationEnum.EDITOR);
-        assertThat(captured.getRequestType()).isEqualTo(TripCollaborationEnum.INVITATION);
-        assertThat(captured.getStatus()).isEqualTo(TripCollaborationEnum.PENDING);
+        assertThat(captured.getRequestedRole()).isEqualTo(TripEnum.EDITOR);
+        assertThat(captured.getRequestType()).isEqualTo(TripEnum.INVITATION);
+        assertThat(captured.getStatus()).isEqualTo(TripEnum.PENDING);
 
         verify(tripCollaborationRequestValidator).validateInvitationRequest(TRIP_ID, request);
         verify(tripCollaborationRequestValidator).validateOwnerCannotInviteSelf(owner, invitedUser);
@@ -200,8 +200,8 @@ class TripCollaborationRequestServiceImplTest {
         when(authenticatedUserProvider.getUsername()).thenReturn(FRIEND_USERNAME);
         when(requestRepository.findAllByTargetUser_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
                 FRIEND_USERNAME,
-                TripCollaborationEnum.INVITATION,
-                TripCollaborationEnum.PENDING
+                TripEnum.INVITATION,
+                TripEnum.PENDING
         )).thenReturn(List.of(invitation));
         when(requestMapper.toResponseDTO(invitation)).thenReturn(responseDTO);
 
@@ -223,7 +223,7 @@ class TripCollaborationRequestServiceImplTest {
         TripEntity trip = trip(owner);
         TripCollaborationRequestEntity invitation = invitation(trip, owner, friend);
 
-        TripMemberEntity savedMember = member(trip, friend, TripCollaborationEnum.EDITOR);
+        TripMemberEntity savedMember = member(trip, friend, TripEnum.EDITOR);
         TripCollaborationRequestResponseDTO requestResponseDTO = mock(TripCollaborationRequestResponseDTO.class);
         TripMemberResponseDTO memberResponseDTO = mock(TripMemberResponseDTO.class);
         MyTripOverlapWarningDTO warningDTO = mock(MyTripOverlapWarningDTO.class);
@@ -233,8 +233,8 @@ class TripCollaborationRequestServiceImplTest {
         when(authenticatedUserProvider.getUsername()).thenReturn(FRIEND_USERNAME);
         when(requestRepository.findByRequestIdAndRequestTypeAndStatus(
                 REQUEST_ID,
-                TripCollaborationEnum.INVITATION,
-                TripCollaborationEnum.PENDING
+                TripEnum.INVITATION,
+                TripEnum.PENDING
         )).thenReturn(Optional.of(invitation));
         when(tripMemberRepository.save(any(TripMemberEntity.class))).thenReturn(savedMember);
         when(requestMapper.toResponseDTO(invitation)).thenReturn(requestResponseDTO);
@@ -253,7 +253,7 @@ class TripCollaborationRequestServiceImplTest {
         assertThat(body.getMember()).isEqualTo(memberResponseDTO);
         assertThat(body.getOverlapWarnings()).containsExactly(warningDTO);
 
-        assertThat(invitation.getStatus()).isEqualTo(TripCollaborationEnum.ACCEPTED);
+        assertThat(invitation.getStatus()).isEqualTo(TripEnum.ACCEPTED);
         assertThat(invitation.getRespondedDate()).isNotNull();
 
         verify(tripCollaborationRequestValidator)
@@ -266,8 +266,8 @@ class TripCollaborationRequestServiceImplTest {
         when(authenticatedUserProvider.getUsername()).thenReturn(FRIEND_USERNAME);
         when(requestRepository.findByRequestIdAndRequestTypeAndStatus(
                 REQUEST_ID,
-                TripCollaborationEnum.INVITATION,
-                TripCollaborationEnum.PENDING
+                TripEnum.INVITATION,
+                TripEnum.PENDING
         )).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -294,8 +294,8 @@ class TripCollaborationRequestServiceImplTest {
         when(authenticatedUserProvider.getUsername()).thenReturn(FRIEND_USERNAME);
         when(requestRepository.findByRequestIdAndRequestTypeAndStatus(
                 REQUEST_ID,
-                TripCollaborationEnum.INVITATION,
-                TripCollaborationEnum.PENDING
+                TripEnum.INVITATION,
+                TripEnum.PENDING
         )).thenReturn(Optional.of(invitation));
         when(requestMapper.toResponseDTO(invitation)).thenReturn(responseDTO);
 
@@ -303,7 +303,7 @@ class TripCollaborationRequestServiceImplTest {
 
         assertThat(response.getResponseBody().getCode()).isEqualTo(TRIP_INVITATION_REJECTED_SUCCESS.getCode());
         assertThat(response.getResponseBody().getBody()).isEqualTo(responseDTO);
-        assertThat(invitation.getStatus()).isEqualTo(TripCollaborationEnum.REJECTED);
+        assertThat(invitation.getStatus()).isEqualTo(TripEnum.REJECTED);
 
         verify(requestRepository).save(invitation);
     }
@@ -339,8 +339,8 @@ class TripCollaborationRequestServiceImplTest {
         TripCollaborationRequestEntity captured = requestCaptor.getValue();
         assertThat(captured.getRequester()).isEqualTo(requester);
         assertThat(captured.getTargetUser()).isEqualTo(owner);
-        assertThat(captured.getRequestType()).isEqualTo(TripCollaborationEnum.JOIN_REQUEST);
-        assertThat(captured.getStatus()).isEqualTo(TripCollaborationEnum.PENDING);
+        assertThat(captured.getRequestType()).isEqualTo(TripEnum.JOIN_REQUEST);
+        assertThat(captured.getStatus()).isEqualTo(TripEnum.PENDING);
     }
 
     @Test
@@ -377,8 +377,8 @@ class TripCollaborationRequestServiceImplTest {
         when(requestRepository.findAllByTrip_TripIdAndTargetUser_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
                 TRIP_ID,
                 OWNER_USERNAME,
-                TripCollaborationEnum.JOIN_REQUEST,
-                TripCollaborationEnum.PENDING
+                TripEnum.JOIN_REQUEST,
+                TripEnum.PENDING
         )).thenReturn(List.of(joinRequest));
         when(requestMapper.toResponseDTO(joinRequest)).thenReturn(responseDTO);
 
@@ -400,7 +400,7 @@ class TripCollaborationRequestServiceImplTest {
         TripEntity trip = trip(owner);
         TripCollaborationRequestEntity joinRequest = joinRequest(trip, requester, owner);
 
-        TripMemberEntity savedMember = member(trip, requester, TripCollaborationEnum.VIEWER);
+        TripMemberEntity savedMember = member(trip, requester, TripEnum.VIEWER);
         TripCollaborationRequestResponseDTO requestResponseDTO = mock(TripCollaborationRequestResponseDTO.class);
         TripMemberResponseDTO memberResponseDTO = mock(TripMemberResponseDTO.class);
 
@@ -409,8 +409,8 @@ class TripCollaborationRequestServiceImplTest {
         when(authenticatedUserProvider.getUsername()).thenReturn(OWNER_USERNAME);
         when(requestRepository.findByRequestIdAndRequestTypeAndStatus(
                 REQUEST_ID,
-                TripCollaborationEnum.JOIN_REQUEST,
-                TripCollaborationEnum.PENDING
+                TripEnum.JOIN_REQUEST,
+                TripEnum.PENDING
         )).thenReturn(Optional.of(joinRequest));
         when(tripAccessService.getTripIfOwner(TRIP_ID, OWNER_USERNAME)).thenReturn(trip);
         when(tripMemberRepository.save(any(TripMemberEntity.class))).thenReturn(savedMember);
@@ -428,7 +428,7 @@ class TripCollaborationRequestServiceImplTest {
         assertThat(body.getMember()).isEqualTo(memberResponseDTO);
         assertThat(body.getOverlapWarnings()).isEmpty();
 
-        assertThat(joinRequest.getStatus()).isEqualTo(TripCollaborationEnum.ACCEPTED);
+        assertThat(joinRequest.getStatus()).isEqualTo(TripEnum.ACCEPTED);
 
         verify(tripCollaborationRequestValidator)
                 .validateJoinRequestBelongsToCurrentOwner(joinRequest, OWNER_USERNAME);
@@ -450,8 +450,8 @@ class TripCollaborationRequestServiceImplTest {
         when(authenticatedUserProvider.getUsername()).thenReturn(OWNER_USERNAME);
         when(requestRepository.findByRequestIdAndRequestTypeAndStatus(
                 REQUEST_ID,
-                TripCollaborationEnum.JOIN_REQUEST,
-                TripCollaborationEnum.PENDING
+                TripEnum.JOIN_REQUEST,
+                TripEnum.PENDING
         )).thenReturn(Optional.of(joinRequest));
         when(tripAccessService.getTripIfOwner(TRIP_ID, OWNER_USERNAME)).thenReturn(trip);
         when(requestMapper.toResponseDTO(joinRequest)).thenReturn(responseDTO);
@@ -460,7 +460,7 @@ class TripCollaborationRequestServiceImplTest {
 
         assertThat(response.getResponseBody().getCode()).isEqualTo(TRIP_JOIN_REQUEST_REJECTED_SUCCESS.getCode());
         assertThat(response.getResponseBody().getBody()).isEqualTo(responseDTO);
-        assertThat(joinRequest.getStatus()).isEqualTo(TripCollaborationEnum.REJECTED);
+        assertThat(joinRequest.getStatus()).isEqualTo(TripEnum.REJECTED);
 
         verify(requestRepository).save(joinRequest);
     }
@@ -468,13 +468,13 @@ class TripCollaborationRequestServiceImplTest {
     private SendTripInvitationDTO sendInvitationRequest() {
         SendTripInvitationDTO request = new SendTripInvitationDTO();
         request.setUsername(FRIEND_USERNAME);
-        request.setRole(TripCollaborationEnum.EDITOR);
+        request.setRole(TripEnum.EDITOR);
         return request;
     }
 
     private SendTripJoinRequestDTO sendJoinRequest() {
         SendTripJoinRequestDTO request = new SendTripJoinRequestDTO();
-        request.setRole(TripCollaborationEnum.VIEWER);
+        request.setRole(TripEnum.VIEWER);
         return request;
     }
 
@@ -516,9 +516,9 @@ class TripCollaborationRequestServiceImplTest {
         request.setTrip(trip);
         request.setRequester(owner);
         request.setTargetUser(invitedUser);
-        request.setRequestedRole(TripCollaborationEnum.EDITOR);
-        request.setRequestType(TripCollaborationEnum.INVITATION);
-        request.setStatus(TripCollaborationEnum.PENDING);
+        request.setRequestedRole(TripEnum.EDITOR);
+        request.setRequestType(TripEnum.INVITATION);
+        request.setStatus(TripEnum.PENDING);
         request.setCreatedDate(LocalDateTime.now());
         return request;
     }
@@ -533,9 +533,9 @@ class TripCollaborationRequestServiceImplTest {
         request.setTrip(trip);
         request.setRequester(requester);
         request.setTargetUser(owner);
-        request.setRequestedRole(TripCollaborationEnum.VIEWER);
-        request.setRequestType(TripCollaborationEnum.JOIN_REQUEST);
-        request.setStatus(TripCollaborationEnum.PENDING);
+        request.setRequestedRole(TripEnum.VIEWER);
+        request.setRequestType(TripEnum.JOIN_REQUEST);
+        request.setStatus(TripEnum.PENDING);
         request.setCreatedDate(LocalDateTime.now());
         return request;
     }
@@ -543,7 +543,7 @@ class TripCollaborationRequestServiceImplTest {
     private TripMemberEntity member(
             TripEntity trip,
             User user,
-            TripCollaborationEnum role
+            TripEnum role
     ) {
         TripMemberEntity member = new TripMemberEntity();
         member.setTripMemberId(3L);

@@ -38,4 +38,5 @@ public interface TripRepository extends JpaRepository<TripEntity, Long> {
     );
 
 
+
 }

@@ -4,7 +4,7 @@ import com.example.travellingapp.dto.response.MyTripOverlapWarningDTO;
 import com.example.travellingapp.entity.ErrorCodeEntity;
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.enums.ErrorCodeEnum;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
@@ -69,7 +69,7 @@ class TripOverlapWarningServiceImplTest {
         when(tripAccessService.getTripIfCanView(CURRENT_TRIP_ID, OWNER_USERNAME))
                 .thenReturn(currentTrip);
         when(tripAccessService.getUserRole(CURRENT_TRIP_ID, OWNER_USERNAME))
-                .thenReturn(TripCollaborationEnum.OWNER);
+                .thenReturn(TripEnum.OWNER);
 
         CompleteResponse<Object> response = tripOverlapWarningService.getOverlapWarnings(CURRENT_TRIP_ID);
 
@@ -96,7 +96,7 @@ class TripOverlapWarningServiceImplTest {
         when(tripAccessService.getTripIfCanView(CURRENT_TRIP_ID, MEMBER_USERNAME))
                 .thenReturn(currentTrip);
         when(tripAccessService.getUserRole(CURRENT_TRIP_ID, MEMBER_USERNAME))
-                .thenReturn(TripCollaborationEnum.EDITOR);
+                .thenReturn(TripEnum.EDITOR);
         when(tripMemberRepository.findOverlappingTripsForMember(
                 MEMBER_USERNAME,
                 CURRENT_TRIP_ID,

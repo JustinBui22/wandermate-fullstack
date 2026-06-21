@@ -17,7 +17,8 @@ public class TripMapper {
                 trip.getEndDate(),
                 trip.getModifiedDate(),
                 trip.getUser().getUserId(),
-                trip.getUser().getUsername()
+                trip.getUser().getUsername(),
+                trip.getTripStatus()
         );
     }
 }

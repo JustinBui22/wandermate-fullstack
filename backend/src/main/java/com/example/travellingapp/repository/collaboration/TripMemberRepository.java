@@ -2,7 +2,7 @@ package com.example.travellingapp.repository.collaboration;
 
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -37,7 +37,7 @@ public interface TripMemberRepository extends JpaRepository<TripMemberEntity, Lo
 
     long countByTrip_TripIdAndRole(
             Long tripId,
-            TripCollaborationEnum role
+            TripEnum role
     );
 
     @Query("""
@@ -65,4 +65,6 @@ public interface TripMemberRepository extends JpaRepository<TripMemberEntity, Lo
             @Param("currentTripStartDate") LocalDateTime currentTripStartDate,
             @Param("currentTripEndDate") LocalDateTime currentTripEndDate
     );
+
+    Optional<TripMemberEntity> findByTrip_TripIdAndUser_Username(Long tripId, String username);
 }

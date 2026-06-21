@@ -6,7 +6,7 @@ import com.example.travellingapp.dto.response.TripMemberResponseDTO;
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripMemberMapper;
 import com.example.travellingapp.repository.ErrorCodeRepository;
@@ -115,7 +115,7 @@ public class TripMemberServiceImpl implements TripMemberService {
                     .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
             // Validate role
-            TripCollaborationEnum role = TripCollaborationEnum.valueOf(
+            TripEnum role = TripEnum.valueOf(
                     addTripMemberDTO.getRole().trim().toUpperCase()
             );
 
@@ -162,7 +162,7 @@ public class TripMemberServiceImpl implements TripMemberService {
         try {
             log.info("Updating trip member role for tripId: {}, tripMemberId: {}", tripId, tripMemberId);
             // Validate and get normalized role
-            TripCollaborationEnum newRole = tripMemberValidator.validateUpdateTripMemberRoleInput(
+            TripEnum newRole = tripMemberValidator.validateUpdateTripMemberRoleInput(
                     tripId,
                     tripMemberId,
                     updateTripMemberRoleDTO
@@ -177,7 +177,7 @@ public class TripMemberServiceImpl implements TripMemberService {
                     .orElseThrow(() -> new BusinessException(TRIP_MEMBER_NOT_FOUND, TRIP_MEMBER.name()));
 
             // Prevent changing owner role
-            if (tripMember.getRole() == TripCollaborationEnum.OWNER) {
+            if (tripMember.getRole() == TripEnum.OWNER) {
                 log.error("Owner role cannot be changed for tripMemberId: {}", tripMemberId);
                 throw new BusinessException(TRIP_OWNER_ROLE_CANNOT_BE_CHANGED, TRIP_MEMBER.name());
             }
@@ -222,7 +222,7 @@ public class TripMemberServiceImpl implements TripMemberService {
                     .orElseThrow(() -> new BusinessException(TRIP_MEMBER_NOT_FOUND, TRIP_MEMBER.name()));
 
             // Prevent removing owner
-            if (tripMember.getRole() == TripCollaborationEnum.OWNER) {
+            if (tripMember.getRole() == TripEnum.OWNER) {
                 log.error("Owner cannot be removed from tripId: {}", tripId);
                 throw new BusinessException(TRIP_OWNER_CANNOT_BE_REMOVED, TRIP_MEMBER.name());
             }

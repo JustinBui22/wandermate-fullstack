@@ -5,7 +5,7 @@ import com.example.travellingapp.dto.request.SendTripJoinRequestDTO;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripCollaborationRequestEntity;
 import com.example.travellingapp.enums.ErrorCodeEnum;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.collaboration.TripCollaborationRequestRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
@@ -48,7 +48,7 @@ class TripCollaborationRequestValidatorTest {
     void validateInvitationRequest_shouldPass_whenRoleIsEditor() {
         SendTripInvitationDTO request = new SendTripInvitationDTO();
         request.setUsername("FriendUser");
-        request.setRole(TripCollaborationEnum.EDITOR);
+        request.setRole(TripEnum.EDITOR);
 
         assertDoesNotThrow(() -> validator.validateInvitationRequest(TRIP_ID, request));
     }
@@ -57,7 +57,7 @@ class TripCollaborationRequestValidatorTest {
     void validateInvitationRequest_shouldPass_whenRoleIsViewer() {
         SendTripInvitationDTO request = new SendTripInvitationDTO();
         request.setUsername("FriendUser");
-        request.setRole(TripCollaborationEnum.VIEWER);
+        request.setRole(TripEnum.VIEWER);
 
         assertDoesNotThrow(() -> validator.validateInvitationRequest(TRIP_ID, request));
     }
@@ -66,7 +66,7 @@ class TripCollaborationRequestValidatorTest {
     void validateInvitationRequest_shouldThrowInvalidInput_whenUsernameIsBlank() {
         SendTripInvitationDTO request = new SendTripInvitationDTO();
         request.setUsername("   ");
-        request.setRole(TripCollaborationEnum.EDITOR);
+        request.setRole(TripEnum.EDITOR);
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -93,7 +93,7 @@ class TripCollaborationRequestValidatorTest {
     void validateInvitationRequest_shouldThrow_whenRoleIsOwner() {
         SendTripInvitationDTO request = new SendTripInvitationDTO();
         request.setUsername("FriendUser");
-        request.setRole(TripCollaborationEnum.OWNER);
+        request.setRole(TripEnum.OWNER);
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -107,7 +107,7 @@ class TripCollaborationRequestValidatorTest {
     void validateInvitationRequest_shouldThrow_whenRoleIsPendingBecauseItIsNotMemberRole() {
         SendTripInvitationDTO request = new SendTripInvitationDTO();
         request.setUsername("FriendUser");
-        request.setRole(TripCollaborationEnum.PENDING);
+        request.setRole(TripEnum.PENDING);
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -120,7 +120,7 @@ class TripCollaborationRequestValidatorTest {
     @Test
     void validateJoinRequest_shouldPass_whenRoleIsViewer() {
         SendTripJoinRequestDTO request = new SendTripJoinRequestDTO();
-        request.setRole(TripCollaborationEnum.VIEWER);
+        request.setRole(TripEnum.VIEWER);
 
         assertDoesNotThrow(() -> validator.validateJoinRequest(TRIP_ID, request));
     }
@@ -195,7 +195,7 @@ class TripCollaborationRequestValidatorTest {
                 TRIP_ID,
                 owner.getUserId(),
                 invitedUser.getUserId(),
-                TripCollaborationEnum.PENDING
+                TripEnum.PENDING
         )).thenReturn(true);
 
         BusinessException exception = assertThrows(
@@ -215,14 +215,14 @@ class TripCollaborationRequestValidatorTest {
                 TRIP_ID,
                 owner.getUserId(),
                 invitedUser.getUserId(),
-                TripCollaborationEnum.PENDING
+                TripEnum.PENDING
         )).thenReturn(false);
 
         when(requestRepository.existsByTrip_TripIdAndRequester_UserIdAndTargetUser_UserIdAndStatus(
                 TRIP_ID,
                 invitedUser.getUserId(),
                 owner.getUserId(),
-                TripCollaborationEnum.PENDING
+                TripEnum.PENDING
         )).thenReturn(true);
 
         BusinessException exception = assertThrows(

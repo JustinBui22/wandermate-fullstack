@@ -3,6 +3,7 @@ package com.example.travellingapp.controller.impl;
 import com.example.travellingapp.controller.TripController;
 import com.example.travellingapp.dto.request.create.CreateTripDTO;
 import com.example.travellingapp.dto.request.update.UpdateTripDTO;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.response_template.ResponseBody;
 import com.example.travellingapp.service.TripService;
@@ -25,8 +26,8 @@ public class TripControllerImpl implements TripController {
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> getTrips() {
-        CompleteResponse<Object> response = tripService.getTrips();
+    public ResponseEntity<ResponseBody<Object>> getTrips(TripEnum ownership, String status, TripEnum sort) {
+        CompleteResponse<Object> response = tripService.getTrips(ownership, status, sort);
         return new ResponseEntity<>(
                 response.getResponseBody(),
                 HttpStatus.valueOf(response.getHttpCode())

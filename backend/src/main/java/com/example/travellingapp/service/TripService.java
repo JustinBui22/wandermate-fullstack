@@ -2,13 +2,14 @@ package com.example.travellingapp.service;
 
 import com.example.travellingapp.dto.request.create.CreateTripDTO;
 import com.example.travellingapp.dto.request.update.UpdateTripDTO;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.response_template.CompleteResponse;
 
 
 public interface TripService {
     CompleteResponse<Object> createTrip(CreateTripDTO tripDTO);
 
-    CompleteResponse<Object> getTrips();
+    CompleteResponse<Object> getTrips(TripEnum ownership, String status, TripEnum sort);
 
     CompleteResponse<Object> getTripById(Long tripId);
 

@@ -3,7 +3,7 @@ package com.example.travellingapp.service.impl;
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.collaboration.TripMemberEntity;
 import com.example.travellingapp.enums.ErrorCodeEnum;
-import com.example.travellingapp.enums.TripCollaborationEnum;
+import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.TripRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
@@ -56,11 +56,11 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 OWNER_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.OWNER)));
+        )).thenReturn(Optional.of(member(TripEnum.OWNER)));
 
-        TripCollaborationEnum role = tripAccessService.getUserRole(TRIP_ID, OWNER_USERNAME);
+        TripEnum role = tripAccessService.getUserRole(TRIP_ID, OWNER_USERNAME);
 
-        assertThat(role).isEqualTo(TripCollaborationEnum.OWNER);
+        assertThat(role).isEqualTo(TripEnum.OWNER);
     }
 
     @Test
@@ -68,11 +68,11 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 EDITOR_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.EDITOR)));
+        )).thenReturn(Optional.of(member(TripEnum.EDITOR)));
 
-        TripCollaborationEnum role = tripAccessService.getUserRole(TRIP_ID, EDITOR_USERNAME);
+        TripEnum role = tripAccessService.getUserRole(TRIP_ID, EDITOR_USERNAME);
 
-        assertThat(role).isEqualTo(TripCollaborationEnum.EDITOR);
+        assertThat(role).isEqualTo(TripEnum.EDITOR);
     }
 
     @Test
@@ -164,7 +164,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 OWNER_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.OWNER)));
+        )).thenReturn(Optional.of(member(TripEnum.OWNER)));
 
         assertDoesNotThrow(() -> tripAccessService.assertCanEdit(TRIP_ID, OWNER_USERNAME));
     }
@@ -174,7 +174,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 EDITOR_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.EDITOR)));
+        )).thenReturn(Optional.of(member(TripEnum.EDITOR)));
 
         assertDoesNotThrow(() -> tripAccessService.assertCanEdit(TRIP_ID, EDITOR_USERNAME));
     }
@@ -184,7 +184,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 VIEWER_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.VIEWER)));
+        )).thenReturn(Optional.of(member(TripEnum.VIEWER)));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -218,7 +218,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 OWNER_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.OWNER)));
+        )).thenReturn(Optional.of(member(TripEnum.OWNER)));
 
         assertDoesNotThrow(() -> tripAccessService.assertIsOwner(TRIP_ID, OWNER_USERNAME));
     }
@@ -228,7 +228,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 EDITOR_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.EDITOR)));
+        )).thenReturn(Optional.of(member(TripEnum.EDITOR)));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -243,7 +243,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 VIEWER_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.VIEWER)));
+        )).thenReturn(Optional.of(member(TripEnum.VIEWER)));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -318,7 +318,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 EDITOR_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.EDITOR)));
+        )).thenReturn(Optional.of(member(TripEnum.EDITOR)));
         when(tripRepository.findById(TRIP_ID))
                 .thenReturn(Optional.of(trip));
 
@@ -332,7 +332,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 VIEWER_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.VIEWER)));
+        )).thenReturn(Optional.of(member(TripEnum.VIEWER)));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -349,7 +349,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 EDITOR_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.EDITOR)));
+        )).thenReturn(Optional.of(member(TripEnum.EDITOR)));
         when(tripRepository.findById(TRIP_ID))
                 .thenReturn(Optional.empty());
 
@@ -372,7 +372,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 OWNER_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.OWNER)));
+        )).thenReturn(Optional.of(member(TripEnum.OWNER)));
         when(tripRepository.findById(TRIP_ID))
                 .thenReturn(Optional.of(trip));
 
@@ -386,7 +386,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 EDITOR_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.EDITOR)));
+        )).thenReturn(Optional.of(member(TripEnum.EDITOR)));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -403,7 +403,7 @@ class TripAccessServiceImplTest {
         when(tripMemberRepository.findByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(
                 TRIP_ID,
                 OWNER_USERNAME
-        )).thenReturn(Optional.of(member(TripCollaborationEnum.OWNER)));
+        )).thenReturn(Optional.of(member(TripEnum.OWNER)));
         when(tripRepository.findById(TRIP_ID))
                 .thenReturn(Optional.empty());
 
@@ -419,7 +419,7 @@ class TripAccessServiceImplTest {
     // Helpers
     // -------------------------------------------------------------------------
 
-    private TripMemberEntity member(TripCollaborationEnum role) {
+    private TripMemberEntity member(TripEnum role) {
         TripMemberEntity member = new TripMemberEntity();
         member.setRole(role);
         return member;
