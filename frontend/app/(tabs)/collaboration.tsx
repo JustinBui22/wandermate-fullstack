@@ -1,76 +1,44 @@
 import { useCallback, useState } from "react";
-import {
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 
-import {
-    acceptInvitation,
-    getMyPendingInvitations,
-    rejectInvitation,
-    requestToJoinTrip,
-} from "@/src/api/tripCollaborationApi";
+import { acceptInvitation, getMyPendingInvitations, rejectInvitation } from "@/src/api/tripCollaborationApi";
+import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
-import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
-import type {
-    TripCollaborationRequest,
-    TripCollaborationRole,
-} from "@/src/types/tripCollaboration";
+import type { TripCollaborationRequest } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
 
-type JoinRole = Exclude<TripCollaborationRole, "OWNER">;
 type InvitationAction = "ACCEPT" | "REJECT";
+type LoadingInvitationAction = { requestId: number; action: InvitationAction } | null;
 
-type LoadingInvitationAction = {
-    requestId: number;
-    action: InvitationAction;
-} | null;
-
-function getApiMessage(error: any) {
-    const data = error.response?.data;
-
-    if (typeof data?.body === "string" && data.body.trim()) {
-        return data.body;
-    }
-
-    return data?.message || error.message || "Failed to load collaboration requests.";
+function getInvitationOwner(request: TripCollaborationRequest) {
+    const value = request as any;
+    return value.targetUsername || value.ownerUsername || value.inviterUsername || value.targetUser?.username || "Trip owner";
 }
 
 export default function CollaborationScreen() {
     const router = useRouter();
-
     const [invitations, setInvitations] = useState<TripCollaborationRequest[]>([]);
-    const [tripIdInput, setTripIdInput] = useState("");
-    const [joinRole, setJoinRole] = useState<JoinRole>("VIEWER");
-
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isSubmittingJoinRequest, setIsSubmittingJoinRequest] = useState(false);
-    const [loadingInvitationAction, setLoadingInvitationAction] =
-        useState<LoadingInvitationAction>(null);
+    const [loadingAction, setLoadingAction] = useState<LoadingInvitationAction>(null);
     const [error, setError] = useState<string | null>(null);
 
     async function loadInvitations() {
         try {
             setError(null);
-
             const data = await getMyPendingInvitations();
             setInvitations(Array.isArray(data) ? data : []);
         } catch (error: any) {
-            setError(getApiMessage(error));
+            setError(getApiErrorMessage(error, "Failed to load collaboration invitations."));
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
@@ -89,116 +57,35 @@ export default function CollaborationScreen() {
         await loadInvitations();
     }
 
-    async function handleAcceptInvitation(invitation: TripCollaborationRequest) {
+    async function handleAcceptInvitation(request: TripCollaborationRequest) {
         try {
-            setLoadingInvitationAction({
-                requestId: invitation.requestId,
-                action: "ACCEPT",
-            });
-
-            const response = await acceptInvitation(invitation.requestId);
-            const warnings = response.overlapWarnings ?? [];
-
+            setLoadingAction({ requestId: request.requestId, action: "ACCEPT" });
+            await acceptInvitation(request.requestId);
             await loadInvitations();
-
-            if (warnings.length > 0) {
-                Alert.alert(
-                    "Invitation accepted",
-                    `You joined ${invitation.tripName}. This trip overlaps with ${warnings.length} of your trip(s).`
-                );
-            } else {
-                Alert.alert("Invitation accepted", `You joined ${invitation.tripName}.`);
-            }
-
-            router.push(`/trips/${invitation.tripId}` as any);
+            Alert.alert("Invitation accepted", `You joined ${request.tripName}.`);
         } catch (error: any) {
-            Alert.alert(
-                "Accept invitation failed",
-                getApiErrorMessage(error, "Please try again.")
-            );
+            Alert.alert("Accept failed", getApiErrorMessage(error, "Please try again."));
         } finally {
-            setLoadingInvitationAction(null);
+            setLoadingAction(null);
         }
     }
 
-    function handleRejectInvitation(invitation: TripCollaborationRequest) {
-        Alert.alert(
-            "Reject invitation",
-            `Reject invitation to ${invitation.tripName}?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Reject",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setLoadingInvitationAction({
-                                requestId: invitation.requestId,
-                                action: "REJECT",
-                            });
-
-                            await rejectInvitation(invitation.requestId);
-                            await loadInvitations();
-
-                            Alert.alert(
-                                "Invitation rejected",
-                                `You rejected the invitation to ${invitation.tripName}.`
-                            );
-                        } catch (error: any) {
-                            Alert.alert(
-                                "Reject invitation failed",
-                                getApiErrorMessage(error, "Please try again.")
-                            );
-                        } finally {
-                            setLoadingInvitationAction(null);
-                        }
-                    },
-                },
-            ]
-        );
-    }
-
-    async function handleSendJoinRequest() {
-        const trimmedTripId = tripIdInput.trim();
-        const tripId = Number(trimmedTripId);
-
-        if (!trimmedTripId || Number.isNaN(tripId) || tripId <= 0) {
-            Alert.alert("Invalid trip ID", "Enter a valid trip ID shared by the trip owner.");
-            return;
-        }
-
+    async function handleRejectInvitation(request: TripCollaborationRequest) {
         try {
-            setIsSubmittingJoinRequest(true);
-
-            await requestToJoinTrip(tripId, {
-                role: joinRole,
-            });
-
-            setTripIdInput("");
-            setJoinRole("VIEWER");
-
-            Alert.alert(
-                "Request sent",
-                "The trip owner can now accept or reject your join request from their Members screen."
-            );
+            setLoadingAction({ requestId: request.requestId, action: "REJECT" });
+            await rejectInvitation(request.requestId);
+            await loadInvitations();
         } catch (error: any) {
-            Alert.alert(
-                "Join request failed",
-                getApiErrorMessage(error, "Please try again.")
-            );
+            Alert.alert("Reject failed", getApiErrorMessage(error, "Please try again."));
         } finally {
-            setIsSubmittingJoinRequest(false);
+            setLoadingAction(null);
         }
     }
 
     if (isLoading) {
         return (
             <AppScreen scroll={false} centerContent>
-                <LoadingState
-                    title="Loading collaboration..."
-                    subtitle="Getting invitations and request tools ready."
-                    fullScreen
-                />
+                <LoadingState title="Loading collaboration..." subtitle="Checking your invitations." fullScreen />
             </AppScreen>
         );
     }
@@ -206,50 +93,26 @@ export default function CollaborationScreen() {
     return (
         <AppScreen scroll={false} contentContainerStyle={styles.screenContent}>
             <ScrollView
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isRefreshing}
-                        onRefresh={handleRefresh}
-                        tintColor={colors.primary}
-                        colors={[colors.primary]}
-                    />
-                }
                 contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.header}>
-                    <View style={styles.headerIconBadge}>
-                        <Ionicons name="people-outline" size={28} color={colors.primary} />
-                    </View>
-
                     <View style={styles.headerTextGroup}>
                         <Text style={styles.eyebrow}>WanderMate</Text>
                         <Text style={styles.title}>Collaboration</Text>
-                        <Text style={styles.subtitle}>
-                            Manage invitations and request access to shared trips.
-                        </Text>
+                        <Text style={styles.subtitle}>Join shared trips and manage invitations sent to you.</Text>
                     </View>
                 </View>
 
                 <ErrorMessage message={error} title="Could not load invitations" />
 
-                <AppCard
-                    title="Join a trip"
-                    subtitle="Use an invite code/link, or enter a Trip ID manually."
-                    contentStyle={styles.formCardContent}
-                >
+                <AppCard title="Join a trip" subtitle="Use an invite code or deep link from another user." contentStyle={styles.joinCardContent}>
                     <View style={styles.infoBox}>
-                        <Ionicons
-                            name="key-outline"
-                            size={22}
-                            color={colors.primary}
-                        />
-
+                        <Ionicons name="key-outline" size={22} color={colors.primary} />
                         <View style={styles.infoTextGroup}>
                             <Text style={styles.infoTitle}>Have an invite code?</Text>
-                            <Text style={styles.infoText}>
-                                Preview the shared trip and send a join request to the owner.
-                            </Text>
+                            <Text style={styles.infoText}>Preview the trip and send a join request to the owner.</Text>
                         </View>
                     </View>
 
@@ -258,76 +121,31 @@ export default function CollaborationScreen() {
                         onPress={() => router.push("/join-trip" as any)}
                         leftIcon={<Ionicons name="link-outline" size={19} color={colors.textLight} />}
                     />
-
-                    <View style={styles.divider} />
-
-                    <AppInput
-                        label="Trip ID fallback"
-                        value={tripIdInput}
-                        onChangeText={setTripIdInput}
-                        keyboardType="number-pad"
-                        placeholder="Example: 12"
-                        helperText="Use this only if the owner shared a raw trip ID instead of an invite code."
-                    />
-
-                    <View style={styles.roleToggleRow}>
-                        <RoleOption
-                            label="Viewer"
-                            selected={joinRole === "VIEWER"}
-                            onPress={() => setJoinRole("VIEWER")}
-                        />
-
-                        <RoleOption
-                            label="Editor"
-                            selected={joinRole === "EDITOR"}
-                            onPress={() => setJoinRole("EDITOR")}
-                        />
-                    </View>
-
-                    <AppButton
-                        title="Request to Join"
-                        onPress={handleSendJoinRequest}
-                        loading={isSubmittingJoinRequest}
-                        leftIcon={
-                            !isSubmittingJoinRequest ? (
-                                <Ionicons
-                                    name="send-outline"
-                                    size={19}
-                                    color={colors.textLight}
-                                />
-                            ) : null
-                        }
-                    />
                 </AppCard>
 
                 <View style={styles.sectionHeader}>
                     <View style={styles.sectionTextGroup}>
-                        <Text style={styles.sectionTitle}>Received invitations</Text>
-                        <Text style={styles.sectionSubtitle}>
-                            Accepting an invitation adds you to the shared trip.
-                        </Text>
+                        <Text style={styles.sectionTitle}>Pending invitations</Text>
+                        <Text style={styles.sectionSubtitle}>Trips where someone invited you directly.</Text>
+                    </View>
+                    <View style={styles.countBadge}>
+                        <Text style={styles.countBadgeText}>{invitations.length}</Text>
                     </View>
                 </View>
 
                 {invitations.length === 0 ? (
                     <EmptyState
                         title="No pending invitations"
-                        message="Trip invitations sent to you will appear here."
-                        icon={
-                            <Ionicons
-                                name="mail-open-outline"
-                                size={30}
-                                color={colors.primary}
-                            />
-                        }
+                        message="When someone invites you to a trip, it will show here."
+                        icon={<Ionicons name="mail-open-outline" size={30} color={colors.primary} />}
                     />
                 ) : (
-                    <View style={styles.requestList}>
+                    <View style={styles.invitationList}>
                         {invitations.map((invitation) => (
                             <InvitationCard
                                 key={invitation.requestId}
                                 invitation={invitation}
-                                loadingInvitationAction={loadingInvitationAction}
+                                loadingAction={loadingAction}
                                 onAccept={() => handleAcceptInvitation(invitation)}
                                 onReject={() => handleRejectInvitation(invitation)}
                             />
@@ -339,48 +157,16 @@ export default function CollaborationScreen() {
     );
 }
 
-type RoleOptionProps = Readonly<{
-    label: string;
-    selected: boolean;
-    onPress: () => void;
-}>;
-
-function RoleOption({ label, selected, onPress }: RoleOptionProps) {
-    return (
-        <AppButton
-            title={label}
-            onPress={onPress}
-            variant={selected ? "primary" : "outline"}
-            size="sm"
-            fullWidth={false}
-            style={styles.roleOption}
-        />
-    );
-}
-
 type InvitationCardProps = Readonly<{
     invitation: TripCollaborationRequest;
-    loadingInvitationAction: LoadingInvitationAction;
+    loadingAction: LoadingInvitationAction;
     onAccept: () => void;
     onReject: () => void;
 }>;
 
-function InvitationCard({
-                            invitation,
-                            loadingInvitationAction,
-                            onAccept,
-                            onReject,
-                        }: InvitationCardProps) {
-    const isAcceptLoading =
-        loadingInvitationAction?.requestId === invitation.requestId &&
-        loadingInvitationAction.action === "ACCEPT";
-
-    const isRejectLoading =
-        loadingInvitationAction?.requestId === invitation.requestId &&
-        loadingInvitationAction.action === "REJECT";
-
-    const isActionDisabled =
-        loadingInvitationAction?.requestId === invitation.requestId;
+function InvitationCard({ invitation, loadingAction, onAccept, onReject }: InvitationCardProps) {
+    const isAccepting = loadingAction?.requestId === invitation.requestId && loadingAction.action === "ACCEPT";
+    const isRejecting = loadingAction?.requestId === invitation.requestId && loadingAction.action === "REJECT";
 
     return (
         <AppCard contentStyle={styles.invitationCardContent}>
@@ -390,189 +176,53 @@ function InvitationCard({
                 </View>
 
                 <View style={styles.invitationTextGroup}>
-                    <Text style={styles.invitationTitle}>
-                        {invitation.tripName || "Untitled trip"}
-                    </Text>
-
-                    <Text style={styles.invitationMeta}>
-                        Invited by {invitation.requesterUsername} as {invitation.requestedRole}
-                    </Text>
+                    <Text style={styles.invitationTitle}>{invitation.tripName || "Shared trip"}</Text>
+                    <Text style={styles.invitationSubtitle}>Invited by {getInvitationOwner(invitation)}</Text>
                 </View>
+
+                <RoleBadge role={invitation.requestedRole} />
             </View>
 
-            {invitation.tripStartDate || invitation.tripEndDate ? (
-                <Text style={styles.dateText}>
-                    {formatDateTime(invitation.tripStartDate)} → {formatDateTime(invitation.tripEndDate)}
-                </Text>
-            ) : null}
+            <View style={styles.metaBox}>
+                <Text style={styles.metaText}>Received {formatDateTime(invitation.createdDate)}</Text>
+            </View>
 
             <View style={styles.actionRow}>
-                <AppButton
-                    title="Reject"
-                    onPress={onReject}
-                    loading={isRejectLoading}
-                    disabled={isActionDisabled}
-                    variant="outline"
-                    size="sm"
-                    fullWidth={false}
-                    style={styles.actionButton}
-                />
-
-                <AppButton
-                    title="Accept"
-                    onPress={onAccept}
-                    loading={isAcceptLoading}
-                    disabled={isActionDisabled}
-                    size="sm"
-                    fullWidth={false}
-                    style={styles.actionButton}
-                />
+                <AppButton title="Reject" onPress={onReject} loading={isRejecting} variant="outline" fullWidth={false} style={styles.actionButton} />
+                <AppButton title="Accept" onPress={onAccept} loading={isAccepting} fullWidth={false} style={styles.actionButton} />
             </View>
         </AppCard>
     );
 }
 
 const styles = StyleSheet.create({
-    screenContent: {
-        flex: 1,
-    },
-    scrollContent: {
-        paddingTop: spacing.xl,
-        paddingBottom: 120,
-        gap: spacing.lg,
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.md,
-    },
-    headerIconBadge: {
-        width: 54,
-        height: 54,
-        borderRadius: radius.xl,
-        backgroundColor: colors.primarySoft,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    headerTextGroup: {
-        flex: 1,
-        gap: spacing.xs,
-    },
-    eyebrow: {
-        color: colors.primary,
-        fontSize: typography.caption,
-        fontWeight: fontWeight.bold,
-        textTransform: "uppercase",
-        letterSpacing: 0.7,
-    },
-    title: {
-        color: colors.text,
-        fontSize: typography.heading,
-        fontWeight: fontWeight.bold,
-    },
-    subtitle: {
-        color: colors.textMuted,
-        fontSize: typography.bodySmall,
-        lineHeight: 20,
-    },
-    formCardContent: {
-        gap: spacing.md,
-    },
-    infoBox: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        gap: spacing.md,
-        borderRadius: radius.lg,
-        backgroundColor: colors.primarySoft,
-        padding: spacing.md,
-    },
-    infoTextGroup: {
-        flex: 1,
-        gap: spacing.xs,
-    },
-    infoTitle: {
-        color: colors.text,
-        fontSize: typography.bodySmall,
-        fontWeight: fontWeight.bold,
-    },
-    infoText: {
-        color: colors.textMuted,
-        fontSize: typography.caption,
-        lineHeight: 18,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: colors.border,
-        marginVertical: spacing.xs,
-    },
-    roleToggleRow: {
-        flexDirection: "row",
-        gap: spacing.sm,
-    },
-    roleOption: {
-        flex: 1,
-    },
-    sectionHeader: {
-        gap: spacing.xs,
-    },
-    sectionTextGroup: {
-        gap: spacing.xs,
-    },
-    sectionTitle: {
-        color: colors.text,
-        fontSize: typography.title,
-        fontWeight: fontWeight.bold,
-    },
-    sectionSubtitle: {
-        color: colors.textMuted,
-        fontSize: typography.bodySmall,
-        lineHeight: 20,
-    },
-    requestList: {
-        gap: spacing.md,
-    },
-    invitationCardContent: {
-        gap: spacing.md,
-    },
-    invitationTopRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.md,
-    },
-    tripIconBadge: {
-        width: 44,
-        height: 44,
-        borderRadius: radius.lg,
-        backgroundColor: colors.primarySoft,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    invitationTextGroup: {
-        flex: 1,
-        gap: spacing.xs,
-    },
-    invitationTitle: {
-        color: colors.text,
-        fontSize: typography.body,
-        fontWeight: fontWeight.bold,
-    },
-    invitationMeta: {
-        color: colors.textMuted,
-        fontSize: typography.caption,
-        lineHeight: 18,
-        fontWeight: fontWeight.semibold,
-    },
-    dateText: {
-        color: colors.textMuted,
-        fontSize: typography.caption,
-        lineHeight: 18,
-        fontWeight: fontWeight.semibold,
-    },
-    actionRow: {
-        flexDirection: "row",
-        gap: spacing.sm,
-    },
-    actionButton: {
-        flex: 1,
-    },
+    screenContent: { flex: 1 },
+    scrollContent: { paddingTop: spacing.xl, paddingBottom: spacing.xxl, gap: spacing.lg },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
+    headerTextGroup: { flex: 1, gap: spacing.xs },
+    eyebrow: { color: colors.primary, fontSize: typography.caption, fontWeight: fontWeight.bold, textTransform: "uppercase", letterSpacing: 0.7 },
+    title: { color: colors.text, fontSize: typography.hero, fontWeight: fontWeight.bold, lineHeight: 38 },
+    subtitle: { color: colors.textMuted, fontSize: typography.bodySmall, lineHeight: 21 },
+    joinCardContent: { gap: spacing.lg },
+    infoBox: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySoft, padding: spacing.md },
+    infoTextGroup: { flex: 1, gap: spacing.xs },
+    infoTitle: { color: colors.primary, fontSize: typography.bodySmall, fontWeight: fontWeight.bold },
+    infoText: { color: colors.primary, fontSize: typography.caption, lineHeight: 18, fontWeight: fontWeight.semibold },
+    sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
+    sectionTextGroup: { flex: 1, gap: spacing.xs },
+    sectionTitle: { color: colors.text, fontSize: typography.title, fontWeight: fontWeight.bold },
+    sectionSubtitle: { color: colors.textMuted, fontSize: typography.bodySmall, lineHeight: 20 },
+    countBadge: { minWidth: 34, height: 34, borderRadius: radius.pill, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.sm },
+    countBadgeText: { color: colors.primary, fontSize: typography.bodySmall, fontWeight: fontWeight.bold },
+    invitationList: { gap: spacing.md },
+    invitationCardContent: { gap: spacing.lg },
+    invitationTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+    tripIconBadge: { width: 46, height: 46, borderRadius: radius.lg, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
+    invitationTextGroup: { flex: 1, gap: spacing.xs },
+    invitationTitle: { color: colors.text, fontSize: typography.body, fontWeight: fontWeight.bold },
+    invitationSubtitle: { color: colors.textMuted, fontSize: typography.caption, lineHeight: 18 },
+    metaBox: { borderRadius: radius.md, backgroundColor: colors.surfaceSoft, padding: spacing.md },
+    metaText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: fontWeight.semibold },
+    actionRow: { flexDirection: "row", gap: spacing.md },
+    actionButton: { flex: 1 },
 });

@@ -10,10 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import { getDestinationsByTrip } from "@/src/api/destinationApi";
-import { getMyOverlapWarnings, getTripMembers } from "@/src/api/tripCollaborationApi";
 import { deleteTrip, getTripById } from "@/src/api/tripApi";
-import { OverlapWarningCard } from "@/src/components/collaboration/OverlapWarningCard";
-import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
@@ -21,21 +18,10 @@ import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
-import { useAuthStore } from "@/src/stores/authStore";
 import type { Destination } from "@/src/types/destination";
 import type { Trip } from "@/src/types/trip";
-import type {
-    MyTripOverlapWarning,
-    TripCollaborationRole,
-    TripMember,
-} from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
-import {
-    canDeleteTrip,
-    canEditTripPlan,
-    canManageTripMembers,
-} from "@/src/utils/tripRoleUtils";
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
@@ -47,50 +33,13 @@ function getApiMessage(error: any) {
     return data?.message || error.message || "Failed to load trip detail.";
 }
 
-function normalizeText(value?: string | null) {
-    return value?.trim().toLowerCase();
-}
-
-function getBodyArray<T>(response: T[] | { body?: T[] } | null | undefined): T[] {
-    if (Array.isArray(response)) {
-        return response;
-    }
-
-    if (Array.isArray(response?.body)) {
-        return response.body;
-    }
-
-    return [];
-}
-
-function findCurrentUserRole(
-    members: TripMember[],
-    currentUsername: string | null
-): TripCollaborationRole | null {
-    if (!currentUsername) {
-        return null;
-    }
-
-    const normalizedCurrentUsername = normalizeText(currentUsername);
-
-    const currentMember = members.find(
-        (member) => normalizeText(member.username) === normalizedCurrentUsername
-    );
-
-    return currentMember?.role ?? null;
-}
-
 export default function TripDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
-    const currentUsername = useAuthStore((state) => state.username);
 
     const [trip, setTrip] = useState<Trip | null>(null);
     const [destinations, setDestinations] = useState<Destination[]>([]);
-    const [currentRole, setCurrentRole] = useState<TripCollaborationRole | null>(null);
-    const [overlapWarnings, setOverlapWarnings] = useState<MyTripOverlapWarning[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -109,25 +58,13 @@ export default function TripDetailScreen() {
             setIsLoading(true);
             setError(null);
 
-            const [
-                tripData,
-                destinationData,
-                membersData,
-                warningData,
-            ] = await Promise.all([
+            const [tripData, destinationData] = await Promise.all([
                 getTripById(tripNumberId),
                 getDestinationsByTrip(tripNumberId),
-                getTripMembers(tripNumberId),
-                getMyOverlapWarnings(tripNumberId),
             ]);
-
-            const members = getBodyArray<TripMember>(membersData);
-            const detectedRole = findCurrentUserRole(members, currentUsername);
 
             setTrip(tripData);
             setDestinations(Array.isArray(destinationData) ? destinationData : []);
-            setCurrentRole(detectedRole);
-            setOverlapWarnings(getBodyArray<MyTripOverlapWarning>(warningData));
         } catch (error: any) {
             setError(getApiMessage(error));
         } finally {
@@ -138,7 +75,7 @@ export default function TripDetailScreen() {
     useFocusEffect(
         useCallback(() => {
             loadTripDetail();
-        }, [tripIdParam, currentUsername])
+        }, [tripIdParam])
     );
 
     function handleAddDestination() {
@@ -166,6 +103,15 @@ export default function TripDetailScreen() {
         }
 
         router.push(`/trips/${tripNumberId}/edit` as any);
+    }
+
+    function handleOpenCollaboration() {
+        if (!hasValidTripId) {
+            Alert.alert("Missing trip", "Trip ID is missing or invalid.");
+            return;
+        }
+
+        router.push(`/trips/${tripNumberId}/collaboration` as any);
     }
 
     function handleDeleteTrip() {
@@ -233,10 +179,6 @@ export default function TripDetailScreen() {
         );
     }
 
-    const canEditPlan = canEditTripPlan(currentRole);
-    const canManageMembers = canManageTripMembers(currentRole);
-    const canDeleteCurrentTrip = canDeleteTrip(currentRole);
-
     return (
         <AppScreen contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
@@ -247,21 +189,17 @@ export default function TripDetailScreen() {
                 />
 
                 <View style={styles.headerActions}>
-                    {canManageMembers ? (
-                        <HeaderIconButton
-                            icon="people-outline"
-                            accessibilityLabel="Manage members"
-                            onPress={() => router.push(`/trips/${tripNumberId}/members` as any)}
-                        />
-                    ) : null}
+                    <HeaderIconButton
+                        icon="people-outline"
+                        accessibilityLabel="Open collaboration"
+                        onPress={handleOpenCollaboration}
+                    />
 
-                    {canEditPlan ? (
-                        <HeaderIconButton
-                            icon="create-outline"
-                            accessibilityLabel="Edit trip"
-                            onPress={handleEditTrip}
-                        />
-                    ) : null}
+                    <HeaderIconButton
+                        icon="create-outline"
+                        accessibilityLabel="Edit trip"
+                        onPress={handleEditTrip}
+                    />
                 </View>
             </View>
 
@@ -275,11 +213,8 @@ export default function TripDetailScreen() {
                         {trip.destination || "No destination"}
                     </Text>
                     <Text style={styles.tripNameText}>{trip.tripName || "Untitled trip"}</Text>
-                    <RoleBadge role={currentRole} />
                 </View>
             </AppCard>
-
-            <OverlapWarningCard warnings={overlapWarnings} />
 
             <View style={styles.infoGrid}>
                 <InfoCard
@@ -299,44 +234,26 @@ export default function TripDetailScreen() {
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTextGroup}>
                     <Text style={styles.sectionTitle}>Destinations</Text>
-                    <Text style={styles.sectionSubtitle}>
-                        Add each city or place for this trip.
-                    </Text>
+                    <Text style={styles.sectionSubtitle}>Add each city or place for this trip.</Text>
                 </View>
-            </View>
 
-            {canEditPlan ? (
                 <AppButton
-                    title="Add Destination"
+                    title=""
                     onPress={handleAddDestination}
-                    leftIcon={<Ionicons name="add" size={20} color={colors.textLight} />}
+                    fullWidth={false}
+                    style={styles.addButton}
+                    leftIcon={<Ionicons name="add" size={23} color={colors.textLight} />}
                     testID="add-destination-button"
                 />
-            ) : (
-                <AppCard variant="soft" contentStyle={styles.permissionCardContent}>
-                    <Ionicons name="lock-closed-outline" size={22} color={colors.textMuted} />
-
-                    <View style={styles.permissionTextGroup}>
-                        <Text style={styles.permissionTitle}>
-                            {currentRole ? "Read-only trip" : "Role not loaded"}
-                        </Text>
-
-                        <Text style={styles.permissionText}>
-                            {currentRole
-                                ? "Only the owner or editors can add destinations to this trip."
-                                : "Your role for this trip could not be detected. Try logging out and signing in again."}
-                        </Text>
-                    </View>
-                </AppCard>
-            )}
+            </View>
 
             {destinations.length === 0 ? (
                 <EmptyState
                     title="No destinations yet"
                     message="Add cities or places first. Activities will be added inside each destination."
                     icon={<Ionicons name="location-outline" size={30} color={colors.primary} />}
-                    actionLabel={canEditPlan ? "Add first destination" : undefined}
-                    onActionPress={canEditPlan ? handleAddDestination : undefined}
+                    actionLabel="Add first destination"
+                    onActionPress={handleAddDestination}
                 />
             ) : (
                 <View style={styles.destinationList}>
@@ -350,16 +267,14 @@ export default function TripDetailScreen() {
                 </View>
             )}
 
-            {canDeleteCurrentTrip ? (
-                <AppButton
-                    title="Delete Trip"
-                    onPress={handleDeleteTrip}
-                    loading={isDeleting}
-                    variant="danger"
-                    leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
-                    style={styles.deleteButton}
-                />
-            ) : null}
+            <AppButton
+                title="Delete Trip"
+                onPress={handleDeleteTrip}
+                loading={isDeleting}
+                variant="danger"
+                leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
+                style={styles.deleteButton}
+            />
         </AppScreen>
     );
 }
@@ -395,7 +310,6 @@ function InfoCard({ icon, label, value }: InfoCardProps) {
             <View style={styles.infoIconBadge}>
                 <Ionicons name={icon} size={20} color={colors.primary} />
             </View>
-
             <View style={styles.infoTextGroup}>
                 <Text style={styles.infoLabel}>{label}</Text>
                 <Text style={styles.infoValue}>{value}</Text>
@@ -577,24 +491,12 @@ const styles = StyleSheet.create({
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
-    permissionCardContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.md,
-    },
-    permissionTextGroup: {
-        flex: 1,
-        gap: spacing.xs,
-    },
-    permissionTitle: {
-        color: colors.text,
-        fontSize: typography.bodySmall,
-        fontWeight: fontWeight.bold,
-    },
-    permissionText: {
-        color: colors.textMuted,
-        fontSize: typography.caption,
-        lineHeight: 18,
+    addButton: {
+        width: 48,
+        height: 48,
+        minHeight: 48,
+        borderRadius: radius.lg,
+        paddingHorizontal: 0,
     },
     destinationList: {
         gap: spacing.md,

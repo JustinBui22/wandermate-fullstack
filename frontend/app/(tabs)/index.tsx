@@ -17,7 +17,7 @@ import { colors, fontWeight, radius, spacing, typography } from "@/src/constants
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { logoutUser } = useAuthStore();
+    const { logoutUser, username } = useAuthStore();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     async function handleLogout() {
@@ -56,7 +56,7 @@ export default function HomeScreen() {
             <View style={styles.header}>
                 <View style={styles.headerTextGroup}>
                     <Text style={styles.eyebrow}>WanderMate</Text>
-                    <Text style={styles.title}>Welcome back</Text>
+                    <Text style={styles.title}>Welcome back{username ? `, ${username}` : ""}</Text>
                     <Text style={styles.subtitle}>Ready to plan your next trip?</Text>
                 </View>
 
