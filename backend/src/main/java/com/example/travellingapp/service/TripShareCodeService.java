@@ -13,4 +13,6 @@ public interface TripShareCodeService {
     CompleteResponse<Object> previewShareCode(String code);
 
     CompleteResponse<Object> requestToJoinByShareCode(String code);
+
+    CompleteResponse<Object> getActiveShareCode(Long tripId);
 }

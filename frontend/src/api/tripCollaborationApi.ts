@@ -174,6 +174,17 @@ export async function regenerateTripShareCode(
     return response.data.body;
 }
 
+export async function getActiveTripShareCode(
+    tripId: number
+): Promise<TripShareCode | null> {
+    const response = await axiosClient.get<ApiResponse<TripShareCode | null>>(
+        `/api/v1/trips/${tripId}/share-codes/active`
+    );
+
+    logger.debug("Active trip share code response:", response.data);
+    return response.data.body ?? null;
+}
+
 export async function previewTripShareCode(
     code: string
 ): Promise<TripShareCodePreview> {

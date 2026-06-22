@@ -53,4 +53,15 @@ public class TripShareCodeControllerImpl implements TripShareCodeController {
                 HttpStatus.valueOf(response.getHttpCode())
         );
     }
+
+    @Override
+    public ResponseEntity<ResponseBody<Object>> getActiveShareCode(Long tripId) {
+        CompleteResponse<Object> response =
+                tripShareCodeService.getActiveShareCode(tripId);
+
+        return new ResponseEntity<>(
+                response.getResponseBody(),
+                HttpStatus.valueOf(response.getHttpCode())
+        );
+    }
 }

@@ -229,6 +229,68 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
         }
     }
 
+    @Override
+    public CompleteResponse<Object> getActiveShareCode(Long tripId) {
+        try {
+            // Validate trip ID
+            tripShareCodeValidator.validateTripId(tripId);
+
+            // Get current logged-in owner
+            String username = authenticatedUserProvider.getUsername();
+
+            // Only trip owner can view active share code
+            tripAccessService.getTripIfOwner(tripId, username);
+
+            // Find latest active share code for this trip
+            TripShareCodeEntity activeShareCode = tripShareCodeRepository
+                    .findFirstByTrip_TripIdAndCodeStatusOrderByCreatedDateDesc(
+                            tripId,
+                            TripEnum.ACTIVE
+                    )
+                    .orElse(null);
+
+            // Return null if there is no active share code
+            if (activeShareCode == null) {
+                return getCompleteResponse(
+                        errorCodeRepository,
+                        TRIP_SHARE_CODE_RETRIEVED_SUCCESS,
+                        TRIP_MEMBER.name(),
+                        null
+                );
+            }
+
+            LocalDateTime now = LocalDateTime.now();
+
+            // If active code expired, mark it as expired and return null
+            if (activeShareCode.getExpiresAt().isBefore(now)) {
+                activeShareCode.setCodeStatus(TripEnum.EXPIRED);
+                activeShareCode.setModifiedDate(now);
+                tripShareCodeRepository.save(activeShareCode);
+
+                return getCompleteResponse(
+                        errorCodeRepository,
+                        TRIP_SHARE_CODE_RETRIEVED_SUCCESS,
+                        TRIP_MEMBER.name(),
+                        null
+                );
+            }
+
+            // Return active share code
+            return getCompleteResponse(
+                    errorCodeRepository,
+                    TRIP_SHARE_CODE_RETRIEVED_SUCCESS,
+                    TRIP_MEMBER.name(),
+                    tripShareCodeMapper.toResponseDTO(activeShareCode)
+            );
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error occurred while getting active trip share code", e);
+            throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
+        }
+    }
+
     private void handleExistingActiveCodeBeforeRegeneration(TripShareCodeEntity activeCode) {
         LocalDateTime now = LocalDateTime.now();
 

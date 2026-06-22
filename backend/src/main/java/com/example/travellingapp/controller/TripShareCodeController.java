@@ -23,4 +23,9 @@ public interface TripShareCodeController {
     ResponseEntity<ResponseBody<Object>> requestToJoinByShareCode(
             @PathVariable String code
     );
+
+    @GetMapping("/{tripId}/share-codes/active")
+    ResponseEntity<ResponseBody<Object>> getActiveShareCode(
+            @PathVariable Long tripId
+    );
 }
