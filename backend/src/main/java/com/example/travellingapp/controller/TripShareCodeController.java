@@ -24,6 +24,7 @@ public interface TripShareCodeController {
             @PathVariable String code
     );
 
+    // When owner leaves share-code screen and comes back, frontend can reload the current active code instead of losing it visually.
     @GetMapping("/{tripId}/share-codes/active")
     ResponseEntity<ResponseBody<Object>> getActiveShareCode(
             @PathVariable Long tripId

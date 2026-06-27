@@ -59,7 +59,7 @@ public enum ErrorCodeEnum {
     TRIP_SHARE_CODE_CREATED_SUCCESS("E000", "Trip share code created successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
     TRIP_SHARE_CODE_RETRIEVED_SUCCESS("E000", "Trip share code retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
     TRIP_SHARE_CODE_JOIN_REQUEST_SENT_SUCCESS("E000", "Trip share code join request sent successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
-
+    COLLABORATION_SUMMARY_RETRIEVED_SUCCESS("E000", "Collaboration summary retrieved successfully", TRIP_MEMBER, HttpStatusCodeEnum.OK),
 
     INVALID_INPUT("E001", "Invalid input provided", COMMON, HttpStatusCodeEnum.BAD_REQUEST),
     USERNAME_TAKEN("E002", "Username taken", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
