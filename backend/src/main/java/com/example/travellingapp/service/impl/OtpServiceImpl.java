@@ -209,7 +209,7 @@ public class OtpServiceImpl implements OtpService {
         try {
             Optional<EmailContentEntity> emailContentOptional = emailRepository.findByEmailEnum(emailEnum);
             if (emailContentOptional.isEmpty()) {
-                log.info("Config for email content not found!");
+                log.error("Config for email content not found!");
                 throw new BusinessException(CONFIG_NOT_FOUND, OTP.name());
             }
             String emailSubject = emailContentOptional.get().getEmailSubject();
@@ -242,7 +242,7 @@ public class OtpServiceImpl implements OtpService {
             log.info("Start sending sms {} for otp verification in {} flow !", smsEnum.name(), smsEnum.getFlow());
             String registerOtpMessage = registerMessageFormat.replace("{otp}", generatedOtp);
             if (!smsServiceImpl.sendSms(otpDTO.getPhoneNumber(), registerOtpMessage).getCode().equals(SMS_SENT_SUCCESS.getCode())) {
-                log.info("OTP SMS sent failed!");
+                log.error("OTP SMS sent failed!");
                 throw new BusinessException(SMS_SENT_FAIL, OTP.name());
             }
         } else {

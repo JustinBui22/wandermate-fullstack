@@ -1,5 +1,6 @@
 package com.example.travellingapp.entity;
 
+import com.example.travellingapp.enums.UserSettingEnum;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,7 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 @Entity
-@Table(name = "Users")
+@Table(name = "users")
 @Getter
 @Setter
 public class User implements Serializable, UserDetails {
@@ -54,10 +55,25 @@ public class User implements Serializable, UserDetails {
     @Column(name = "is_OAuth2", nullable = false)
     private boolean isOAuth2;
 
+    @Column(name = "display_name")
+    private String displayName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_theme")
+    private UserSettingEnum preferredTheme;
+
+    @Column(name = "profile_image_url", length = 500)
+    private String profileImageUrl;
+
+    @Column(name = "modified_date")
+    private LocalDateTime modifiedDate;
+
     public User(String username, String password, String email) {
         this.username = username;
         this.password = password;
         this.email = email;
+        this.displayName = username;
+        this.preferredTheme = UserSettingEnum.SYSTEM;
     }
 
     public User(String username, String password, String phoneNumber, LocalDate dob, LocalDateTime createdDate, String email, boolean isActive) {
@@ -68,6 +84,8 @@ public class User implements Serializable, UserDetails {
         this.createdDate = createdDate;
         this.email = email;
         this.isActive = isActive;
+        this.displayName = username;
+        this.preferredTheme = UserSettingEnum.SYSTEM;
     }
 
     public User(String username, String password, LocalDate dob, LocalDateTime createdDate, String email, boolean isActive, boolean isOAuth2) {
@@ -78,6 +96,8 @@ public class User implements Serializable, UserDetails {
         this.email = email;
         this.isActive = isActive;
         this.isOAuth2 = isOAuth2;
+        this.displayName = username;
+        this.preferredTheme = UserSettingEnum.SYSTEM;
     }
 
     public User() {

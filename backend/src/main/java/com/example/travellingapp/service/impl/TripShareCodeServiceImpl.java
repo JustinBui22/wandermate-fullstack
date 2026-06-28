@@ -1,6 +1,7 @@
 package com.example.travellingapp.service.impl;
 
 import com.example.travellingapp.dto.request.create.GenerateTripShareCodeRequest;
+import com.example.travellingapp.entity.ConfigurationEntity;
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripCollaborationRequestEntity;
@@ -10,6 +11,7 @@ import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.TripCollaborationRequestMapper;
 import com.example.travellingapp.mapper.TripShareCodeMapper;
+import com.example.travellingapp.repository.ConfigurationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.repository.collaboration.TripCollaborationRequestRepository;
@@ -25,10 +27,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
-import static com.example.travellingapp.enums.CommonEnum.COMMON;
-import static com.example.travellingapp.enums.CommonEnum.TRIP_MEMBER;
+import static com.example.travellingapp.enums.CommonEnum.*;
 import static com.example.travellingapp.enums.ErrorCodeEnum.*;
 import static com.example.travellingapp.response_template.CompleteResponse.getCompleteResponse;
 
@@ -44,6 +46,7 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
     private static final String CODE_PREFIX = "WM-";
 
     private final TripShareCodeRepository tripShareCodeRepository;
+    private final ConfigurationRepository configurationRepository;
     private final TripShareCodeAttemptRepository tripShareCodeAttemptRepository;
     private final TripCollaborationRequestRepository tripCollaborationRequestRepository;
     private final UserRepository userRepository;
@@ -55,7 +58,7 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
     private final TripShareCodeValidator tripShareCodeValidator;
 
     public TripShareCodeServiceImpl(
-            TripShareCodeRepository tripShareCodeRepository,
+            TripShareCodeRepository tripShareCodeRepository, ConfigurationRepository configurationRepository,
             TripShareCodeAttemptRepository tripShareCodeAttemptRepository,
             TripCollaborationRequestRepository tripCollaborationRequestRepository,
             UserRepository userRepository,
@@ -67,6 +70,7 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
             TripShareCodeValidator tripShareCodeValidator
     ) {
         this.tripShareCodeRepository = tripShareCodeRepository;
+        this.configurationRepository = configurationRepository;
         this.tripShareCodeAttemptRepository = tripShareCodeAttemptRepository;
         this.tripCollaborationRequestRepository = tripCollaborationRequestRepository;
         this.userRepository = userRepository;
@@ -126,13 +130,20 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
             // Save generated code
             TripShareCodeEntity savedShareCode = tripShareCodeRepository.save(shareCode);
 
+            String inviteLinkPrefix = configurationRepository.findByConfigCode(INVITE_LINK_PREFIX.name())
+                    .map(ConfigurationEntity::getConfigValue)
+                    .orElseGet(() -> {
+                        log.error("Invite link prefix configuration not found to regenerate trip share code");
+                        return "wandermate://join-trip?code="; // Fallback value
+                    });
+
+
             return getCompleteResponse(
                     errorCodeRepository,
                     TRIP_SHARE_CODE_CREATED_SUCCESS,
                     TRIP_MEMBER.name(),
-                    tripShareCodeMapper.toResponseDTO(savedShareCode)
+                    tripShareCodeMapper.toResponseDTO(savedShareCode, inviteLinkPrefix)
             );
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -276,11 +287,18 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
             }
 
             // Return active share code
+            String inviteLinkPrefix = configurationRepository.findByConfigCode(INVITE_LINK_PREFIX.name())
+                    .map(ConfigurationEntity::getConfigValue)
+                    .orElseGet(() -> {
+                        log.error("Invite link prefix configuration not found to get active trip share code");
+                        return "wandermate://join-trip?code="; // Fallback value
+                    });
+
             return getCompleteResponse(
                     errorCodeRepository,
-                    TRIP_SHARE_CODE_RETRIEVED_SUCCESS,
+                    TRIP_SHARE_CODE_CREATED_SUCCESS,
                     TRIP_MEMBER.name(),
-                    tripShareCodeMapper.toResponseDTO(activeShareCode)
+                    tripShareCodeMapper.toResponseDTO(activeShareCode, inviteLinkPrefix)
             );
 
         } catch (BusinessException e) {
@@ -295,11 +313,7 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
         LocalDateTime now = LocalDateTime.now();
 
         // Validate whether current active code can be replaced
-        tripShareCodeValidator.validateActiveCodeCanBeRegenerated(
-                activeCode,
-                now,
-                GENERATE_COOLDOWN_SECONDS
-        );
+        tripShareCodeValidator.validateActiveCodeCanBeRegenerated(activeCode, now, GENERATE_COOLDOWN_SECONDS);
 
         // If active code already expired, mark it as expired
         if (activeCode.getExpiresAt().isBefore(now)) {
@@ -315,10 +329,7 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
         tripShareCodeRepository.save(activeCode);
     }
 
-    private TripShareCodeEntity getValidShareCodeOrRegisterInvalidAttempt(
-            String code,
-            User user
-    ) {
+    private TripShareCodeEntity getValidShareCodeOrRegisterInvalidAttempt(String code, User user) {
         // Normalize code input
         String normalizedCode = tripShareCodeValidator.normalizeCode(code);
 
@@ -326,6 +337,7 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
         TripShareCodeEntity shareCode = tripShareCodeRepository.findByCode(normalizedCode)
                 .orElseGet(() -> {
                     registerInvalidAttempt(user);
+                    log.error("Trip share code not found for code: {}", normalizedCode);
                     throw new BusinessException(TRIP_SHARE_CODE_NOT_FOUND, TRIP_MEMBER.name());
                 });
 
@@ -348,22 +360,17 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
                 shareCode.setModifiedDate(LocalDateTime.now());
                 tripShareCodeRepository.save(shareCode);
             }
-
             registerInvalidAttempt(user);
             throw e;
         }
     }
 
-    private void markShareCodeAsUsed(
-            TripShareCodeEntity shareCode,
-            User requester
-    ) {
+    private void markShareCodeAsUsed(TripShareCodeEntity shareCode, User requester) {
         // Mark code as used by this requester
         shareCode.setCodeStatus(TripEnum.USED);
         shareCode.setUsedByUser(requester);
         shareCode.setUsedDate(LocalDateTime.now());
         shareCode.setModifiedDate(LocalDateTime.now());
-
         tripShareCodeRepository.save(shareCode);
     }
 
@@ -380,10 +387,7 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
                     );
 
                     // Clear expired restriction
-                    if (
-                            attempt.getRestrictedUntil() != null
-                                    && !attempt.getRestrictedUntil().isAfter(now)
-                    ) {
+                    if (attempt.getRestrictedUntil() != null && !attempt.getRestrictedUntil().isAfter(now)) {
                         attempt.setRetryCount(0);
                         attempt.setRestrictedUntil(null);
                         attempt.setModifiedDate(now);
@@ -405,10 +409,7 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
                 ));
 
         // Reset old expired restriction before counting again
-        if (
-                attempt.getRestrictedUntil() != null
-                        && !attempt.getRestrictedUntil().isAfter(now)
-        ) {
+        if (attempt.getRestrictedUntil() != null && !attempt.getRestrictedUntil().isAfter(now)) {
             attempt.setRetryCount(0);
             attempt.setRestrictedUntil(null);
         }
@@ -424,7 +425,6 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
             attempt.setRetryCount(0);
             attempt.setRestrictedUntil(now.plusMinutes(ATTEMPT_RESTRICTION_MINUTES));
         }
-
         tripShareCodeAttemptRepository.save(attempt);
     }
 
@@ -463,7 +463,6 @@ public class TripShareCodeServiceImpl implements TripShareCodeService {
                     .substring(0, SHARE_CODE_LENGTH)
                     .toUpperCase();
         } while (tripShareCodeRepository.existsByCode(code));
-
         return code;
     }
 }

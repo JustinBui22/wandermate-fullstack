@@ -19,92 +19,32 @@ public class ActivityControllerImpl implements ActivityController {
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> createActivity(
-            Long tripId,
-            Long destinationId,
-            CreateActivityDTO activityDTO
-    ) {
-        CompleteResponse<Object> response = activityService.createActivity(
-                tripId,
-                destinationId,
-                activityDTO
-        );
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+    public ResponseEntity<ResponseBody<Object>> createActivity(Long tripId, Long destinationId, CreateActivityDTO activityDTO) {
+        CompleteResponse<Object> response = activityService.createActivity(tripId, destinationId, activityDTO);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> getActivitiesByDestination(
-            Long tripId,
-            Long destinationId
-    ) {
-        CompleteResponse<Object> response = activityService.getActivitiesByDestination(
-                tripId,
-                destinationId
-        );
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+    public ResponseEntity<ResponseBody<Object>> getActivitiesByDestination(Long tripId, Long destinationId) {
+        CompleteResponse<Object> response = activityService.getActivitiesByDestination(tripId, destinationId);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> getActivityById(
-            Long tripId,
-            Long destinationId,
-            Long activityId
-    ) {
-        CompleteResponse<Object> response = activityService.getActivityById(
-                tripId,
-                destinationId,
-                activityId
-        );
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+    public ResponseEntity<ResponseBody<Object>> getActivityById(Long tripId, Long destinationId, Long activityId) {
+        CompleteResponse<Object> response = activityService.getActivityById(tripId, destinationId, activityId);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> updateActivity(
-            Long tripId,
-            Long destinationId,
-            Long activityId,
-            UpdateActivityDTO updateActivityDTO
-    ) {
-        CompleteResponse<Object> response = activityService.updateActivity(
-                tripId,
-                destinationId,
-                activityId,
-                updateActivityDTO
-        );
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+    public ResponseEntity<ResponseBody<Object>> updateActivity(Long tripId, Long destinationId, Long activityId, UpdateActivityDTO updateActivityDTO) {
+        CompleteResponse<Object> response = activityService.updateActivity(tripId, destinationId, activityId, updateActivityDTO);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> deleteActivity(
-            Long tripId,
-            Long destinationId,
-            Long activityId
-    ) {
-        CompleteResponse<Object> response = activityService.deleteActivity(
-                tripId,
-                destinationId,
-                activityId
-        );
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+    public ResponseEntity<ResponseBody<Object>> deleteActivity(Long tripId, Long destinationId, Long activityId) {
+        CompleteResponse<Object> response = activityService.deleteActivity(tripId, destinationId, activityId);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 }

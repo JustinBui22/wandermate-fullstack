@@ -8,12 +8,14 @@ import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.collaboration.TripCollaborationRequestRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
 import static com.example.travellingapp.enums.CommonEnum.TRIP_MEMBER;
 import static com.example.travellingapp.enums.ErrorCodeEnum.*;
 
+@Log4j2
 @Component
 public class TripCollaborationRequestValidator {
 
@@ -40,9 +42,9 @@ public class TripCollaborationRequestValidator {
                         || request.getUsername().isBlank()
                         || request.getRole() == null
         ) {
+            log.error("Invalid input to send trip invitation!");
             throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
-
         // OWNER role should only be created automatically when the trip is created
         validateRequestedRole(request.getRole());
     }
@@ -57,6 +59,7 @@ public class TripCollaborationRequestValidator {
                         || request == null
                         || request.getRole() == null
         ) {
+            log.error("Invalid input to send trip join request!");
             throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
 
@@ -67,6 +70,7 @@ public class TripCollaborationRequestValidator {
     public void validateRequestId(Long requestId) {
         // Validate request ID
         if (requestId == null) {
+            log.error("Invalid request ID for trip collaboration request!");
             throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
     }
@@ -75,6 +79,7 @@ public class TripCollaborationRequestValidator {
         // OWNER role cannot be invited or requested
         // Role must be EDITOR or VIEWER only
         if (role == null || role.getGroup() != TripEnum.Group.MEMBER_ROLE || role == TripEnum.OWNER) {
+            log.error("Invalid role requested: {}", role);
             throw new BusinessException(TRIP_OWNER_ROLE_CANNOT_BE_CHANGED, TRIP_MEMBER.name());
         }
     }
@@ -85,6 +90,7 @@ public class TripCollaborationRequestValidator {
     ) {
         // Owner cannot invite themselves
         if (isSameUser(owner, invitedUser)) {
+            log.error("Owner {} cannot invite themselves to the trip!", owner.getUsername());
             throw new BusinessException(TRIP_CANNOT_INVITE_SELF, TRIP_MEMBER.name());
         }
     }
@@ -95,6 +101,7 @@ public class TripCollaborationRequestValidator {
     ) {
         // Owner cannot request to join their own trip
         if (isSameUser(owner, requester)) {
+            log.error("Owner {} cannot request to join their own trip!", owner.getUsername());
             throw new BusinessException(TRIP_OWNER_CANNOT_REQUEST_TO_JOIN_OWN_TRIP, TRIP_MEMBER.name());
         }
     }
@@ -113,6 +120,7 @@ public class TripCollaborationRequestValidator {
                 tripId,
                 user.getUserId()
         )) {
+            log.error("User {} is already a member of trip {}!", user.getUsername(), tripId);
             throw new BusinessException(TRIP_MEMBER_ALREADY_EXISTS, TRIP_MEMBER.name());
         }
     }
@@ -128,6 +136,7 @@ public class TripCollaborationRequestValidator {
                         || firstUser == null
                         || secondUser == null
         ) {
+            log.error("Invalid input to check pending requests between users!");
             throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
 
@@ -150,6 +159,8 @@ public class TripCollaborationRequestValidator {
                 );
 
         if (firstToSecondPending || secondToFirstPending) {
+            log.error("There is already a pending collaboration request between users {} and {} for trip {}!",
+                    firstUser.getUsername(), secondUser.getUsername(), tripId);
             throw new BusinessException(TRIP_COLLABORATION_REQUEST_ALREADY_EXISTS, TRIP_MEMBER.name());
         }
     }
@@ -166,6 +177,7 @@ public class TripCollaborationRequestValidator {
                         || username.isBlank()
                         || !invitation.getTargetUser().getUsername().equals(username)
         ) {
+            log.error("User {} is not authorized to accept/reject invitation {}!", username, invitation != null ? invitation.getRequestId() : null);
             throw new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
         }
     }
@@ -182,6 +194,7 @@ public class TripCollaborationRequestValidator {
                         || username.isBlank()
                         || !joinRequest.getTargetUser().getUsername().equals(username)
         ) {
+            log.error("User {} is not authorized to accept/reject join request {}!", username, joinRequest != null ? joinRequest.getRequestId() : null);
             throw new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
         }
     }
@@ -192,6 +205,7 @@ public class TripCollaborationRequestValidator {
     ) {
         // Validate users before comparing user IDs
         if (firstUser == null || secondUser == null) {
+            log.error("Invalid input to compare users!");
             throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
         return firstUser.getUserId() == secondUser.getUserId();

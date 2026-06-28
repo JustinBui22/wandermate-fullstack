@@ -62,8 +62,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             TripOverlapWarningService tripOverlapWarningService,
             TripCollaborationRequestMapper requestMapper,
             TripMemberMapper tripMemberMapper,
-            TripCollaborationRequestValidator tripCollaborationRequestValidator
-    ) {
+            TripCollaborationRequestValidator tripCollaborationRequestValidator) {
         this.requestRepository = requestRepository;
         this.tripMemberRepository = tripMemberRepository;
         this.tripRepository = tripRepository;
@@ -95,27 +94,16 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
             // Get invited user record
-            User invitedUser = userRepository.findByUsernameAndActive(request.getUsername())
-                    .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
+            User invitedUser = userRepository.findByUsernameAndActive(request.getUsername()).orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
             // Owner cannot invite themselves
-            tripCollaborationRequestValidator.validateOwnerCannotInviteSelf(
-                    owner,
-                    invitedUser
-            );
+            tripCollaborationRequestValidator.validateOwnerCannotInviteSelf(owner, invitedUser);
 
             // Invited user must not already be a trip member
-            tripCollaborationRequestValidator.validateUserIsNotAlreadyMember(
-                    tripId,
-                    invitedUser
-            );
+            tripCollaborationRequestValidator.validateUserIsNotAlreadyMember(tripId, invitedUser);
 
             // Avoid duplicate pending invitation or join request between the same users
-            tripCollaborationRequestValidator.validateNoPendingRequestBetweenUsers(
-                    tripId,
-                    owner,
-                    invitedUser
-            );
+            tripCollaborationRequestValidator.validateNoPendingRequestBetweenUsers(tripId, owner, invitedUser);
 
             // Create pending invitation only, not member yet
             TripCollaborationRequestEntity invitation = new TripCollaborationRequestEntity(
@@ -219,10 +207,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             TripMemberEntity savedMember = tripMemberRepository.save(member);
 
             // Mark invitation as accepted
-            markRequestAsResponded(
-                    invitation,
-                    TripEnum.ACCEPTED
-            );
+            markRequestAsResponded(invitation, TripEnum.ACCEPTED);
 
             // Return request detail, new member detail and private overlap warnings
             TripCollaborationActionResponseDTO responseDTO =
@@ -270,16 +255,10 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     .orElseThrow(() -> new BusinessException(TRIP_COLLABORATION_REQUEST_NOT_FOUND, TRIP_MEMBER.name()));
 
             // Only the invited user can reject this invitation
-            tripCollaborationRequestValidator.validateInvitationBelongsToCurrentUser(
-                    invitation,
-                    username
-            );
+            tripCollaborationRequestValidator.validateInvitationBelongsToCurrentUser(invitation, username);
 
             // Mark invitation as rejected
-            markRequestAsResponded(
-                    invitation,
-                    TripEnum.REJECTED
-            );
+            markRequestAsResponded(invitation, TripEnum.REJECTED);
 
             return getCompleteResponse(
                     errorCodeRepository,
@@ -311,30 +290,19 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
             // Get trip that user wants to join
-            TripEntity trip = tripRepository.findById(tripId)
-                    .orElseThrow(() -> new BusinessException(TRIP_NOT_FOUND, TRIP.name()));
+            TripEntity trip = tripRepository.findById(tripId).orElseThrow(() -> new BusinessException(TRIP_NOT_FOUND, TRIP.name()));
 
             // Trip owner will receive this join request
             User owner = trip.getUser();
 
             // Owner cannot request to join their own trip
-            tripCollaborationRequestValidator.validateOwnerCannotRequestToJoinOwnTrip(
-                    owner,
-                    requester
-            );
+            tripCollaborationRequestValidator.validateOwnerCannotRequestToJoinOwnTrip(owner, requester);
 
             // Requester must not already be a member
-            tripCollaborationRequestValidator.validateUserIsNotAlreadyMember(
-                    tripId,
-                    requester
-            );
+            tripCollaborationRequestValidator.validateUserIsNotAlreadyMember(tripId, requester);
 
             // Avoid duplicate pending invitation or join request between the same users
-            tripCollaborationRequestValidator.validateNoPendingRequestBetweenUsers(
-                    tripId,
-                    requester,
-                    owner
-            );
+            tripCollaborationRequestValidator.validateNoPendingRequestBetweenUsers(tripId, requester, owner);
 
             // Create pending join request only, not member yet
             TripCollaborationRequestEntity joinRequest = new TripCollaborationRequestEntity(
@@ -369,6 +337,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
         try {
             // Validate trip ID
             if (tripId == null) {
+                log.error("Trip ID is null");
                 throw new BusinessException(INVALID_INPUT, COMMON.name());
             }
 
@@ -466,10 +435,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
             TripCollaborationRequestEntity joinRequest = getPendingJoinRequestForCurrentOwner(requestId);
 
             // Mark join request as rejected
-            markRequestAsResponded(
-                    joinRequest,
-                    TripEnum.REJECTED
-            );
+            markRequestAsResponded(joinRequest, TripEnum.REJECTED);
 
             return getCompleteResponse(
                     errorCodeRepository,
@@ -486,10 +452,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
         }
     }
 
-    private void markRequestAsResponded(
-            TripCollaborationRequestEntity request,
-            TripEnum status
-    ) {
+    private void markRequestAsResponded(TripCollaborationRequestEntity request, TripEnum status) {
         // Update pending request after user/owner responds
         request.setStatus(status);
         request.setModifiedDate(LocalDateTime.now());
@@ -514,17 +477,10 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                 .orElseThrow(() -> new BusinessException(TRIP_COLLABORATION_REQUEST_NOT_FOUND, TRIP_MEMBER.name()));
 
         // Only the trip owner can accept/reject this join request
-        tripCollaborationRequestValidator.validateJoinRequestBelongsToCurrentOwner(
-                joinRequest,
-                username
-        );
+        tripCollaborationRequestValidator.validateJoinRequestBelongsToCurrentOwner(joinRequest, username);
 
         // Double check current user is still trip owner
-        tripAccessService.getTripIfOwner(
-                joinRequest.getTrip().getTripId(),
-                username
-        );
-
+        tripAccessService.getTripIfOwner(joinRequest.getTrip().getTripId(), username);
         return joinRequest;
     }
 }

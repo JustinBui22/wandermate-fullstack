@@ -3,6 +3,8 @@ package com.example.travellingapp.controller;
 import com.example.travellingapp.dto.request.ForgotPasswordDTO;
 import com.example.travellingapp.dto.request.LoginDTO;
 import com.example.travellingapp.dto.request.create.CreateUserDTO;
+import com.example.travellingapp.dto.request.update.UpdateUserProfileDTO;
+import com.example.travellingapp.dto.request.update.UpdateUserSettingsDTO;
 import com.example.travellingapp.response_template.ResponseBody;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -28,4 +30,13 @@ public interface UserController {
 
     @GetMapping("/check")
     ResponseEntity<ResponseBody<Object>> checkUserExisted(@NotNull @RequestParam(name = "userInput") String userInput);
+
+    @GetMapping("/me")
+    ResponseEntity<ResponseBody<Object>> getMyProfile();
+
+    @PatchMapping("/me/profile")
+    ResponseEntity<ResponseBody<Object>> updateMyProfile(@Valid @RequestBody UpdateUserProfileDTO updateUserProfileDTO);
+
+    @PatchMapping("/me/settings")
+    ResponseEntity<ResponseBody<Object>> updateMySettings(@Valid @RequestBody UpdateUserSettingsDTO updateUserSettingsDTO);
 }

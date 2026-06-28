@@ -48,8 +48,7 @@ public class ActivityServiceImpl implements ActivityService {
             AuthenticatedUserProvider authenticatedUserProvider,
             ActivityMapper activityMapper,
             UserRepository userRepository,
-            TripAccessService tripAccessService
-    ) {
+            TripAccessService tripAccessService) {
         this.activityRepository = activityRepository;
         this.destinationRepository = destinationRepository;
         this.errorCodeRepository = errorCodeRepository;
@@ -61,14 +60,9 @@ public class ActivityServiceImpl implements ActivityService {
     }
 
     @Override
-    public CompleteResponse<Object> createActivity(
-            Long tripId,
-            Long destinationId,
-            CreateActivityDTO activityDTO
-    ) {
+    public CompleteResponse<Object> createActivity(Long tripId, Long destinationId, CreateActivityDTO activityDTO) {
         try {
             log.info("Creating activity for tripId: {}, destinationId: {}", tripId, destinationId);
-
             // Validate input and get normalized activity name
             String activityName = activityValidator.validateCreateInput(
                     tripId,
@@ -126,7 +120,6 @@ public class ActivityServiceImpl implements ActivityService {
             );
 
             activityRepository.save(activity);
-
             return getCompleteResponse(
                     errorCodeRepository,
                     ACTIVITY_CREATED_SUCCESS,
@@ -143,10 +136,7 @@ public class ActivityServiceImpl implements ActivityService {
     }
 
     @Override
-    public CompleteResponse<Object> getActivitiesByDestination(
-            Long tripId,
-            Long destinationId
-    ) {
+    public CompleteResponse<Object> getActivitiesByDestination(Long tripId, Long destinationId) {
         try {
             log.info("Getting activities for tripId: {}, destinationId: {}", tripId, destinationId);
 
@@ -242,15 +232,9 @@ public class ActivityServiceImpl implements ActivityService {
             Long tripId,
             Long destinationId,
             Long activityId,
-            UpdateActivityDTO updateActivityDTO
-    ) {
+            UpdateActivityDTO updateActivityDTO) {
         try {
-            log.info(
-                    "Updating activity for tripId: {}, destinationId: {}, activityId: {}",
-                    tripId,
-                    destinationId,
-                    activityId
-            );
+            log.info("Updating activity for tripId: {}, destinationId: {}, activityId: {}", tripId, destinationId, activityId);
 
             // Validate input and get normalized activity name
             String activityName = activityValidator.validateUpdateInput(
@@ -289,8 +273,7 @@ public class ActivityServiceImpl implements ActivityService {
             );
 
             // Check for overlapping activities in the same trip, excluding current activity
-            boolean hasOverlap = activityRepository
-                    .existsByDestination_Trip_TripIdAndActivityIdNotAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
+            boolean hasOverlap = activityRepository.existsByDestination_Trip_TripIdAndActivityIdNotAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
                             tripId,
                             activityId,
                             updateActivityDTO.getEndDateTime(),
@@ -332,11 +315,7 @@ public class ActivityServiceImpl implements ActivityService {
     }
 
     @Override
-    public CompleteResponse<Object> deleteActivity(
-            Long tripId,
-            Long destinationId,
-            Long activityId
-    ) {
+    public CompleteResponse<Object> deleteActivity(Long tripId, Long destinationId, Long activityId) {
         try {
             log.info(
                     "Deleting activity for tripId: {}, destinationId: {}, activityId: {}",

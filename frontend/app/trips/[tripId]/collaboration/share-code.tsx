@@ -288,12 +288,15 @@ export default function TripShareCodeScreen() {
     );
 }
 
-function HeaderButton({onPress}: Readonly<{ onPress: () => void }>) {
-    return (<AppCard
+function HeaderButton({ onPress }: Readonly<{ onPress: () => void }>) {
+    return (
+        <AppCard
             onPress={onPress}
             style={styles.backButton}
             contentStyle={styles.backButtonContent}
-        > <Ionicons name="chevron-back" size={22} color={colors.text}/> </AppCard>
+        >
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </AppCard>
     );
 }
 

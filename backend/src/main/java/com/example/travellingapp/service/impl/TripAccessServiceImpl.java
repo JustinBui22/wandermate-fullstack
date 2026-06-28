@@ -19,10 +19,7 @@ public class TripAccessServiceImpl implements TripAccessService {
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
 
-    public TripAccessServiceImpl(
-            TripRepository tripRepository,
-            TripMemberRepository tripMemberRepository
-    ) {
+    public TripAccessServiceImpl(TripRepository tripRepository, TripMemberRepository tripMemberRepository) {
         this.tripRepository = tripRepository;
         this.tripMemberRepository = tripMemberRepository;
     }
@@ -38,7 +35,6 @@ public class TripAccessServiceImpl implements TripAccessService {
     @Override
     public TripEntity getTripIfCanView(Long tripId, String username) {
         assertCanView(tripId, username);
-
         return tripRepository.findById(tripId)
                 .orElseThrow(() -> new BusinessException(TRIP_NOT_FOUND, TRIP_MEMBER.name()));
     }
@@ -60,6 +56,7 @@ public class TripAccessServiceImpl implements TripAccessService {
     @Override
     public void assertCanView(Long tripId, String username) {
         if (tripId == null || username == null || username.isBlank()) {
+            log.error("Invalid input: tripId or username is null or blank. tripId: {}, username: {}", tripId, username);
             throw new BusinessException(INVALID_INPUT, TRIP_MEMBER.name());
         }
         boolean hasAccess = tripMemberRepository

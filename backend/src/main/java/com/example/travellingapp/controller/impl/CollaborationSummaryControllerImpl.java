@@ -13,20 +13,13 @@ public class CollaborationSummaryControllerImpl implements CollaborationSummaryC
 
     private final CollaborationSummaryService collaborationSummaryService;
 
-    public CollaborationSummaryControllerImpl(
-            CollaborationSummaryService collaborationSummaryService
-    ) {
+    public CollaborationSummaryControllerImpl(CollaborationSummaryService collaborationSummaryService) {
         this.collaborationSummaryService = collaborationSummaryService;
     }
 
     @Override
     public ResponseEntity<ResponseBody<Object>> getCollaborationSummary() {
-        CompleteResponse<Object> response =
-                collaborationSummaryService.getCollaborationSummary();
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+        CompleteResponse<Object> response = collaborationSummaryService.getCollaborationSummary();
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 }

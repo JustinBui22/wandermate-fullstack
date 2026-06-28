@@ -98,3 +98,10 @@ export type TripCollaborationActionResponse = {
     member: TripMember;
     overlapWarnings: MyTripOverlapWarning[];
 };
+
+export type CollaborationSummary = {
+    pendingInvitationCount: number;
+    pendingOwnedTripJoinRequestCount: number;
+    totalPendingActionCount: number;
+    tripPendingJoinRequestCounts: Record<string, number>;
+};

@@ -4,6 +4,7 @@ import com.example.travellingapp.dto.response.MyTripOverlapWarningDTO;
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
+import com.example.travellingapp.mapper.TripOverlapWarningMapper;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
@@ -29,17 +30,18 @@ public class TripOverlapWarningServiceImpl implements TripOverlapWarningService 
     private final ErrorCodeRepository errorCodeRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final TripAccessService tripAccessService;
+    private final TripOverlapWarningMapper tripOverlapWarningMapper;
 
     public TripOverlapWarningServiceImpl(
             TripMemberRepository tripMemberRepository,
             ErrorCodeRepository errorCodeRepository,
             AuthenticatedUserProvider authenticatedUserProvider,
-            TripAccessService tripAccessService
-    ) {
+            TripAccessService tripAccessService, TripOverlapWarningMapper tripOverlapWarningMapper) {
         this.tripMemberRepository = tripMemberRepository;
         this.errorCodeRepository = errorCodeRepository;
         this.authenticatedUserProvider = authenticatedUserProvider;
         this.tripAccessService = tripAccessService;
+        this.tripOverlapWarningMapper = tripOverlapWarningMapper;
     }
 
     @Override
@@ -47,6 +49,7 @@ public class TripOverlapWarningServiceImpl implements TripOverlapWarningService 
         try {
             // Validate trip ID
             if (tripId == null) {
+                log.error("Trip ID is null");
                 throw new BusinessException(INVALID_INPUT, COMMON.name());
             }
 
@@ -70,10 +73,7 @@ public class TripOverlapWarningServiceImpl implements TripOverlapWarningService 
             }
 
             // Build private overlap warning for current member only
-            List<MyTripOverlapWarningDTO> warnings = buildWarningsForUser(
-                    currentTrip,
-                    username
-            );
+            List<MyTripOverlapWarningDTO> warnings = buildWarningsForUser(currentTrip, username);
 
             return getCompleteResponse(
                     errorCodeRepository,
@@ -81,7 +81,6 @@ public class TripOverlapWarningServiceImpl implements TripOverlapWarningService 
                     TRIP_MEMBER.name(),
                     warnings
             );
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -91,12 +90,10 @@ public class TripOverlapWarningServiceImpl implements TripOverlapWarningService 
     }
 
     @Override
-    public List<MyTripOverlapWarningDTO> buildWarningsForUser(
-            TripEntity currentTrip,
-            String username
-    ) {
+    public List<MyTripOverlapWarningDTO> buildWarningsForUser(TripEntity currentTrip, String username) {
         // Validate input before checking overlap
         if (currentTrip == null || currentTrip.getTripId() == null || username == null || username.isBlank()) {
+            log.error("Invalid input for building warnings: currentTrip={}, username={}", currentTrip, username);
             throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
 
@@ -108,51 +105,7 @@ public class TripOverlapWarningServiceImpl implements TripOverlapWarningService 
                         currentTrip.getEndDate()
                 )
                 .stream()
-                .map(overlappingTrip -> toWarningDTO(currentTrip, overlappingTrip))
+                .map(overlappingTrip ->  tripOverlapWarningMapper.toWarningDTO(currentTrip, overlappingTrip))
                 .toList();
-    }
-
-    private MyTripOverlapWarningDTO toWarningDTO(
-            TripEntity currentTrip,
-            TripEntity overlappingTrip
-    ) {
-        MyTripOverlapWarningDTO dto = new MyTripOverlapWarningDTO();
-
-        // Set current shared trip information
-        dto.setCurrentTripId(currentTrip.getTripId());
-        dto.setCurrentTripName(currentTrip.getTripName());
-        dto.setCurrentTripStartDate(currentTrip.getStartDate());
-        dto.setCurrentTripEndDate(currentTrip.getEndDate());
-
-        // Set overlapping trip information
-        dto.setOverlappingTripId(overlappingTrip.getTripId());
-        dto.setOverlappingTripName(overlappingTrip.getTripName());
-        dto.setOverlappingTripStartDate(overlappingTrip.getStartDate());
-        dto.setOverlappingTripEndDate(overlappingTrip.getEndDate());
-
-        // Calculate the actual overlapping time range
-        LocalDateTime overlapStartDate = currentTrip.getStartDate().isAfter(overlappingTrip.getStartDate())
-                ? currentTrip.getStartDate()
-                : overlappingTrip.getStartDate();
-
-        LocalDateTime overlapEndDate = currentTrip.getEndDate().isBefore(overlappingTrip.getEndDate())
-                ? currentTrip.getEndDate()
-                : overlappingTrip.getEndDate();
-
-        dto.setOverlapStartDate(overlapStartDate);
-        dto.setOverlapEndDate(overlapEndDate);
-
-        // Build warning message for frontend popup/banner
-        dto.setMessage(
-                "This shared trip overlaps with your trip \""
-                        + overlappingTrip.getTripName()
-                        + "\" from "
-                        + overlapStartDate
-                        + " to "
-                        + overlapEndDate
-                        + "."
-        );
-
-        return dto;
     }
 }

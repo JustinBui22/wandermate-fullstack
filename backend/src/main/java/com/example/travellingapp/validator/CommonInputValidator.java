@@ -22,7 +22,7 @@ public class CommonInputValidator {
         }
 
         String patternString = configEntity.map(ConfigurationEntity::getConfigValue).orElseGet(() -> {
-            log.info(logMessage);
+            log.error(logMessage);
             return defaultPattern;
         });
 

@@ -31,24 +31,24 @@ public class OtpValidator {
 
     public void validateEmailOtpRequest(OtpDTO otpDTO, Optional<ConfigurationEntity> emailPatternConfig) {
         if (otpDTO.getEmailEnum() == null) {
-            log.info("Email enum is missing.");
+            log.error("Email enum is missing.");
             throw new BusinessException(EMAIL_ENUM_MISSING, OTP.name());
         }
 
         if (!validateEmailForm(otpDTO.getEmail(), emailPatternConfig)) {
-            log.info("User email {} is invalid!", otpDTO.getEmail());
+            log.error("User email {} is invalid!", otpDTO.getEmail());
             throw new BusinessException(EMAIL_PATTERN_INVALID, OTP.name());
         }
     }
 
     public void validatePhoneOtpRequest(OtpDTO otpDTO, Optional<ConfigurationEntity> phonePatternConfig) {
         if (otpDTO.getSmsEnum() == null) {
-            log.info("SMS enum is missing.");
+            log.error("SMS enum is missing.");
             throw new BusinessException(SMS_ENUM_MISSING, OTP.name());
         }
 
         if (!validatePhoneForm(otpDTO.getPhoneNumber(), phonePatternConfig)) {
-            log.info("Phone number is invalid!");
+            log.error("Phone number is invalid!");
             throw new BusinessException(PHONE_FORMAT_INVALID, OTP.name());
         }
     }

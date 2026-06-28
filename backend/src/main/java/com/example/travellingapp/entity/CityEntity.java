@@ -8,7 +8,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Cities")
+@Table(name = "cities")
 @Getter
 @Setter
 public class CityEntity implements Serializable {

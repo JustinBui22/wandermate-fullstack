@@ -10,7 +10,7 @@ import type {
     TripShareCode,
     TripShareCodePreview,
     TripMember,
-    UpdateTripMemberRoleRequest,
+    UpdateTripMemberRoleRequest, CollaborationSummary,
 } from "../types/tripCollaboration";
 import { logger } from "../utils/logger";
 
@@ -205,6 +205,16 @@ export async function requestToJoinByShareCode(
     );
 
     logger.debug("Request to join by share code response:", response.data);
+
+    return response.data.body;
+}
+
+export async function getCollaborationSummary(): Promise<CollaborationSummary> {
+    const response = await axiosClient.get<ApiResponse<CollaborationSummary>>(
+        "/api/v1/collaboration/summary"
+    );
+
+    logger.debug("Collaboration summary response:", response.data);
 
     return response.data.body;
 }

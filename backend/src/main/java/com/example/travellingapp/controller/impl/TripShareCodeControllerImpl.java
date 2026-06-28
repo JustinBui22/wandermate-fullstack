@@ -19,49 +19,27 @@ public class TripShareCodeControllerImpl implements TripShareCodeController {
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> regenerateShareCode(
-            Long tripId,
-            GenerateTripShareCodeRequest request
-    ) {
+    public ResponseEntity<ResponseBody<Object>> regenerateShareCode(Long tripId, GenerateTripShareCodeRequest request) {
         CompleteResponse<Object> response =
                 tripShareCodeService.regenerateShareCode(tripId, request);
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
     @Override
     public ResponseEntity<ResponseBody<Object>> previewShareCode(String code) {
-        CompleteResponse<Object> response =
-                tripShareCodeService.previewShareCode(code);
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+        CompleteResponse<Object> response = tripShareCodeService.previewShareCode(code);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
     @Override
     public ResponseEntity<ResponseBody<Object>> requestToJoinByShareCode(String code) {
-        CompleteResponse<Object> response =
-                tripShareCodeService.requestToJoinByShareCode(code);
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+        CompleteResponse<Object> response = tripShareCodeService.requestToJoinByShareCode(code);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
     @Override
     public ResponseEntity<ResponseBody<Object>> getActiveShareCode(Long tripId) {
-        CompleteResponse<Object> response =
-                tripShareCodeService.getActiveShareCode(tripId);
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+        CompleteResponse<Object> response = tripShareCodeService.getActiveShareCode(tripId);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 }

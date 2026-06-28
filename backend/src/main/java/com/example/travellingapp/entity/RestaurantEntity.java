@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Restaurants")
+@Table(name = "restaurants")
 @Getter
 @Setter
 public class RestaurantEntity implements Serializable {

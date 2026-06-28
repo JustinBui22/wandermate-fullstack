@@ -46,8 +46,7 @@ public class TripMemberServiceImpl implements TripMemberService {
             AuthenticatedUserProvider authenticatedUserProvider,
             TripAccessService tripAccessService,
             TripMemberMapper tripMemberMapper,
-            TripMemberValidator tripMemberValidator
-    ) {
+            TripMemberValidator tripMemberValidator) {
         this.tripMemberRepository = tripMemberRepository;
         this.userRepository = userRepository;
         this.errorCodeRepository = errorCodeRepository;
@@ -93,37 +92,24 @@ public class TripMemberServiceImpl implements TripMemberService {
     }
 
     @Override
-    public CompleteResponse<Object> addTripMember(
-            Long tripId,
-            AddTripMemberDTO addTripMemberDTO
-    ) {
+    public CompleteResponse<Object> addTripMember(Long tripId, AddTripMemberDTO addTripMemberDTO) {
         try {
             log.info("Adding trip member for tripId: {}", tripId);
 
             // Validate input and get normalized username
-            String targetUsername = tripMemberValidator.validateAddTripMemberInput(
-                    tripId,
-                    addTripMemberDTO
-            );
+            String targetUsername = tripMemberValidator.validateAddTripMemberInput(tripId, addTripMemberDTO);
             String currentUsername = authenticatedUserProvider.getUsername();
             // Only trip owner can add members
             TripEntity trip = tripAccessService.getTripIfOwner(tripId, currentUsername);
 
             // Find target user
-            User targetUser = userRepository
-                    .findByUsernameAndActive(targetUsername)
-                    .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
+            User targetUser = userRepository.findByUsernameAndActive(targetUsername).orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
             // Validate role
-            TripEnum role = TripEnum.valueOf(
-                    addTripMemberDTO.getRole().trim().toUpperCase()
-            );
+            TripEnum role = TripEnum.valueOf(addTripMemberDTO.getRole().trim().toUpperCase());
 
             // Check if user is already a trip member
-            boolean alreadyMember = tripMemberRepository.existsByTrip_TripIdAndUser_UserId(
-                    tripId,
-                    targetUser.getUserId()
-            );
+            boolean alreadyMember = tripMemberRepository.existsByTrip_TripIdAndUser_UserId(tripId, targetUser.getUserId());
 
             if (alreadyMember) {
                 log.error("User {} is already a member of tripId: {}", targetUsername, tripId);
@@ -144,7 +130,6 @@ public class TripMemberServiceImpl implements TripMemberService {
                     TRIP_MEMBER.name(),
                     tripMemberMapper.toResponseDTO(tripMember)
             );
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -154,11 +139,7 @@ public class TripMemberServiceImpl implements TripMemberService {
     }
 
     @Override
-    public CompleteResponse<Object> updateTripMemberRole(
-            Long tripId,
-            Long tripMemberId,
-            UpdateTripMemberRoleDTO updateTripMemberRoleDTO
-    ) {
+    public CompleteResponse<Object> updateTripMemberRole(Long tripId, Long tripMemberId, UpdateTripMemberRoleDTO updateTripMemberRoleDTO) {
         try {
             log.info("Updating trip member role for tripId: {}, tripMemberId: {}", tripId, tripMemberId);
             // Validate and get normalized role
@@ -202,10 +183,7 @@ public class TripMemberServiceImpl implements TripMemberService {
     }
 
     @Override
-    public CompleteResponse<Object> removeTripMember(
-            Long tripId,
-            Long tripMemberId
-    ) {
+    public CompleteResponse<Object> removeTripMember(Long tripId, Long tripMemberId) {
         try {
             log.info("Removing trip member for tripId: {}, tripMemberId: {}", tripId, tripMemberId);
 
@@ -235,7 +213,6 @@ public class TripMemberServiceImpl implements TripMemberService {
                     TRIP_MEMBER.name(),
                     null
             );
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {

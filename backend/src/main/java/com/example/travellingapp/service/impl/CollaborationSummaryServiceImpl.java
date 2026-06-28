@@ -34,8 +34,7 @@ public class CollaborationSummaryServiceImpl implements CollaborationSummaryServ
             TripCollaborationRequestRepository tripCollaborationRequestRepository,
             UserRepository userRepository,
             ErrorCodeRepository errorCodeRepository,
-            AuthenticatedUserProvider authenticatedUserProvider
-    ) {
+            AuthenticatedUserProvider authenticatedUserProvider) {
         this.tripCollaborationRequestRepository = tripCollaborationRequestRepository;
         this.userRepository = userRepository;
         this.errorCodeRepository = errorCodeRepository;
@@ -65,30 +64,18 @@ public class CollaborationSummaryServiceImpl implements CollaborationSummaryServ
                             TripEnum.PENDING
                     );
             // Count pending join requests per owned trip
-            Map<Long, Long> tripPendingJoinRequestCounts =
-                    tripCollaborationRequestRepository
-                            .countPendingJoinRequestsByOwnedTrip(
-                                    username,
-                                    TripEnum.JOIN_REQUEST,
-                                    TripEnum.PENDING
-                            )
-                            .stream()
-                            .collect(Collectors.toMap(
-                                    TripPendingJoinRequestCountProjection::getTripId,
-                                    TripPendingJoinRequestCountProjection::getPendingCount
-                            ));
+            Map<Long, Long> tripPendingJoinRequestCounts = tripCollaborationRequestRepository.countPendingJoinRequestsByOwnedTrip(
+                            username,
+                            TripEnum.JOIN_REQUEST,
+                            TripEnum.PENDING
+                    )
+                    .stream()
+                    .collect(Collectors.toMap(
+                            TripPendingJoinRequestCountProjection::getTripId,
+                            TripPendingJoinRequestCountProjection::getPendingCount
+                    ));
             // Total actions that need current user's attention
-            long totalPendingActionCount =
-                    pendingInvitationCount + pendingOwnedTripJoinRequestCount;
-
-            CollaborationSummaryResponseDTO responseDTO =
-                    new CollaborationSummaryResponseDTO(
-                            pendingInvitationCount,
-                            pendingOwnedTripJoinRequestCount,
-                            totalPendingActionCount,
-                            tripPendingJoinRequestCounts
-                    );
-
+            CollaborationSummaryResponseDTO responseDTO = getCollaborationSummaryResponseDTO(pendingInvitationCount, pendingOwnedTripJoinRequestCount, tripPendingJoinRequestCounts);
             return getCompleteResponse(
                     errorCodeRepository,
                     COLLABORATION_SUMMARY_RETRIEVED_SUCCESS,
@@ -102,5 +89,15 @@ public class CollaborationSummaryServiceImpl implements CollaborationSummaryServ
             log.error("Error occurred while getting collaboration summary", e);
             throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
         }
+    }
+
+    private static CollaborationSummaryResponseDTO getCollaborationSummaryResponseDTO(long pendingInvitationCount, long pendingOwnedTripJoinRequestCount, Map<Long, Long> tripPendingJoinRequestCounts) {
+        long totalPendingActionCount = pendingInvitationCount + pendingOwnedTripJoinRequestCount;
+        return new CollaborationSummaryResponseDTO(
+                        pendingInvitationCount,
+                        pendingOwnedTripJoinRequestCount,
+                        totalPendingActionCount,
+                        tripPendingJoinRequestCounts
+                );
     }
 }

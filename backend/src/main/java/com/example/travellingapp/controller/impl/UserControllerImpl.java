@@ -4,6 +4,8 @@ import com.example.travellingapp.controller.UserController;
 import com.example.travellingapp.dto.request.ForgotPasswordDTO;
 import com.example.travellingapp.dto.request.LoginDTO;
 import com.example.travellingapp.dto.request.create.CreateUserDTO;
+import com.example.travellingapp.dto.request.update.UpdateUserProfileDTO;
+import com.example.travellingapp.dto.request.update.UpdateUserSettingsDTO;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.response_template.ResponseBody;
 import org.springframework.http.HttpStatus;
@@ -47,6 +49,24 @@ public class UserControllerImpl implements UserController {
     @Override
     public ResponseEntity<ResponseBody<Object>> checkUserExisted(String userInput) {
         CompleteResponse<Object> response = userService.checkUserExisted(userInput);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
+    }
+
+    @Override
+    public ResponseEntity<ResponseBody<Object>> getMyProfile() {
+        CompleteResponse<Object> response = userService.getMyProfile();
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
+    }
+
+    @Override
+    public ResponseEntity<ResponseBody<Object>> updateMyProfile(UpdateUserProfileDTO updateUserProfileDTO) {
+        CompleteResponse<Object> response = userService.updateMyProfile(updateUserProfileDTO);
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
+    }
+
+    @Override
+    public ResponseEntity<ResponseBody<Object>> updateMySettings(UpdateUserSettingsDTO updateUserSettingsDTO) {
+        CompleteResponse<Object> response = userService.updateMySettings(updateUserSettingsDTO);
         return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 }

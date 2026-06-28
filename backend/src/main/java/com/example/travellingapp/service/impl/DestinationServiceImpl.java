@@ -44,8 +44,7 @@ public class DestinationServiceImpl implements DestinationService {
             AuthenticatedUserProvider authenticatedUserProvider,
             DestinationMapper destinationMapper,
             ActivityRepository activityRepository,
-            TripAccessService tripAccessService
-    ) {
+            TripAccessService tripAccessService) {
         this.destinationRepository = destinationRepository;
         this.errorCodeRepository = errorCodeRepository;
         this.destinationValidator = destinationValidator;
@@ -56,10 +55,7 @@ public class DestinationServiceImpl implements DestinationService {
     }
 
     @Override
-    public CompleteResponse<Object> createDestination(
-            Long tripId,
-            CreateDestinationDTO destinationDTO
-    ) {
+    public CompleteResponse<Object> createDestination(Long tripId, CreateDestinationDTO destinationDTO) {
         try {
             log.info("Creating destination for tripId: {}", tripId);
 
@@ -108,14 +104,12 @@ public class DestinationServiceImpl implements DestinationService {
             );
 
             destinationRepository.save(destination);
-
             return getCompleteResponse(
                     errorCodeRepository,
                     DESTINATION_CREATED_SUCCESS,
                     DESTINATION.name(),
                     destinationMapper.toResponseDTO(destination)
             );
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -128,7 +122,6 @@ public class DestinationServiceImpl implements DestinationService {
     public CompleteResponse<Object> getDestinationsByTrip(Long tripId) {
         try {
             log.info("Getting destinations for tripId: {}", tripId);
-
             if (tripId == null) {
                 log.error("Invalid input to get destination list!");
                 throw new BusinessException(INVALID_INPUT, COMMON.name());
@@ -152,7 +145,6 @@ public class DestinationServiceImpl implements DestinationService {
                     DESTINATION.name(),
                     destinations
             );
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -162,13 +154,9 @@ public class DestinationServiceImpl implements DestinationService {
     }
 
     @Override
-    public CompleteResponse<Object> getDestinationById(
-            Long tripId,
-            Long destinationId
-    ) {
+    public CompleteResponse<Object> getDestinationById(Long tripId, Long destinationId) {
         try {
             log.info("Getting destination for tripId: {}, destinationId: {}", tripId, destinationId);
-
             if (tripId == null || destinationId == null) {
                 log.error("Trip ID or Destination ID is missing to get a destination!");
                 throw new BusinessException(INVALID_INPUT, COMMON.name());
@@ -200,11 +188,7 @@ public class DestinationServiceImpl implements DestinationService {
     }
 
     @Override
-    public CompleteResponse<Object> updateDestination(
-            Long tripId,
-            Long destinationId,
-            UpdateDestinationDTO destinationDTO
-    ) {
+    public CompleteResponse<Object> updateDestination(Long tripId, Long destinationId, UpdateDestinationDTO destinationDTO) {
         try {
             log.info("Updating destination for tripId: {}, destinationId: {}", tripId, destinationId);
 
@@ -244,10 +228,7 @@ public class DestinationServiceImpl implements DestinationService {
                     );
 
             if (hasActivityOutsideUpdatedDestinationRange) {
-                log.error(
-                        "Updated destination date range does not include all existing activities in destination {}.",
-                        destinationId
-                );
+                log.error("Updated destination date range does not include all existing activities in destination {}.", destinationId);
                 throw new BusinessException(
                         DESTINATION_DATE_CONFLICT_WITH_EXISTING_ACTIVITY,
                         DESTINATION.name()
@@ -278,7 +259,6 @@ public class DestinationServiceImpl implements DestinationService {
             destination.setModifiedDate(LocalDateTime.now());
 
             destinationRepository.save(destination);
-
             return getCompleteResponse(
                     errorCodeRepository,
                     DESTINATION_UPDATED_SUCCESS,
@@ -295,10 +275,7 @@ public class DestinationServiceImpl implements DestinationService {
     }
 
     @Override
-    public CompleteResponse<Object> deleteDestination(
-            Long tripId,
-            Long destinationId
-    ) {
+    public CompleteResponse<Object> deleteDestination(Long tripId, Long destinationId) {
         try {
             log.info("Deleting destination for tripId: {}, destinationId: {}", tripId, destinationId);
 

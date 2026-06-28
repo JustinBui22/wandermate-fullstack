@@ -23,20 +23,12 @@ public class TripMemberControllerImpl implements TripMemberController {
         return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
-    public ResponseEntity<ResponseBody<Object>> updateTripMemberRole(
-            Long tripId, Long tripMemberId, UpdateTripMemberRoleDTO updateTripMemberRoleDTO
-    ) {
-        CompleteResponse<Object> response = tripMemberService.updateTripMemberRole(
-                tripId,
-                tripMemberId,
-                updateTripMemberRoleDTO
-        );
+    public ResponseEntity<ResponseBody<Object>> updateTripMemberRole(Long tripId, Long tripMemberId, UpdateTripMemberRoleDTO updateTripMemberRoleDTO) {
+        CompleteResponse<Object> response = tripMemberService.updateTripMemberRole(tripId, tripMemberId, updateTripMemberRoleDTO);
         return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
-    public ResponseEntity<ResponseBody<Object>> removeTripMember(
-            Long tripId, Long tripMemberId
-    ) {
+    public ResponseEntity<ResponseBody<Object>> removeTripMember(Long tripId, Long tripMemberId) {
         CompleteResponse<Object> response = tripMemberService.removeTripMember(tripId, tripMemberId);
         return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }

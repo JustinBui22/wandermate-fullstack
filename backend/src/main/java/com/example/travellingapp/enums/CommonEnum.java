@@ -49,6 +49,7 @@ public enum CommonEnum {
     MAX_RETRY_SEND_OTP(Group.CONFIG),
     MAX_RETRY_VERIFY_OTP(Group.CONFIG),
     TEXT(Group.CONFIG),
+    INVITE_LINK_PREFIX(Group.CONFIG),
 
     PHONE_NUM_OTP(Group.OTP_METHOD),
     EMAIL_OTP(Group.OTP_METHOD),

@@ -59,8 +59,7 @@ public class TripServiceImpl implements TripService {
             TripValidator tripValidator,
             DestinationRepository destinationRepository,
             TripMemberRepository tripMemberRepository,
-            TripAccessService tripAccessService
-    ) {
+            TripAccessService tripAccessService) {
         this.errorCodeRepository = errorCodeRepository;
         this.cityRepository = cityRepository;
         this.restaurantRepository = restaurantRepository;
@@ -125,7 +124,7 @@ public class TripServiceImpl implements TripService {
                 trip.setTripStatus(tripDTO.getTripStatus());
             }
 
-            // Auto-correct status based on trip date
+            // Autocorrect status based on trip date
             refreshTripStatusIfNeeded(trip);
 
             // Save trip first so it has tripId for member relation
@@ -160,11 +159,7 @@ public class TripServiceImpl implements TripService {
     }
 
     @Override
-    public CompleteResponse<Object> getTrips(
-            TripEnum ownership,
-            String status,
-            TripEnum sort
-    ) {
+    public CompleteResponse<Object> getTrips(TripEnum ownership, String status, TripEnum sort) {
         try {
             log.info("Getting trips for user {}", authenticatedUserProvider.getUsername());
 
@@ -174,14 +169,10 @@ public class TripServiceImpl implements TripService {
             userRepository.findByUsernameAndActive(username)
                     .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
-            // Resolve default ownership filter
-            ownership = resolveOwnershipFilter(ownership);
-
-            // Resolve default status filter
-            status = resolveStatusFilter(status);
-
-            // Resolve default sort option
-            sort = resolveSortOption(sort);
+            // Validate and resolve trip filters
+            TripEnum ownershipFilter = tripValidator.validateOwnershipFilter(ownership);
+            TripEnum statusFilter = tripValidator.validateStatusFilter(status);
+            TripEnum sortOption = tripValidator.validateSortOption(sort);
 
             // Fetch all trips where current user is OWNER, EDITOR or VIEWER
             List<TripEntity> trips = tripMemberRepository.findAccessibleTripsByUsername(username);
@@ -200,18 +191,16 @@ public class TripServiceImpl implements TripService {
             // Apply ownership filter, status filter and sort option
             List<TripResponseDTO> filteredTrips = applyTripFiltersAndSort(
                     tripResponses,
-                    ownership,
-                    status,
-                    sort
+                    ownershipFilter,
+                    statusFilter,
+                    sortOption
             );
-
             return getCompleteResponse(
                     errorCodeRepository,
                     TRIPS_RETRIEVED_SUCCESS,
                     TRIP.name(),
                     filteredTrips
             );
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -228,7 +217,6 @@ public class TripServiceImpl implements TripService {
                 log.error("Trip ID is missing!");
                 throw new BusinessException(INVALID_INPUT, COMMON.name());
             }
-
             String username = authenticatedUserProvider.getUsername();
 
             // Check if current user can view this trip
@@ -273,8 +261,7 @@ public class TripServiceImpl implements TripService {
             if (tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                     tripOwnerUsername,
                     tripName,
-                    tripId
-            )) {
+                    tripId)) {
                 log.error("Trip name {} already exists for user {}!", tripName, tripOwnerUsername);
                 throw new BusinessException(TRIP_NAME_ALREADY_EXISTS, COMMON.name());
             }
@@ -324,7 +311,7 @@ public class TripServiceImpl implements TripService {
                 trip.setTripStatus(tripDTO.getTripStatus());
             }
 
-            // Auto-correct status based on trip date
+            // Autocorrect status based on trip date
             refreshTripStatusIfNeeded(trip);
 
             // Save updated trip
@@ -355,7 +342,6 @@ public class TripServiceImpl implements TripService {
                 log.error("Trip ID is missing to execute delete trip!");
                 throw new BusinessException(INVALID_INPUT, COMMON.name());
             }
-
             String username = authenticatedUserProvider.getUsername();
 
             // Only owner can delete trip
@@ -363,14 +349,12 @@ public class TripServiceImpl implements TripService {
 
             // Delete trip
             tripRepository.delete(trip);
-
             return getCompleteResponse(
                     errorCodeRepository,
                     TRIP_DELETED_SUCCESS,
                     TRIP.name(),
                     null
             );
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -398,7 +382,6 @@ public class TripServiceImpl implements TripService {
         if (cityList.isEmpty()) {
             log.info("No city suggestion found as {}", normalizedKeyword);
         }
-
         return getCompleteResponse(
                 errorCodeRepository,
                 SEARCH_INFO_SUCCESS,
@@ -560,64 +543,6 @@ public class TripServiceImpl implements TripService {
         );
     }
 
-    private TripEnum resolveOwnershipFilter(TripEnum ownership) {
-        // Default ownership filter is ALL
-        if (ownership == null) {
-            return TripEnum.ALL;
-        }
-
-        // Allow only ownership filter enums
-        if (ownership == TripEnum.ALL
-                || ownership == TripEnum.CREATED
-                || ownership == TripEnum.JOINED) {
-            return ownership;
-        }
-
-        throw new BusinessException(INVALID_INPUT, COMMON.name());
-    }
-
-    private String resolveStatusFilter(String status) {
-        // Default status filter is ALL
-        if (status == null || status.isBlank()) {
-            return TripEnum.ALL.name();
-        }
-
-        // Allow ALL status filter
-        if (TripEnum.ALL.name().equalsIgnoreCase(status)) {
-            return TripEnum.ALL.name();
-        }
-
-        TripEnum statusEnum;
-
-        // Convert string status into TripEnum
-        try {
-            statusEnum = TripEnum.valueOf(status.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(TRIP_STATUS_INVALID, TRIP.name());
-        }
-
-        // Make sure the enum belongs to STATUS group
-        if (statusEnum.getGroup() != TripEnum.Group.STATUS) {
-            throw new BusinessException(TRIP_STATUS_INVALID, TRIP.name());
-        }
-
-        return statusEnum.name();
-    }
-
-    private TripEnum resolveSortOption(TripEnum sort) {
-        // Default sort is recently updated first
-        if (sort == null) {
-            return TripEnum.MODIFIED_DATE_DESC;
-        }
-
-        // Allow only sort enums
-        if (sort.getGroup() == TripEnum.Group.SORT) {
-            return sort;
-        }
-
-        throw new BusinessException(INVALID_INPUT, COMMON.name());
-    }
-
     private TripEnum resolveTripStatus(TripEntity trip) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -657,7 +582,7 @@ public class TripServiceImpl implements TripService {
     private List<TripResponseDTO> applyTripFiltersAndSort(
             List<TripResponseDTO> trips,
             TripEnum ownership,
-            String status,
+            TripEnum status,
             TripEnum sort
     ) {
         Stream<TripResponseDTO> stream = trips.stream();
@@ -678,12 +603,11 @@ public class TripServiceImpl implements TripService {
         }
 
         // Filter trips by status
-        if (status != null && !status.equalsIgnoreCase(TripEnum.ALL.name())) {
+        if (status != null && !status.name().equalsIgnoreCase(TripEnum.ALL.name())) {
             TripEnum statusEnum;
 
             try {
-                statusEnum = TripEnum.valueOf(status.toUpperCase());
-            } catch (IllegalArgumentException e) {
+                statusEnum = TripEnum.valueOf(status.name());           } catch (IllegalArgumentException e) {
                 throw new BusinessException(TRIP_STATUS_INVALID, TRIP.name());
             }
 

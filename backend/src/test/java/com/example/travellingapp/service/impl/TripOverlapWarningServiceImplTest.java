@@ -6,6 +6,7 @@ import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.enums.ErrorCodeEnum;
 import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
+import com.example.travellingapp.mapper.TripOverlapWarningMapper;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
@@ -43,6 +44,9 @@ class TripOverlapWarningServiceImplTest {
     @Mock
     private TripAccessService tripAccessService;
 
+    @Mock
+    private TripOverlapWarningMapper tripOverlapWarningMapper;
+
     private TripOverlapWarningServiceImpl tripOverlapWarningService;
 
     private static final Long CURRENT_TRIP_ID = 1L;
@@ -55,7 +59,8 @@ class TripOverlapWarningServiceImplTest {
                 tripMemberRepository,
                 errorCodeRepository,
                 authenticatedUserProvider,
-                tripAccessService
+                tripAccessService,
+                tripOverlapWarningMapper
         );
     }
 
@@ -82,13 +87,17 @@ class TripOverlapWarningServiceImplTest {
 
         assertThat(body).isEmpty();
 
-        verify(tripMemberRepository, never()).findOverlappingTripsForMember(anyString(), anyLong(), any(), any());
+        verify(tripMemberRepository, never())
+                .findOverlappingTripsForMember(anyString(), anyLong(), any(), any());
+
+        verifyNoInteractions(tripOverlapWarningMapper);
     }
 
     @Test
     void getOverlapWarnings_shouldReturnWarnings_whenCurrentUserIsEditorAndHasOverlap() {
         TripEntity currentTrip = currentTrip();
         TripEntity overlappingTrip = overlappingTrip();
+        MyTripOverlapWarningDTO warningDTO = warningDTO();
 
         mockErrorCode(TRIP_OVERLAP_WARNINGS_RETRIEVED_SUCCESS, TRIP_MEMBER.name());
 
@@ -97,12 +106,16 @@ class TripOverlapWarningServiceImplTest {
                 .thenReturn(currentTrip);
         when(tripAccessService.getUserRole(CURRENT_TRIP_ID, MEMBER_USERNAME))
                 .thenReturn(TripEnum.EDITOR);
+
         when(tripMemberRepository.findOverlappingTripsForMember(
                 MEMBER_USERNAME,
                 CURRENT_TRIP_ID,
                 currentTrip.getStartDate(),
                 currentTrip.getEndDate()
         )).thenReturn(List.of(overlappingTrip));
+
+        when(tripOverlapWarningMapper.toWarningDTO(currentTrip, overlappingTrip))
+                .thenReturn(warningDTO);
 
         CompleteResponse<Object> response = tripOverlapWarningService.getOverlapWarnings(CURRENT_TRIP_ID);
 
@@ -111,14 +124,12 @@ class TripOverlapWarningServiceImplTest {
                 (List<MyTripOverlapWarningDTO>) response.getResponseBody().getBody();
 
         assertThat(body).hasSize(1);
+        assertThat(body.get(0)).isEqualTo(warningDTO);
         assertThat(body.get(0).getCurrentTripId()).isEqualTo(CURRENT_TRIP_ID);
         assertThat(body.get(0).getOverlappingTripId()).isEqualTo(2L);
         assertThat(body.get(0).getOverlappingTripName()).isEqualTo("Melbourne Trip");
-        assertThat(body.get(0).getOverlapStartDate())
-                .isEqualTo(LocalDateTime.of(2026, 7, 12, 9, 0));
-        assertThat(body.get(0).getOverlapEndDate())
-                .isEqualTo(LocalDateTime.of(2026, 7, 15, 18, 0));
-        assertThat(body.get(0).getMessage()).contains("Melbourne Trip");
+
+        verify(tripOverlapWarningMapper).toWarningDTO(currentTrip, overlappingTrip);
     }
 
     @Test
@@ -131,6 +142,9 @@ class TripOverlapWarningServiceImplTest {
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
 
         verifyNoInteractions(authenticatedUserProvider);
+        verifyNoInteractions(tripAccessService);
+        verifyNoInteractions(tripMemberRepository);
+        verifyNoInteractions(tripOverlapWarningMapper);
     }
 
     @Test
@@ -145,12 +159,16 @@ class TripOverlapWarningServiceImplTest {
         );
 
         assertBusinessException(exception, TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
+
+        verifyNoInteractions(tripMemberRepository);
+        verifyNoInteractions(tripOverlapWarningMapper);
     }
 
     @Test
-    void buildWarningsForUser_shouldCalculateActualOverlapRange() {
+    void buildWarningsForUser_shouldMapOverlappingTripsThroughMapper() {
         TripEntity currentTrip = currentTrip();
         TripEntity overlappingTrip = overlappingTrip();
+        MyTripOverlapWarningDTO warningDTO = warningDTO();
 
         when(tripMemberRepository.findOverlappingTripsForMember(
                 MEMBER_USERNAME,
@@ -159,14 +177,52 @@ class TripOverlapWarningServiceImplTest {
                 currentTrip.getEndDate()
         )).thenReturn(List.of(overlappingTrip));
 
+        when(tripOverlapWarningMapper.toWarningDTO(currentTrip, overlappingTrip))
+                .thenReturn(warningDTO);
+
         List<MyTripOverlapWarningDTO> warnings =
                 tripOverlapWarningService.buildWarningsForUser(currentTrip, MEMBER_USERNAME);
 
         assertThat(warnings).hasSize(1);
-        assertThat(warnings.get(0).getOverlapStartDate())
-                .isEqualTo(LocalDateTime.of(2026, 7, 12, 9, 0));
-        assertThat(warnings.get(0).getOverlapEndDate())
-                .isEqualTo(LocalDateTime.of(2026, 7, 15, 18, 0));
+        assertThat(warnings.get(0)).isEqualTo(warningDTO);
+
+        verify(tripMemberRepository).findOverlappingTripsForMember(
+                MEMBER_USERNAME,
+                CURRENT_TRIP_ID,
+                currentTrip.getStartDate(),
+                currentTrip.getEndDate()
+        );
+
+        verify(tripOverlapWarningMapper).toWarningDTO(currentTrip, overlappingTrip);
+    }
+
+    @Test
+    void buildWarningsForUser_shouldThrowInvalidInput_whenCurrentTripIsNull() {
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> tripOverlapWarningService.buildWarningsForUser(null, MEMBER_USERNAME)
+        );
+
+        assertBusinessException(exception, INVALID_INPUT, COMMON.name());
+
+        verifyNoInteractions(tripMemberRepository);
+        verifyNoInteractions(tripOverlapWarningMapper);
+    }
+
+    @Test
+    void buildWarningsForUser_shouldThrowInvalidInput_whenCurrentTripIdIsNull() {
+        TripEntity trip = currentTrip();
+        trip.setTripId(null);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> tripOverlapWarningService.buildWarningsForUser(trip, MEMBER_USERNAME)
+        );
+
+        assertBusinessException(exception, INVALID_INPUT, COMMON.name());
+
+        verifyNoInteractions(tripMemberRepository);
+        verifyNoInteractions(tripOverlapWarningMapper);
     }
 
     @Test
@@ -177,6 +233,9 @@ class TripOverlapWarningServiceImplTest {
         );
 
         assertBusinessException(exception, INVALID_INPUT, COMMON.name());
+
+        verifyNoInteractions(tripMemberRepository);
+        verifyNoInteractions(tripOverlapWarningMapper);
     }
 
     private TripEntity currentTrip() {
@@ -195,6 +254,18 @@ class TripOverlapWarningServiceImplTest {
         trip.setStartDate(LocalDateTime.of(2026, 7, 12, 9, 0));
         trip.setEndDate(LocalDateTime.of(2026, 7, 18, 18, 0));
         return trip;
+    }
+
+    private MyTripOverlapWarningDTO warningDTO() {
+        MyTripOverlapWarningDTO dto = new MyTripOverlapWarningDTO();
+        dto.setCurrentTripId(CURRENT_TRIP_ID);
+        dto.setCurrentTripName("Adelaide Trip");
+        dto.setOverlappingTripId(2L);
+        dto.setOverlappingTripName("Melbourne Trip");
+        dto.setOverlapStartDate(LocalDateTime.of(2026, 7, 12, 9, 0));
+        dto.setOverlapEndDate(LocalDateTime.of(2026, 7, 15, 18, 0));
+        dto.setMessage("This trip overlaps with Melbourne Trip.");
+        return dto;
     }
 
     private void mockErrorCode(ErrorCodeEnum errorCodeEnum, String flow) {

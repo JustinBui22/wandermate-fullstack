@@ -20,16 +20,9 @@ public class DestinationControllerImpl implements DestinationController {
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> createDestination(
-            Long tripId,
-            CreateDestinationDTO destinationDTO
-    ) {
+    public ResponseEntity<ResponseBody<Object>> createDestination(Long tripId, CreateDestinationDTO destinationDTO) {
         CompleteResponse<Object> response = destinationService.createDestination(tripId, destinationDTO);
-
-        return new ResponseEntity<>(
-                response.getResponseBody(),
-                HttpStatus.valueOf(response.getHttpCode())
-        );
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 
     @Override

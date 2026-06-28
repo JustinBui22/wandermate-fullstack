@@ -3,9 +3,12 @@ package com.example.travellingapp.service.impl;
 import com.example.travellingapp.dto.request.ForgotPasswordDTO;
 import com.example.travellingapp.dto.request.LoginDTO;
 import com.example.travellingapp.dto.request.OtpDTO;
+import com.example.travellingapp.dto.request.update.UpdateUserProfileDTO;
+import com.example.travellingapp.dto.request.update.UpdateUserSettingsDTO;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.enums.ErrorCodeEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
+import com.example.travellingapp.mapper.UserMapper;
 import com.example.travellingapp.repository.ConfigurationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
@@ -23,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -44,9 +48,10 @@ public class UserServiceImpl implements UserService {
     private final OtpServiceImpl otpServiceImpl;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final UserValidator userValidator;
+    private final UserMapper userMapper;
 
 
-    public UserServiceImpl(UserRepository userRepository, ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, TokenService tokenService, PasswordEncoder passwordEncoder, OtpServiceImpl otpServiceImpl, AuthenticatedUserProvider authenticatedUserProvider, UserValidator userValidator) {
+    public UserServiceImpl(UserRepository userRepository, ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, TokenService tokenService, PasswordEncoder passwordEncoder, OtpServiceImpl otpServiceImpl, AuthenticatedUserProvider authenticatedUserProvider, UserValidator userValidator, UserMapper userMapper) {
         this.userRepository = userRepository;
         this.configurationRepository = configurationRepository;
         this.errorCodeRepository = errorCodeRepository;
@@ -55,6 +60,7 @@ public class UserServiceImpl implements UserService {
         this.otpServiceImpl = otpServiceImpl;
         this.authenticatedUserProvider = authenticatedUserProvider;
         this.userValidator = userValidator;
+        this.userMapper = userMapper;
     }
 
     @Transactional
@@ -258,5 +264,84 @@ public class UserServiceImpl implements UserService {
             log.error("There has been an error in logging out user {}!", username, e);
             throw new BusinessException(INTERNAL_SERVER_ERROR, LOGOUT.name());
         }
+    }
+
+    @Override
+    public CompleteResponse<Object> getMyProfile() {
+        try {
+            User user = getCurrentActiveUser();
+
+            return getCompleteResponse(
+                    errorCodeRepository,
+                    SEARCH_INFO_SUCCESS,
+                    COMMON.name(),
+                    userMapper.toProfileResponseDTO(user)
+            );
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("There has been an error in retrieving the current user's profile!", e);
+            throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
+        }
+    }
+
+    @Transactional
+    @Override
+    public CompleteResponse<Object> updateMyProfile(UpdateUserProfileDTO updateUserProfileDTO) {
+        try {
+            User user = getCurrentActiveUser();
+
+            LocalDate parsedDob = userValidator.validateUpdateProfileInput(updateUserProfileDTO, user);
+
+            userMapper.updateProfileEntity(user, updateUserProfileDTO, parsedDob);
+            user.setModifiedDate(LocalDateTime.now());
+
+            User savedUser = userRepository.save(user);
+
+            return getCompleteResponse(
+                    errorCodeRepository,
+                    SEARCH_INFO_SUCCESS,
+                    COMMON.name(),
+                    userMapper.toProfileResponseDTO(savedUser)
+            );
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("There has been an error in updating the current user's profile!", e);
+            throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
+        }
+    }
+
+    @Transactional
+    @Override
+    public CompleteResponse<Object> updateMySettings(UpdateUserSettingsDTO updateUserSettingsDTO) {
+        try {
+            User user = getCurrentActiveUser();
+
+            userValidator.validateUpdateSettingsInput(updateUserSettingsDTO);
+
+            userMapper.updateSettingsEntity(user, updateUserSettingsDTO);
+            user.setModifiedDate(LocalDateTime.now());
+
+            User savedUser = userRepository.save(user);
+
+            return getCompleteResponse(
+                    errorCodeRepository,
+                    SEARCH_INFO_SUCCESS,
+                    COMMON.name(),
+                    userMapper.toProfileResponseDTO(savedUser)
+            );
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("There has been an error in updating the current user's settings!", e);
+            throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
+        }
+    }
+
+    private User getCurrentActiveUser() {
+        String username = authenticatedUserProvider.getUsername();
+        return userRepository.findByUsernameAndActive(username)
+                .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
     }
 }

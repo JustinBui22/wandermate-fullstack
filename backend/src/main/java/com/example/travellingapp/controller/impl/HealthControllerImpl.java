@@ -13,9 +13,6 @@ public class HealthControllerImpl implements HealthController {
 
     @Override
     public ResponseEntity<Map<String, String>> health() {
-        return ResponseEntity.ok(Map.of(
-                "status", "UP",
-                "service", "WanderMate backend"
-        ));
+        return ResponseEntity.ok(Map.of("status", "UP", "service", "WanderMate backend"));
     }
 }

@@ -13,9 +13,6 @@ import java.time.LocalDateTime;
 
 @Component
 public class TripShareCodeMapper {
-
-    private static final String INVITE_LINK_PREFIX = "wandermate://join-trip?code=";
-
     public TripShareCodeEntity toNewShareCodeEntity(
             TripEntity trip,
             String code,
@@ -54,12 +51,12 @@ public class TripShareCodeMapper {
         );
     }
 
-    public TripShareCodeResponseDTO toResponseDTO(TripShareCodeEntity shareCode) {
+    public TripShareCodeResponseDTO toResponseDTO(TripShareCodeEntity shareCode, String inviteLink) {
         return new TripShareCodeResponseDTO(
                 shareCode.getTrip().getTripId(),
                 shareCode.getTrip().getTripName(),
                 shareCode.getCode(),
-                buildInviteLink(shareCode.getCode()),
+                inviteLink + shareCode.getCode() ,
                 shareCode.getDefaultRole(),
                 shareCode.getCodeStatus(),
                 shareCode.getExpiresAt(),
@@ -80,9 +77,5 @@ public class TripShareCodeMapper {
                 shareCode.getDefaultRole(),
                 shareCode.getExpiresAt()
         );
-    }
-
-    private String buildInviteLink(String code) {
-        return INVITE_LINK_PREFIX + code;
     }
 }

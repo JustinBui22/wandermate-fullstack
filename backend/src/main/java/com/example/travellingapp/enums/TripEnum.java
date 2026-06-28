@@ -37,18 +37,7 @@ public enum TripEnum {
     EXPIRED("EXPIRED", "Trip share code has expired", Group.SHARE_CODE_STATUS),
     REVOKED("REVOKED", "Trip share code has been revoked", Group.SHARE_CODE_STATUS),
 
-
-
-
-
-
-
     ;
-
-
-
-
-
     private final String code;
     private final String description;
     private final Group group;

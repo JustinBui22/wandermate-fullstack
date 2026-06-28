@@ -4,11 +4,16 @@ import com.example.travellingapp.dto.request.ForgotPasswordDTO;
 import com.example.travellingapp.dto.request.LoginDTO;
 import com.example.travellingapp.dto.request.OtpDTO;
 import com.example.travellingapp.dto.request.create.CreateUserDTO;
+import com.example.travellingapp.dto.request.update.UpdateUserProfileDTO;
+import com.example.travellingapp.dto.request.update.UpdateUserSettingsDTO;
+import com.example.travellingapp.dto.response.UserProfileResponseDTO;
 import com.example.travellingapp.entity.ConfigurationEntity;
 import com.example.travellingapp.entity.ErrorCodeEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.enums.ErrorCodeEnum;
+import com.example.travellingapp.enums.UserSettingEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
+import com.example.travellingapp.mapper.UserMapper;
 import com.example.travellingapp.repository.ConfigurationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.UserRepository;
@@ -30,6 +35,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Method;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -69,6 +75,9 @@ class UserServiceImplTest {
     @Mock
     private UserValidator userValidator;
 
+    @Mock
+    private UserMapper userMapper;
+
     private UserServiceImpl userService;
 
     @BeforeEach
@@ -81,7 +90,8 @@ class UserServiceImplTest {
                 passwordEncoder,
                 otpServiceImpl,
                 authenticatedUserProvider,
-                userValidator
+                userValidator,
+                userMapper
         );
     }
 
@@ -220,7 +230,6 @@ class UserServiceImplTest {
     // -------------------------------------------------------------------------
     // createNewUser()
     // -------------------------------------------------------------------------
-
 
     @Test
     void createNewUser_shouldRethrowBusinessExceptionFromValidator_whenPasswordIsWeak() {
@@ -432,7 +441,6 @@ class UserServiceImplTest {
         verify(userRepository, never()).save(any(User.class));
     }
 
-
     @Test
     void createNewUser_shouldWrapSaveFailureAsInternalServerError_afterOtpVerificationSucceeds() {
         CreateUserDTO request = validRegisterRequest();
@@ -469,7 +477,6 @@ class UserServiceImplTest {
     // -------------------------------------------------------------------------
     // forgotPassword()
     // -------------------------------------------------------------------------
-
 
     @Test
     void forgotPassword_shouldThrowPasswordNotQualified_whenNewPasswordIsWeak() {
@@ -979,8 +986,308 @@ class UserServiceImplTest {
     }
 
     // -------------------------------------------------------------------------
+    // getMyProfile()
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getMyProfile_shouldReturnProfile_whenCurrentUserExists() {
+        User user = profileUser();
+        UserProfileResponseDTO responseDTO = profileResponseDTO(user);
+
+        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+        when(userMapper.toProfileResponseDTO(user)).thenReturn(responseDTO);
+
+        CompleteResponse<Object> response = userService.getMyProfile();
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
+        assertThat(response.getResponseBody().getBody()).isEqualTo(responseDTO);
+
+        verify(authenticatedUserProvider).getUsername();
+        verify(userRepository).findByUsernameAndActive(user.getUsername());
+        verify(userMapper).toProfileResponseDTO(user);
+    }
+
+    @Test
+    void getMyProfile_shouldThrowUserNotFound_whenCurrentUserDoesNotExist() {
+        when(authenticatedUserProvider.getUsername()).thenReturn("missingUser");
+        when(userRepository.findByUsernameAndActive("missingUser"))
+                .thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.getMyProfile()
+        );
+
+        assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
+
+        verifyNoInteractions(userMapper);
+    }
+
+    @Test
+    void getMyProfile_shouldWrapUnexpectedExceptionAsInternalServerError() {
+        when(authenticatedUserProvider.getUsername()).thenReturn("JustinBo123");
+        when(userRepository.findByUsernameAndActive("JustinBo123"))
+                .thenThrow(new RuntimeException("Database unavailable"));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.getMyProfile()
+        );
+
+        assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());
+
+        verifyNoInteractions(userMapper);
+    }
+
+    // -------------------------------------------------------------------------
+    // updateMyProfile()
+    // -------------------------------------------------------------------------
+
+    @Test
+    void updateMyProfile_shouldValidateMapSaveAndReturnProfile_whenInputIsValid() {
+        User user = profileUser();
+
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setDisplayName("Justin Bui");
+        request.setPhoneNumber("0412345678");
+        request.setDob("1999-08-16");
+        request.setProfileImageUrl("https://example.com/avatar.png");
+
+        LocalDate parsedDob = LocalDate.of(1999, 8, 16);
+        UserProfileResponseDTO responseDTO = profileResponseDTO(user);
+
+        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+        when(userValidator.validateUpdateProfileInput(request, user))
+                .thenReturn(parsedDob);
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toProfileResponseDTO(user)).thenReturn(responseDTO);
+
+        CompleteResponse<Object> response = userService.updateMyProfile(request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
+        assertThat(response.getResponseBody().getBody()).isEqualTo(responseDTO);
+        assertThat(user.getModifiedDate()).isNotNull();
+
+        verify(userValidator).validateUpdateProfileInput(request, user);
+        verify(userMapper).updateProfileEntity(user, request, parsedDob);
+        verify(userRepository).save(user);
+        verify(userMapper).toProfileResponseDTO(user);
+    }
+
+    @Test
+    void updateMyProfile_shouldThrowUserNotFound_whenCurrentUserDoesNotExist() {
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+
+        when(authenticatedUserProvider.getUsername()).thenReturn("missingUser");
+        when(userRepository.findByUsernameAndActive("missingUser"))
+                .thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.updateMyProfile(request)
+        );
+
+        assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
+
+        verifyNoInteractions(userValidator);
+        verifyNoInteractions(userMapper);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateMyProfile_shouldRethrowBusinessExceptionFromValidator() {
+        User user = profileUser();
+
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setPhoneNumber("0412345678");
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+        when(userValidator.validateUpdateProfileInput(request, user))
+                .thenThrow(new BusinessException(PHONE_NUMBER_TAKEN, REGISTER.name()));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.updateMyProfile(request)
+        );
+
+        assertBusinessException(exception, PHONE_NUMBER_TAKEN, REGISTER.name());
+
+        verify(userMapper, never()).updateProfileEntity(any(User.class), any(UpdateUserProfileDTO.class), any());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateMyProfile_shouldWrapUnexpectedExceptionAsInternalServerError() {
+        User user = profileUser();
+
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setDisplayName("Justin Bui");
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+        when(userValidator.validateUpdateProfileInput(request, user))
+                .thenReturn(null);
+        doThrow(new RuntimeException("Mapper failed"))
+                .when(userMapper)
+                .updateProfileEntity(user, request, null);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.updateMyProfile(request)
+        );
+
+        assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    // -------------------------------------------------------------------------
+    // updateMySettings()
+    // -------------------------------------------------------------------------
+
+    @Test
+    void updateMySettings_shouldValidateMapSaveAndReturnProfile_whenInputIsValid() {
+        User user = profileUser();
+
+        UpdateUserSettingsDTO request = new UpdateUserSettingsDTO();
+        request.setPreferredTheme(UserSettingEnum.DARK);
+
+        UserProfileResponseDTO responseDTO = profileResponseDTO(user);
+
+        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toProfileResponseDTO(user)).thenReturn(responseDTO);
+
+        CompleteResponse<Object> response = userService.updateMySettings(request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
+        assertThat(response.getResponseBody().getBody()).isEqualTo(responseDTO);
+        assertThat(user.getModifiedDate()).isNotNull();
+
+        verify(userValidator).validateUpdateSettingsInput(request);
+        verify(userMapper).updateSettingsEntity(user, request);
+        verify(userRepository).save(user);
+        verify(userMapper).toProfileResponseDTO(user);
+    }
+
+    @Test
+    void updateMySettings_shouldThrowUserNotFound_whenCurrentUserDoesNotExist() {
+        UpdateUserSettingsDTO request = new UpdateUserSettingsDTO();
+        request.setPreferredTheme(UserSettingEnum.DARK);
+
+        when(authenticatedUserProvider.getUsername()).thenReturn("missingUser");
+        when(userRepository.findByUsernameAndActive("missingUser"))
+                .thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.updateMySettings(request)
+        );
+
+        assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
+
+        verifyNoInteractions(userValidator);
+        verifyNoInteractions(userMapper);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateMySettings_shouldRethrowBusinessExceptionFromValidator() {
+        User user = profileUser();
+
+        UpdateUserSettingsDTO request = new UpdateUserSettingsDTO();
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+
+        doThrow(new BusinessException(INVALID_INPUT, COMMON.name()))
+                .when(userValidator)
+                .validateUpdateSettingsInput(request);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.updateMySettings(request)
+        );
+
+        assertBusinessException(exception, INVALID_INPUT, COMMON.name());
+
+        verify(userMapper, never()).updateSettingsEntity(any(User.class), any(UpdateUserSettingsDTO.class));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateMySettings_shouldWrapUnexpectedExceptionAsInternalServerError() {
+        User user = profileUser();
+
+        UpdateUserSettingsDTO request = new UpdateUserSettingsDTO();
+        request.setPreferredTheme(UserSettingEnum.LIGHT);
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+
+        doThrow(new RuntimeException("Mapper failed"))
+                .when(userMapper)
+                .updateSettingsEntity(user, request);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.updateMySettings(request)
+        );
+
+        assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private User profileUser() {
+        User user = activeUser("JustinBo123");
+        user.setUserId(1L);
+        user.setDisplayName("Justin Bui");
+        user.setDob(LocalDate.of(1999, 8, 16));
+        user.setCreatedDate(LocalDateTime.of(2026, 1, 1, 9, 0));
+        user.setPreferredTheme(UserSettingEnum.SYSTEM);
+        user.setProfileImageUrl("https://example.com/avatar.png");
+        return user;
+    }
+
+    private UserProfileResponseDTO profileResponseDTO(User user) {
+        UserProfileResponseDTO responseDTO = new UserProfileResponseDTO();
+        responseDTO.setUserId(user.getUserId());
+        responseDTO.setUsername(user.getUsername());
+        responseDTO.setDisplayName(user.getDisplayName());
+        responseDTO.setEmail(user.getEmail());
+        responseDTO.setPhoneNumber(user.getPhoneNumber());
+        responseDTO.setDob(user.getDob());
+        responseDTO.setPreferredTheme(user.getPreferredTheme());
+        responseDTO.setProfileImageUrl(user.getProfileImageUrl());
+        responseDTO.setCreatedDate(user.getCreatedDate());
+        responseDTO.setModifiedDate(user.getModifiedDate());
+        return responseDTO;
+    }
 
     private CreateUserDTO validRegisterRequest() {
         CreateUserDTO request = new CreateUserDTO();

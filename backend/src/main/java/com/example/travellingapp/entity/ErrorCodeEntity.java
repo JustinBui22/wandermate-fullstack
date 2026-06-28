@@ -7,7 +7,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Error_Codes")
+@Table(name = "error_codes")
 @Getter
 @Setter
 public class ErrorCodeEntity {

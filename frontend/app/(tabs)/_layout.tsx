@@ -1,27 +1,68 @@
-import { type ComponentProps } from "react";
-import { Tabs } from "expo-router";
+import { type ComponentProps, useCallback, useState } from "react";
+import { View } from "react-native";
+import { Tabs, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { colors, fontWeight, radius, shadows, spacing, typography } from "@/src/constants/theme";
+import { getCollaborationSummary } from "@/src/api/tripCollaborationApi";
+import { NotificationBadge } from "@/src/components/ui/NotificationBadge";
+import {
+    colors,
+    fontWeight,
+    radius,
+    shadows,
+    spacing,
+    typography,
+} from "@/src/constants/theme";
 
 type TabIconProps = Readonly<{
     focused: boolean;
     color: ComponentProps<typeof Ionicons>["color"];
     activeIcon: keyof typeof Ionicons.glyphMap;
     inactiveIcon: keyof typeof Ionicons.glyphMap;
+    badgeCount?: number;
 }>;
 
-function TabIcon({ focused, color, activeIcon, inactiveIcon }: TabIconProps) {
+function TabIcon({
+                     focused,
+                     color,
+                     activeIcon,
+                     inactiveIcon,
+                     badgeCount = 0,
+                 }: TabIconProps) {
     return (
-        <Ionicons
-            name={focused ? activeIcon : inactiveIcon}
-            size={24}
-            color={color}
-        />
+        <View style={styles.iconContainer}>
+            <Ionicons
+                name={focused ? activeIcon : inactiveIcon}
+                size={24}
+                color={color}
+            />
+
+            <NotificationBadge count={badgeCount} />
+        </View>
     );
 }
 
 export default function TabLayout() {
+    const [collaborationBadgeCount, setCollaborationBadgeCount] = useState(0);
+
+    const loadCollaborationSummary = useCallback(async () => {
+        try {
+            const summary = await getCollaborationSummary();
+
+            setCollaborationBadgeCount(
+                Math.max(0, summary.totalPendingActionCount ?? 0)
+            );
+        } catch {
+            setCollaborationBadgeCount(0);
+        }
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            void loadCollaborationSummary();
+        }, [loadCollaborationSummary])
+    );
+
     return (
         <Tabs
             screenOptions={{
@@ -90,6 +131,7 @@ export default function TabLayout() {
                             color={color}
                             activeIcon="people"
                             inactiveIcon="people-outline"
+                            badgeCount={collaborationBadgeCount}
                         />
                     ),
                 }}
@@ -97,3 +139,11 @@ export default function TabLayout() {
         </Tabs>
     );
 }
+
+const styles = {
+    iconContainer: {
+        position: "relative" as const,
+        alignItems: "center" as const,
+        justifyContent: "center" as const,
+    },
+};
