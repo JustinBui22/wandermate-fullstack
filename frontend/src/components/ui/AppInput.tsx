@@ -1,145 +1,114 @@
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
-    StyleProp,
     StyleSheet,
     Text,
     TextInput,
-    TextInputProps,
-    TextStyle,
     View,
-    ViewStyle,
+    type TextInputProps,
 } from "react-native";
 
-import { colors, fontWeight, layout, radius, spacing, typography } from "@/src/constants/theme";
-import { ErrorMessage } from "./ErrorMessage";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 
-type AppInputProps = TextInputProps & {
+type AppInputProps = TextInputProps & Readonly<{
     label?: string;
     helperText?: string;
-    error?: string | null;
-    required?: boolean;
+    errorMessage?: string;
     leftIcon?: ReactNode;
-    rightIcon?: ReactNode;
-    containerStyle?: StyleProp<ViewStyle>;
-    inputContainerStyle?: StyleProp<ViewStyle>;
-    inputStyle?: StyleProp<TextStyle>;
-};
+}>;
 
 export function AppInput({
-    label,
-    helperText,
-    error,
-    required = false,
-    leftIcon,
-    rightIcon,
-    containerStyle,
-    inputContainerStyle,
-    inputStyle,
-    editable = true,
-    multiline = false,
-    placeholderTextColor = colors.textMuted,
-    style,
-    ...textInputProps
-}: AppInputProps) {
+                             label,
+                             helperText,
+                             errorMessage,
+                             leftIcon,
+                             style,
+                             placeholderTextColor,
+                             ...inputProps
+                         }: AppInputProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
-        <View style={[styles.container, containerStyle]}>
+        <View style={styles.wrapper}>
             {label ? (
-                <Text style={styles.label}>
+                <Text style={[styles.label, { color: colors.text }]}>
                     {label}
-                    {required ? <Text style={styles.required}> *</Text> : null}
                 </Text>
             ) : null}
 
             <View
                 style={[
                     styles.inputContainer,
-                    multiline && styles.multilineContainer,
-                    !editable && styles.disabledContainer,
-                    error && styles.errorBorder,
-                    inputContainerStyle,
+                    {
+                        backgroundColor: colors.inputBackground,
+                        borderColor: errorMessage ? colors.danger : colors.border,
+                    },
                 ]}
             >
-                {leftIcon ? <View style={styles.icon}>{leftIcon}</View> : null}
+                {leftIcon ? (
+                    <View style={styles.iconWrapper}>
+                        {leftIcon}
+                    </View>
+                ) : null}
+
                 <TextInput
-                    {...textInputProps}
-                    editable={editable}
-                    multiline={multiline}
-                    placeholderTextColor={placeholderTextColor}
+                    {...inputProps}
                     style={[
                         styles.input,
-                        multiline && styles.multilineInput,
-                        !editable && styles.disabledInput,
-                        inputStyle,
+                        { color: colors.text },
                         style,
                     ]}
+                    placeholderTextColor={placeholderTextColor ?? colors.placeholder}
                 />
-                {rightIcon ? <View style={styles.icon}>{rightIcon}</View> : null}
             </View>
 
-            {error ? (
-                <ErrorMessage message={error} compact />
+            {errorMessage ? (
+                <Text style={[styles.errorText, { color: colors.danger }]}>
+                    {errorMessage}
+                </Text>
             ) : helperText ? (
-                <Text style={styles.helperText}>{helperText}</Text>
+                <Text style={[styles.helperText, { color: colors.textMuted }]}>
+                    {helperText}
+                </Text>
             ) : null}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        gap: spacing.sm,
+    wrapper: {
+        gap: spacing.xs,
     },
     label: {
-        color: colors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.semibold,
     },
-    required: {
-        color: colors.danger,
-    },
     inputContainer: {
-        minHeight: layout.inputHeight,
+        minHeight: 48,
         borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: radius.md,
-        backgroundColor: colors.surface,
+        borderRadius: radius.lg,
+        paddingHorizontal: spacing.md,
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: spacing.md,
         gap: spacing.sm,
     },
-    multilineContainer: {
-        minHeight: 112,
-        alignItems: "flex-start",
-        paddingVertical: spacing.sm,
-    },
-    errorBorder: {
-        borderColor: colors.danger,
-    },
-    disabledContainer: {
-        backgroundColor: colors.surfaceSoft,
-    },
-    input: {
-        flex: 1,
-        color: colors.text,
-        fontSize: typography.body,
-        paddingVertical: spacing.sm,
-    },
-    multilineInput: {
-        minHeight: 92,
-        textAlignVertical: "top",
-    },
-    disabledInput: {
-        color: colors.textMuted,
-    },
-    icon: {
-        minWidth: 24,
+    iconWrapper: {
         alignItems: "center",
         justifyContent: "center",
     },
+    input: {
+        flex: 1,
+        fontSize: typography.body,
+        paddingVertical: spacing.sm,
+    },
     helperText: {
-        color: colors.textMuted,
         fontSize: typography.caption,
+        lineHeight: 18,
+    },
+    errorText: {
+        fontSize: typography.caption,
+        fontWeight: fontWeight.semibold,
         lineHeight: 18,
     },
 });

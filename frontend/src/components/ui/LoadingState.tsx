@@ -1,28 +1,36 @@
-import { ActivityIndicator, StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { colors, fontWeight, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 
-type LoadingStateProps = {
+type LoadingStateProps = Readonly<{
     title?: string;
     subtitle?: string;
     fullScreen?: boolean;
-    style?: StyleProp<ViewStyle>;
-    testID?: string;
-};
+}>;
 
 export function LoadingState({
-    title = "Loading...",
-    subtitle,
-    fullScreen = false,
-    style,
-    testID,
-}: LoadingStateProps) {
+                                 title = "Loading...",
+                                 subtitle,
+                                 fullScreen = false,
+                             }: LoadingStateProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
-        <View style={[styles.container, fullScreen && styles.fullScreen, style]} testID={testID}>
-            <ActivityIndicator color={colors.primary} size="large" />
-            <View style={styles.textContainer}>
-                <Text style={styles.title}>{title}</Text>
-                {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <View style={[styles.container, fullScreen && styles.fullScreen]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+
+            <View style={styles.textGroup}>
+                <Text style={[styles.title, { color: colors.text }]}>
+                    {title}
+                </Text>
+
+                {subtitle ? (
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                        {subtitle}
+                    </Text>
+                ) : null}
             </View>
         </View>
     );
@@ -33,24 +41,19 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         gap: spacing.md,
-        padding: spacing.xl,
     },
     fullScreen: {
         flex: 1,
-        minHeight: 360,
     },
-    textContainer: {
+    textGroup: {
         alignItems: "center",
         gap: spacing.xs,
     },
     title: {
-        color: colors.text,
         fontSize: typography.body,
-        fontWeight: fontWeight.semibold,
-        textAlign: "center",
+        fontWeight: fontWeight.bold,
     },
     subtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         textAlign: "center",
         lineHeight: 20,

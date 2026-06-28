@@ -1,123 +1,124 @@
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
     Pressable,
-    StyleProp,
     StyleSheet,
     Text,
     View,
-    ViewStyle,
+    type StyleProp,
+    type ViewStyle,
 } from "react-native";
 
-import { colors, fontWeight, radius, shadows, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, shadow, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 
-type AppCardVariant = "default" | "soft" | "outline";
-
-type AppCardProps = {
+type AppCardProps = Readonly<{
     children?: ReactNode;
     title?: string;
     subtitle?: string;
     footer?: ReactNode;
-    variant?: AppCardVariant;
     onPress?: () => void;
     style?: StyleProp<ViewStyle>;
     contentStyle?: StyleProp<ViewStyle>;
-    testID?: string;
-};
+}>;
 
 export function AppCard({
-    children,
-    title,
-    subtitle,
-    footer,
-    variant = "default",
-    onPress,
-    style,
-    contentStyle,
-    testID,
-}: AppCardProps) {
-    const content = (
-        <View style={[styles.content, contentStyle]}>
-            {(title || subtitle) && (
+                            children,
+                            title,
+                            subtitle,
+                            footer,
+                            onPress,
+                            style,
+                            contentStyle,
+                        }: AppCardProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
+    const cardContent = (
+        <>
+            {(title || subtitle) ? (
                 <View style={styles.header}>
-                    {title ? <Text style={styles.title}>{title}</Text> : null}
-                    {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                    {title ? (
+                        <Text style={[styles.title, { color: colors.text }]}>
+                            {title}
+                        </Text>
+                    ) : null}
+
+                    {subtitle ? (
+                        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                            {subtitle}
+                        </Text>
+                    ) : null}
                 </View>
-            )}
+            ) : null}
 
-            {children}
+            {children ? (
+                <View style={contentStyle}>
+                    {children}
+                </View>
+            ) : null}
 
-            {footer ? <View style={styles.footer}>{footer}</View> : null}
-        </View>
+            {footer ? (
+                <View style={styles.footer}>
+                    {footer}
+                </View>
+            ) : null}
+        </>
     );
+
+    const cardStyle = [
+        styles.card,
+        {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+        },
+        style,
+    ];
 
     if (onPress) {
         return (
             <Pressable
-                accessibilityRole="button"
                 onPress={onPress}
                 style={({ pressed }) => [
-                    styles.base,
-                    styles[variant],
+                    cardStyle,
                     pressed && styles.pressed,
-                    style,
                 ]}
-                testID={testID}
             >
-                {content}
+                {cardContent}
             </Pressable>
         );
     }
 
     return (
-        <View style={[styles.base, styles[variant], style]} testID={testID}>
-            {content}
+        <View style={cardStyle}>
+            {cardContent}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    base: {
-        borderRadius: radius.lg,
-        overflow: "hidden",
-    },
-    default: {
-        backgroundColor: colors.surface,
-        ...shadows.card,
-    },
-    soft: {
-        backgroundColor: colors.surfaceSoft,
+    card: {
         borderWidth: 1,
-        borderColor: colors.border,
-    },
-    outline: {
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    pressed: {
-        opacity: 0.88,
-        transform: [{ scale: 0.995 }],
-    },
-    content: {
+        borderRadius: radius.xl,
         padding: spacing.lg,
         gap: spacing.md,
+        ...shadow.card,
+    },
+    pressed: {
+        opacity: 0.9,
+        transform: [{ scale: 0.995 }],
     },
     header: {
         gap: spacing.xs,
     },
     title: {
-        color: colors.text,
-        fontSize: typography.title,
+        fontSize: typography.subheading,
         fontWeight: fontWeight.bold,
     },
     subtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
     footer: {
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
-        paddingTop: spacing.md,
+        marginTop: spacing.sm,
     },
 });

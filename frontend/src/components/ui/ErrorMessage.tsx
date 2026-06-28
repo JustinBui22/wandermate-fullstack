@@ -1,59 +1,66 @@
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 
-type ErrorMessageProps = {
-    message?: string | string[] | null;
+type ErrorMessageProps = Readonly<{
+    message?: string | null;
     title?: string;
-    compact?: boolean;
-    style?: StyleProp<ViewStyle>;
-    testID?: string;
-};
+}>;
 
 export function ErrorMessage({
-    message,
-    title = "Something went wrong",
-    compact = false,
-    style,
-    testID,
-}: ErrorMessageProps) {
-    if (!message || (Array.isArray(message) && message.length === 0)) {
+                                 message,
+                                 title = "Something went wrong",
+                             }: ErrorMessageProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
+    if (!message) {
         return null;
     }
 
-    const messages = Array.isArray(message) ? message : [message];
-
     return (
-        <View style={[styles.container, compact && styles.compact, style]} testID={testID}>
-            {!compact ? <Text style={styles.title}>{title}</Text> : null}
-            {messages.map((item) => (
-                <Text key={item} style={styles.message}>
-                    {item}
+        <View
+            style={[
+                styles.container,
+                {
+                    backgroundColor: colors.dangerSoft,
+                    borderColor: colors.danger,
+                },
+            ]}
+        >
+            <Ionicons name="alert-circle-outline" size={22} color={colors.danger} />
+
+            <View style={styles.textGroup}>
+                <Text style={[styles.title, { color: colors.danger }]}>
+                    {title}
                 </Text>
-            ))}
+                <Text style={[styles.message, { color: colors.text }]}>
+                    {message}
+                </Text>
+            </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: colors.dangerSoft,
-        borderColor: colors.danger,
         borderWidth: 1,
-        borderRadius: radius.md,
+        borderRadius: radius.lg,
         padding: spacing.md,
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    textGroup: {
+        flex: 1,
         gap: spacing.xs,
     },
-    compact: {
-        paddingVertical: spacing.sm,
-    },
     title: {
-        color: colors.danger,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
     message: {
-        color: colors.danger,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },

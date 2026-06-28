@@ -6,13 +6,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { getCollaborationSummary } from "@/src/api/tripCollaborationApi";
 import { NotificationBadge } from "@/src/components/ui/NotificationBadge";
 import {
-    colors,
     fontWeight,
     radius,
     shadows,
     spacing,
     typography,
 } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 
 type TabIconProps = Readonly<{
     focused: boolean;
@@ -45,6 +45,9 @@ function TabIcon({
 export default function TabLayout() {
     const [collaborationBadgeCount, setCollaborationBadgeCount] = useState(0);
 
+    const theme = useAppTheme();
+    const themedColors = theme.colors;
+
     const loadCollaborationSummary = useCallback(async () => {
         try {
             const summary = await getCollaborationSummary();
@@ -67,8 +70,8 @@ export default function TabLayout() {
         <Tabs
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: colors.primary,
-                tabBarInactiveTintColor: colors.textMuted,
+                tabBarActiveTintColor: themedColors.primary,
+                tabBarInactiveTintColor: themedColors.textMuted,
                 tabBarHideOnKeyboard: true,
                 tabBarStyle: {
                     minHeight: 76,
@@ -76,8 +79,8 @@ export default function TabLayout() {
                     paddingBottom: spacing.md,
                     paddingHorizontal: spacing.md,
                     borderTopWidth: 1,
-                    borderTopColor: colors.border,
-                    backgroundColor: colors.surface,
+                    borderTopColor: themedColors.border,
+                    backgroundColor: themedColors.surface,
                     ...shadows.card,
                 },
                 tabBarItemStyle: {
@@ -132,6 +135,21 @@ export default function TabLayout() {
                             activeIcon="people"
                             inactiveIcon="people-outline"
                             badgeCount={collaborationBadgeCount}
+                        />
+                    ),
+                }}
+            />
+
+            <Tabs.Screen
+                name="profile"
+                options={{
+                    title: "Profile",
+                    tabBarIcon: ({ color, focused }) => (
+                        <TabIcon
+                            focused={focused}
+                            color={color}
+                            activeIcon="person-circle"
+                            inactiveIcon="person-circle-outline"
                         />
                     ),
                 }}

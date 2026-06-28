@@ -1,95 +1,86 @@
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    StyleProp,
     StyleSheet,
     View,
-    ViewStyle,
+    type StyleProp,
+    type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
-import { colors, layout, spacing } from "@/src/constants/theme";
+import { spacing } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 
-type AppScreenProps = {
+type AppScreenProps = Readonly<{
     children: ReactNode;
     scroll?: boolean;
-    padded?: boolean;
-    keyboardAvoiding?: boolean;
     centerContent?: boolean;
-    safeAreaStyle?: StyleProp<ViewStyle>;
+    keyboardAvoiding?: boolean;
     contentContainerStyle?: StyleProp<ViewStyle>;
-    style?: StyleProp<ViewStyle>;
-    testID?: string;
-};
+}>;
 
 export function AppScreen({
-    children,
-    scroll = true,
-    padded = true,
-    keyboardAvoiding = false,
-    centerContent = false,
-    safeAreaStyle,
-    contentContainerStyle,
-    style,
-    testID,
-}: AppScreenProps) {
-    const contentStyle = [
-        styles.content,
-        padded && styles.padded,
-        centerContent && styles.centerContent,
-        contentContainerStyle,
-    ];
+                              children,
+                              scroll = true,
+                              centerContent = false,
+                              keyboardAvoiding = false,
+                              contentContainerStyle,
+                          }: AppScreenProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
 
-    const body = scroll ? (
+    const content = scroll ? (
         <ScrollView
-            contentContainerStyle={contentStyle}
+            style={[styles.container, { backgroundColor: colors.background }]}
+            contentContainerStyle={[
+                styles.content,
+                centerContent && styles.centerContent,
+                contentContainerStyle,
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            style={styles.flex}
-            testID={testID}
         >
             {children}
         </ScrollView>
     ) : (
-        <View style={[contentStyle, styles.flex]} testID={testID}>
+        <View
+            style={[
+                styles.container,
+                styles.content,
+                centerContent && styles.centerContent,
+                { backgroundColor: colors.background },
+                contentContainerStyle,
+            ]}
+        >
             {children}
         </View>
     );
 
+    if (!keyboardAvoiding) {
+        return content;
+    }
+
     return (
-        <SafeAreaView style={[styles.safeArea, safeAreaStyle]}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-                enabled={keyboardAvoiding}
-                style={[styles.flex, style]}
-            >
-                {body}
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+        <KeyboardAvoidingView
+            style={[styles.container, { backgroundColor: colors.background }]}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+            {content}
+        </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: colors.background,
-    },
-    flex: {
+    container: {
         flex: 1,
     },
     content: {
-        width: "100%",
-        maxWidth: layout.maxContentWidth,
-        alignSelf: "center",
-        gap: spacing.lg,
-    },
-    padded: {
-        padding: layout.screenPadding,
+        flexGrow: 1,
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.xl,
     },
     centerContent: {
-        flexGrow: 1,
         justifyContent: "center",
     },
 });

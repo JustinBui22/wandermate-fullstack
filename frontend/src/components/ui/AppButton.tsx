@@ -1,146 +1,122 @@
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
     ActivityIndicator,
     Pressable,
-    StyleProp,
     StyleSheet,
     Text,
-    TextStyle,
-    View,
-    ViewStyle,
+    type StyleProp,
+    type ViewStyle,
 } from "react-native";
 
-import { colors, fontWeight, layout, radius, shadows, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 
-type AppButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
-type AppButtonSize = "sm" | "md" | "lg";
+type AppButtonVariant = "primary" | "secondary" | "outline" | "danger" | "ghost";
 
-type AppButtonProps = {
+type AppButtonProps = Readonly<{
     title: string;
     onPress?: () => void;
     variant?: AppButtonVariant;
-    size?: AppButtonSize;
     loading?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
     leftIcon?: ReactNode;
-    rightIcon?: ReactNode;
     style?: StyleProp<ViewStyle>;
-    textStyle?: StyleProp<TextStyle>;
-    testID?: string;
-};
-
-const textVariantStyle: Record<AppButtonVariant, TextStyle> = {
-    primary: { color: colors.textLight },
-    secondary: { color: colors.primaryDark },
-    outline: { color: colors.primaryDark },
-    ghost: { color: colors.primaryDark },
-    danger: { color: colors.textLight },
-};
+}>;
 
 export function AppButton({
-    title,
-    onPress,
-    variant = "primary",
-    size = "md",
-    loading = false,
-    disabled = false,
-    fullWidth = true,
-    leftIcon,
-    rightIcon,
-    style,
-    textStyle,
-    testID,
-}: AppButtonProps) {
+                              title,
+                              onPress,
+                              variant = "primary",
+                              loading = false,
+                              disabled = false,
+                              fullWidth = true,
+                              leftIcon,
+                              style,
+                          }: AppButtonProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     const isDisabled = disabled || loading;
+
+    const backgroundColor =
+        variant === "primary"
+            ? colors.primary
+            : variant === "secondary"
+                ? colors.primarySoft
+                : variant === "danger"
+                    ? colors.danger
+                    : "transparent";
+
+    const borderColor =
+        variant === "outline"
+            ? colors.borderStrong
+            : variant === "danger"
+                ? colors.danger
+                : backgroundColor;
+
+    const textColor =
+        variant === "primary" || variant === "danger"
+            ? colors.textLight
+            : variant === "secondary"
+                ? colors.primaryDark
+                : colors.text;
 
     return (
         <Pressable
             accessibilityRole="button"
-            accessibilityState={{ disabled: isDisabled, busy: loading }}
             disabled={isDisabled}
             onPress={onPress}
             style={({ pressed }) => [
-                styles.base,
-                styles[variant],
-                styles[size],
+                styles.button,
                 fullWidth && styles.fullWidth,
+                {
+                    backgroundColor,
+                    borderColor,
+                },
                 pressed && !isDisabled && styles.pressed,
                 isDisabled && styles.disabled,
                 style,
             ]}
-            testID={testID}
         >
             {loading ? (
-                <ActivityIndicator color={variant === "primary" || variant === "danger" ? colors.textLight : colors.primary} />
+                <ActivityIndicator color={textColor} />
             ) : (
-                <View style={styles.content}>
+                <>
                     {leftIcon}
-                    <Text style={[styles.text, textVariantStyle[variant], textStyle]}>{title}</Text>
-                    {rightIcon}
-                </View>
+                    <Text style={[styles.title, { color: textColor }]}>
+                        {title}
+                    </Text>
+                </>
             )}
         </Pressable>
     );
 }
 
 const styles = StyleSheet.create({
-    base: {
-        minHeight: layout.buttonHeight,
-        borderRadius: radius.md,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: spacing.lg,
-        borderWidth: 1,
-        borderColor: "transparent",
-    },
-    fullWidth: {
-        width: "100%",
-    },
-    sm: {
-        minHeight: 40,
-        paddingHorizontal: spacing.md,
-    },
-    md: {
-        minHeight: layout.buttonHeight,
-    },
-    lg: {
-        minHeight: 58,
+    button: {
+        minHeight: 48,
         borderRadius: radius.lg,
-    },
-    primary: {
-        backgroundColor: colors.primary,
-        ...shadows.button,
-    },
-    secondary: {
-        backgroundColor: colors.primarySoft,
-    },
-    outline: {
-        backgroundColor: colors.surface,
-        borderColor: colors.borderStrong,
-    },
-    ghost: {
-        backgroundColor: "transparent",
-    },
-    danger: {
-        backgroundColor: colors.danger,
-    },
-    disabled: {
-        opacity: 0.55,
-    },
-    pressed: {
-        opacity: 0.88,
-        transform: [{ scale: 0.99 }],
-    },
-    content: {
+        borderWidth: 1,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         gap: spacing.sm,
     },
-    text: {
+    fullWidth: {
+        width: "100%",
+    },
+    title: {
         fontSize: typography.body,
-        fontWeight: fontWeight.semibold,
-        textAlign: "center",
+        fontWeight: fontWeight.bold,
+    },
+    pressed: {
+        opacity: 0.88,
+        transform: [{ scale: 0.99 }],
+    },
+    disabled: {
+        opacity: 0.6,
     },
 });
