@@ -59,13 +59,17 @@ export default function TripMembersListScreen() {
     useFocusEffect(
         useCallback(() => {
             setIsLoading(true);
-            loadMembers();
+            void loadMembers();
         }, [tripIdParam])
     );
 
-    async function handleRefresh() {
+    async function performRefresh() {
         setIsRefreshing(true);
         await loadMembers();
+    }
+
+    function handleRefresh() {
+        void performRefresh();
     }
 
     async function handleRoleChange(member: TripMember, role: EditableRole) {

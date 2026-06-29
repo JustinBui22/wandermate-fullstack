@@ -95,7 +95,7 @@ export default function ActivityDetailScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            loadActivityDetail();
+            void loadActivityDetail();
         }, [tripIdParam, destinationIdParam, activityIdParam])
     );
 

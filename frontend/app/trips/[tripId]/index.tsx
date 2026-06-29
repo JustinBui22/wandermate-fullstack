@@ -332,8 +332,12 @@ function HeaderIconButton({
             accessibilityLabel={accessibilityLabel}
             onPress={onPress}
             style={({pressed}) => [styles.headerIconButton, pressed && styles.pressed]}
-        > <View style={styles.headerIconContent}> <Ionicons name={icon} size={23} color={colors.text}/>
-            <NotificationBadge count={badgeCount} size="small"/> </View> </Pressable>
+        >
+            <View style={styles.headerIconContent}>
+                <Ionicons name={icon} size={23} color={colors.text} />
+                <NotificationBadge count={badgeCount} size="small" />
+            </View>
+        </Pressable>
     );
 }
 

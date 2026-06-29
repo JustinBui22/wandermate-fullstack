@@ -143,7 +143,7 @@ export default function TripMembersScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            loadMembersScreen();
+            void loadMembersScreen();
         }, [tripIdParam])
     );
 

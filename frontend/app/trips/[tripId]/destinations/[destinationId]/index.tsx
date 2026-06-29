@@ -91,7 +91,7 @@ export default function DestinationDetailScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            loadDestinationDetail();
+            void loadDestinationDetail();
         }, [tripIdParam, destinationIdParam])
     );
 

@@ -90,7 +90,7 @@ export default function EditTripScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            loadTripForEdit();
+            void loadTripForEdit();
         }, [tripIdParam])
     );
 

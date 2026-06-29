@@ -13,8 +13,8 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
-import { useColorScheme } from "@/components/useColorScheme";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useAuthStore } from "@/src/stores/authStore";
 
 export { ErrorBoundary } from "expo-router";
@@ -48,7 +48,8 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const theme = useAppTheme();
+  const colors = theme.colors;
   const router = useRouter();
   const segments = useSegments();
   const { isAuthenticated, restoreAuthSession } = useAuthStore();
@@ -91,8 +92,8 @@ function RootLayoutNav() {
   }
 
   return (
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <StatusBar style="dark" />
+      <ThemeProvider value={theme.name === "DARK" ? DarkTheme : DefaultTheme}>
+        <StatusBar style={theme.name === "DARK" ? "light" : "dark"} />
 
         <Stack
             screenOptions={{
@@ -110,17 +111,20 @@ function RootLayoutNav() {
 }
 
 function AuthLoadingScreen() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+
   return (
-      <View style={styles.loadingScreen}>
-        <View style={styles.logoBadge}>
-          <Text style={styles.logoText}>W</Text>
+      <View style={[styles.loadingScreen, { backgroundColor: colors.background }]}>
+        <View style={[styles.logoBadge, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.logoText, { color: colors.textLight }]}>W</Text>
         </View>
 
         <ActivityIndicator color={colors.primary} size="large" />
 
         <View style={styles.loadingTextGroup}>
-          <Text style={styles.loadingTitle}>WanderMate</Text>
-          <Text style={styles.loadingSubtitle}>Preparing your session...</Text>
+          <Text style={[styles.loadingTitle, { color: colors.text }]}>WanderMate</Text>
+          <Text style={[styles.loadingSubtitle, { color: colors.textMuted }]}>Preparing your session...</Text>
         </View>
       </View>
   );
@@ -132,7 +136,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.lg,
-    backgroundColor: colors.background,
     padding: spacing.xl,
   },
   logoBadge: {
@@ -141,10 +144,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primary,
   },
   logoText: {
-    color: colors.textLight,
     fontSize: typography.heading,
     fontWeight: fontWeight.bold,
   },
@@ -153,12 +154,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   loadingTitle: {
-    color: colors.text,
     fontSize: typography.title,
     fontWeight: fontWeight.bold,
   },
   loadingSubtitle: {
-    color: colors.textMuted,
     fontSize: typography.bodySmall,
     lineHeight: 20,
     textAlign: "center",
