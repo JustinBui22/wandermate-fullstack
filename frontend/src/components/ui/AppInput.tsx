@@ -4,7 +4,10 @@ import {
     Text,
     TextInput,
     View,
+    type StyleProp,
     type TextInputProps,
+    type TextStyle,
+    type ViewStyle,
 } from "react-native";
 
 import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
@@ -15,6 +18,10 @@ type AppInputProps = TextInputProps & Readonly<{
     helperText?: string;
     errorMessage?: string;
     leftIcon?: ReactNode;
+    rightIcon?: ReactNode;
+    required?: boolean;
+    containerStyle?: StyleProp<ViewStyle>;
+    inputStyle?: StyleProp<TextStyle>;
 }>;
 
 export function AppInput({
@@ -22,6 +29,10 @@ export function AppInput({
                              helperText,
                              errorMessage,
                              leftIcon,
+                             rightIcon,
+                             required = false,
+                             containerStyle,
+                             inputStyle,
                              style,
                              placeholderTextColor,
                              ...inputProps
@@ -30,10 +41,11 @@ export function AppInput({
     const colors = theme.colors;
 
     return (
-        <View style={styles.wrapper}>
+        <View style={[styles.wrapper, containerStyle]}>
             {label ? (
                 <Text style={[styles.label, { color: colors.text }]}>
                     {label}
+                    {required ? <Text style={{ color: colors.danger }}> *</Text> : null}
                 </Text>
             ) : null}
 
@@ -44,6 +56,7 @@ export function AppInput({
                         backgroundColor: colors.inputBackground,
                         borderColor: errorMessage ? colors.danger : colors.border,
                     },
+                    style as StyleProp<ViewStyle>,
                 ]}
             >
                 {leftIcon ? (
@@ -57,10 +70,16 @@ export function AppInput({
                     style={[
                         styles.input,
                         { color: colors.text },
-                        style,
+                        inputStyle,
                     ]}
                     placeholderTextColor={placeholderTextColor ?? colors.placeholder}
                 />
+
+                {rightIcon ? (
+                    <View style={styles.iconWrapper}>
+                        {rightIcon}
+                    </View>
+                ) : null}
             </View>
 
             {errorMessage ? (

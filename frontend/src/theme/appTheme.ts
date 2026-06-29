@@ -12,6 +12,9 @@ export type AppThemeColors = {
     surfaceSoft: string;
     card: string;
 
+    successSoft: string;
+    warningSoft: string;
+
     text: string;
     textLight: string;
     textMuted: string;
@@ -59,6 +62,9 @@ export const lightTheme: AppTheme = {
 
         inputBackground: "#FFFFFF",
         placeholder: "#94A3B8",
+
+        successSoft: "#DCFCE7",
+        warningSoft: "#FEF3C7",
     },
 };
 
@@ -88,6 +94,9 @@ export const darkTheme: AppTheme = {
 
         inputBackground: "#0F172A",
         placeholder: "#64748B",
+
+        successSoft: "#14532D",
+        warningSoft: "#713F12",
     },
 };
 

@@ -17,7 +17,8 @@ import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import {
     getApiErrorMessage,
     getApiErrorTitle,
@@ -45,6 +46,9 @@ function getDefaultEndDateTime() {
 
 export default function CreateTripScreen() {
     const router = useRouter();
+
+    const theme = useAppTheme();
+    const colors = theme.colors;
 
     const [tripName, setTripName] = useState("");
     const [destination, setDestination] = useState("");
@@ -74,8 +78,11 @@ export default function CreateTripScreen() {
             setEndDateTime((current) => updateTimePart(current, selectedDate));
         }
     }
+
     function handlePickerValueChange(selectedDate: Date) {
-        if (!activePicker) return;
+        if (!activePicker) {
+            return;
+        }
 
         applySelectedDateTime(selectedDate);
     }
@@ -92,6 +99,36 @@ export default function CreateTripScreen() {
             endDate: formatForBackend(endDateTime),
             allowOverlap,
         });
+    }
+
+    async function handleConfirmCreateWithOverlap() {
+        try {
+            setIsSubmitting(true);
+            setError(null);
+
+            await submitTrip(true);
+
+            Alert.alert(
+                "Trip created",
+                "Your trip has been created successfully."
+            );
+
+            router.back();
+        } catch (confirmError: any) {
+            const message = getApiErrorMessage(
+                confirmError,
+                "Please check your input and try again."
+            );
+
+            setError(message);
+
+            Alert.alert(
+                getApiErrorTitle(confirmError, "Create trip failed"),
+                message
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     async function handleCreateTrip() {
@@ -115,7 +152,6 @@ export default function CreateTripScreen() {
             Alert.alert("Trip created", "Your trip has been created successfully.");
             router.back();
         } catch (error: any) {
-
             if (hasApiWarning(error, "TRIP_OVERLAP_WARNING")) {
                 Alert.alert(
                     "Trip dates overlap",
@@ -128,38 +164,8 @@ export default function CreateTripScreen() {
                         {
                             text: "Continue anyway",
                             style: "destructive",
-                            onPress: async () => {
-                                try {
-                                    setIsSubmitting(true);
-                                    setError(null);
-
-                                    await submitTrip(true);
-
-                                    Alert.alert(
-                                        "Trip created",
-                                        "Your trip has been created successfully."
-                                    );
-
-                                    router.back();
-                                } catch (confirmError: any) {
-
-                                    setError(
-                                        getApiErrorMessage(
-                                            confirmError,
-                                            "Please check your input and try again."
-                                        )
-                                    );
-
-                                    Alert.alert(
-                                        getApiErrorTitle(confirmError, "Create trip failed"),
-                                        getApiErrorMessage(
-                                            confirmError,
-                                            "Please check your input and try again."
-                                        )
-                                    );
-                                } finally {
-                                    setIsSubmitting(false);
-                                }
+                            onPress: () => {
+                                void handleConfirmCreateWithOverlap();
                             },
                         },
                     ]
@@ -167,28 +173,58 @@ export default function CreateTripScreen() {
                 return;
             }
 
-            setError(getApiErrorMessage(error, "Please check your input and try again."));
+            const message = getApiErrorMessage(
+                error,
+                "Please check your input and try again."
+            );
+
+            setError(message);
 
             Alert.alert(
                 getApiErrorTitle(error, "Create trip failed"),
-                getApiErrorMessage(error, "Please check your input and try again.")
+                message
             );
         } finally {
             setIsSubmitting(false);
         }
     }
 
+    function handleCreateTripPress() {
+        void handleCreateTrip();
+    }
+
     return (
         <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
-                <Pressable onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={22} color={colors.primary} />
+                <Pressable
+                    onPress={() => router.back()}
+                    style={[
+                        styles.backButton,
+                        {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                        },
+                    ]}
+                >
+                    <Ionicons
+                        name="chevron-back"
+                        size={22}
+                        color={colors.primary}
+                    />
                 </Pressable>
 
                 <View style={styles.headerTextGroup}>
-                    <Text style={styles.eyebrow}>New trip</Text>
-                    <Text style={styles.title}>Create Trip</Text>
-                    <Text style={styles.subtitle}>Add your destination and travel dates.</Text>
+                    <Text style={[styles.eyebrow, { color: colors.primary }]}>
+                        New trip
+                    </Text>
+
+                    <Text style={[styles.title, { color: colors.text }]}>
+                        Create Trip
+                    </Text>
+
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                        Add your destination and travel dates.
+                    </Text>
                 </View>
             </View>
 
@@ -199,7 +235,13 @@ export default function CreateTripScreen() {
                     value={tripName}
                     onChangeText={setTripName}
                     placeholder="e.g. Sydney Weekend"
-                    leftIcon={<Ionicons name="airplane-outline" size={20} color={colors.textMuted} />}
+                    leftIcon={
+                        <Ionicons
+                            name="airplane-outline"
+                            size={20}
+                            color={colors.textMuted}
+                        />
+                    }
                 />
 
                 <AppInput
@@ -208,10 +250,21 @@ export default function CreateTripScreen() {
                     value={destination}
                     onChangeText={setDestination}
                     placeholder="e.g. Sydney"
-                    leftIcon={<Ionicons name="location-outline" size={20} color={colors.textMuted} />}
+                    leftIcon={
+                        <Ionicons
+                            name="location-outline"
+                            size={20}
+                            color={colors.textMuted}
+                        />
+                    }
                 />
 
-                <View style={styles.divider} />
+                <View
+                    style={[
+                        styles.divider,
+                        { backgroundColor: colors.border },
+                    ]}
+                />
 
                 <DateTimeSection
                     title="Start"
@@ -231,9 +284,15 @@ export default function CreateTripScreen() {
 
                 <AppButton
                     title="Create trip"
-                    onPress={handleCreateTrip}
+                    onPress={handleCreateTripPress}
                     loading={isSubmitting}
-                    rightIcon={<Ionicons name="checkmark-circle" size={20} color={colors.textLight} />}
+                    rightIcon={
+                        <Ionicons
+                            name="checkmark-circle"
+                            size={20}
+                            color={colors.textLight}
+                        />
+                    }
                 />
             </AppCard>
 
@@ -265,7 +324,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: radius.lg,
-        backgroundColor: colors.surface,
+        borderWidth: 1,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -274,19 +333,16 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     eyebrow: {
-        color: colors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.6,
     },
     title: {
-        color: colors.text,
         fontSize: typography.heading,
         fontWeight: fontWeight.bold,
     },
     subtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -295,6 +351,5 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: colors.border,
     },
 });

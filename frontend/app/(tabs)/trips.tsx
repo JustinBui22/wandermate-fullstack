@@ -1,4 +1,4 @@
-import {useCallback, useMemo, useState} from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
     Alert,
     Modal,
@@ -9,18 +9,19 @@ import {
     Text,
     View,
 } from "react-native";
-import {Ionicons} from "@expo/vector-icons";
-import {useFocusEffect, useRouter} from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
 
-import {getMyTrips} from "@/src/api/tripApi";
-import {AppButton} from "@/src/components/ui/AppButton";
-import {AppCard} from "@/src/components/ui/AppCard";
-import {AppScreen} from "@/src/components/ui/AppScreen";
-import {EmptyState} from "@/src/components/ui/EmptyState";
-import {ErrorMessage} from "@/src/components/ui/ErrorMessage";
-import {LoadingState} from "@/src/components/ui/LoadingState";
-import {colors, fontWeight, radius, spacing, typography} from "@/src/constants/theme";
-import type {Trip, TripSortOption, TripStatus} from "@/src/types/trip";
+import { getMyTrips } from "@/src/api/tripApi";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { EmptyState } from "@/src/components/ui/EmptyState";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
+import type { Trip, TripSortOption, TripStatus } from "@/src/types/trip";
 
 type TripStatusFilter = "ALL" | TripStatus;
 
@@ -31,22 +32,22 @@ const SORT_OPTIONS: ReadonlyArray<{
     label: string;
     value: TripSortOption;
 }> = [
-    {label: "Name A-Z", value: "NAME_ASC"},
-    {label: "Name Z-A", value: "NAME_DESC"},
-    {label: "Created newest", value: "CREATED_DATE_DESC"},
-    {label: "Created oldest", value: "CREATED_DATE_ASC"},
-    {label: "Updated newest", value: "MODIFIED_DATE_DESC"},
-    {label: "Updated oldest", value: "MODIFIED_DATE_ASC"},
+    { label: "Name A-Z", value: "NAME_ASC" },
+    { label: "Name Z-A", value: "NAME_DESC" },
+    { label: "Created newest", value: "CREATED_DATE_DESC" },
+    { label: "Created oldest", value: "CREATED_DATE_ASC" },
+    { label: "Updated newest", value: "MODIFIED_DATE_DESC" },
+    { label: "Updated oldest", value: "MODIFIED_DATE_ASC" },
 ];
 
 const STATUS_FILTERS: ReadonlyArray<{
     label: string;
     value: TripStatusFilter;
 }> = [
-    {label: "All", value: "ALL"},
-    {label: "Planning", value: "PLANNING"},
-    {label: "Ongoing", value: "ONGOING"},
-    {label: "Finished", value: "FINISHED"},
+    { label: "All", value: "ALL" },
+    { label: "Planning", value: "PLANNING" },
+    { label: "Ongoing", value: "ONGOING" },
+    { label: "Finished", value: "FINISHED" },
 ];
 
 function getApiMessage(error: any) {
@@ -118,6 +119,9 @@ function getStatusFilterLabel(statusFilter: TripStatusFilter) {
 export default function TripsScreen() {
     const router = useRouter();
 
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     const [trips, setTrips] = useState<Trip[]>([]);
     const [sortOption, setSortOption] = useState<TripSortOption>(DEFAULT_SORT_OPTION);
     const [statusFilter, setStatusFilter] = useState<TripStatusFilter>(DEFAULT_STATUS_FILTER);
@@ -132,10 +136,10 @@ export default function TripsScreen() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    async function loadTrips(
+    const loadTrips = useCallback(async (
         nextStatusFilter: TripStatusFilter = statusFilter,
         nextSortOption: TripSortOption = sortOption
-    ) {
+    ) => {
         try {
             setError(null);
 
@@ -152,13 +156,13 @@ export default function TripsScreen() {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }
+    }, [statusFilter, sortOption]);
 
     useFocusEffect(
         useCallback(() => {
             setIsLoading(true);
-            loadTrips();
-        }, [statusFilter, sortOption])
+            void loadTrips();
+        }, [loadTrips])
     );
 
     const createdTrips = useMemo(() => {
@@ -178,9 +182,13 @@ export default function TripsScreen() {
     const hasActiveFilter =
         statusFilter !== DEFAULT_STATUS_FILTER || sortOption !== DEFAULT_SORT_OPTION;
 
-    async function handleRefresh() {
+    async function performRefresh() {
         setIsRefreshing(true);
         await loadTrips();
+    }
+
+    function handleRefresh() {
+        void performRefresh();
     }
 
     function handleCreateTrip() {
@@ -195,7 +203,7 @@ export default function TripsScreen() {
 
         router.push({
             pathname: "/trips/[tripId]" as never,
-            params: {tripId: String(trip.tripId)} as never,
+            params: { tripId: String(trip.tripId) } as never,
         });
     }
 
@@ -209,7 +217,7 @@ export default function TripsScreen() {
         setIsFilterModalVisible(false);
     }
 
-    async function handleApplyFilters() {
+    async function performApplyFilters() {
         setSortOption(draftSortOption);
         setStatusFilter(draftStatusFilter);
         setIsFilterModalVisible(false);
@@ -217,16 +225,24 @@ export default function TripsScreen() {
         await loadTrips(draftStatusFilter, draftSortOption);
     }
 
+    function handleApplyFilters() {
+        void performApplyFilters();
+    }
+
     function handleResetDraftFilters() {
         setDraftSortOption(DEFAULT_SORT_OPTION);
         setDraftStatusFilter(DEFAULT_STATUS_FILTER);
     }
 
-    async function handleClearFilters() {
+    async function performClearFilters() {
         setSortOption(DEFAULT_SORT_OPTION);
         setStatusFilter(DEFAULT_STATUS_FILTER);
         setIsLoading(true);
         await loadTrips(DEFAULT_STATUS_FILTER, DEFAULT_SORT_OPTION);
+    }
+
+    function handleClearFilters() {
+        void performClearFilters();
     }
 
     function renderTripContent() {
@@ -235,7 +251,13 @@ export default function TripsScreen() {
                 <EmptyState
                     title="No trips yet"
                     message="Create your first trip plan and it will appear here."
-                    icon={<Ionicons name="map-outline" size={30} color={colors.primary}/>}
+                    icon={
+                        <Ionicons
+                            name="map-outline"
+                            size={30}
+                            color={colors.primary}
+                        />
+                    }
                     actionLabel="Create trip"
                     onActionPress={handleCreateTrip}
                     style={styles.emptyState}
@@ -269,7 +291,13 @@ export default function TripsScreen() {
             <EmptyState
                 title="No trips match your filters"
                 message="Try changing the status filter or sorting option."
-                icon={<Ionicons name="filter-outline" size={30} color={colors.primary}/>}
+                icon={
+                    <Ionicons
+                        name="filter-outline"
+                        size={30}
+                        color={colors.primary}
+                    />
+                }
                 actionLabel="Clear filter"
                 onActionPress={handleClearFilters}
                 style={styles.emptyState}
@@ -308,9 +336,15 @@ export default function TripsScreen() {
             >
                 <View style={styles.header}>
                     <View style={styles.headerTextGroup}>
-                        <Text style={styles.eyebrow}>WanderMate</Text>
-                        <Text style={styles.title}>My Trips</Text>
-                        <Text style={styles.subtitle}>
+                        <Text style={[styles.eyebrow, { color: colors.primary }]}>
+                            WanderMate
+                        </Text>
+
+                        <Text style={[styles.title, { color: colors.text }]}>
+                            My Trips
+                        </Text>
+
+                        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                             Manage trips you created and trips shared with you.
                         </Text>
                     </View>
@@ -319,9 +353,12 @@ export default function TripsScreen() {
                         <Pressable
                             accessibilityRole="button"
                             onPress={handleOpenFilterModal}
-                            style={({pressed}) => [
+                            style={({ pressed }) => [
                                 styles.filterIconButton,
-                                hasActiveFilter && styles.filterIconButtonActive,
+                                {
+                                    borderColor: hasActiveFilter ? colors.primary : colors.border,
+                                    backgroundColor: hasActiveFilter ? colors.primary : colors.surface,
+                                },
                                 pressed && styles.pressed,
                             ]}
                         >
@@ -331,7 +368,7 @@ export default function TripsScreen() {
                                 color={hasActiveFilter ? colors.textLight : colors.primary}
                             />
 
-                            {hasActiveFilter ? <View style={styles.filterDot}/> : null}
+                            {hasActiveFilter ? <View style={styles.filterDot} /> : null}
                         </Pressable>
 
                         <AppButton
@@ -339,23 +376,48 @@ export default function TripsScreen() {
                             onPress={handleCreateTrip}
                             fullWidth={false}
                             style={styles.addButton}
-                            leftIcon={<Ionicons name="add" size={24} color={colors.textLight}/>}
+                            leftIcon={
+                                <Ionicons
+                                    name="add"
+                                    size={24}
+                                    color={colors.textLight}
+                                />
+                            }
                             testID="create-trip-button"
                         />
                     </View>
                 </View>
 
-                <ErrorMessage message={error} title="Could not load trips"/>
+                <ErrorMessage message={error} title="Could not load trips" />
 
                 {hasTrips || hasActiveFilter ? (
-                    <View style={styles.filterSummary}>
-                        <Ionicons name="options-outline" size={16} color={colors.textMuted}/>
+                    <View
+                        style={[
+                            styles.filterSummary,
+                            {
+                                borderColor: colors.border,
+                                backgroundColor: colors.surfaceSoft,
+                            },
+                        ]}
+                    >
+                        <Ionicons
+                            name="options-outline"
+                            size={16}
+                            color={colors.textMuted}
+                        />
 
-                        <Text style={styles.filterSummaryText} numberOfLines={1}>
+                        <Text
+                            style={[
+                                styles.filterSummaryText,
+                                { color: colors.textMuted },
+                            ]}
+                            numberOfLines={1}
+                        >
                             {getStatusFilterLabel(statusFilter)} · {getSortLabel(sortOption)}
                         </Text>
                     </View>
                 ) : null}
+
                 {renderTripContent()}
             </ScrollView>
 
@@ -394,6 +456,9 @@ function FilterModal({
                          onCancel,
                          onApply,
                      }: FilterModalProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <Modal
             visible={visible}
@@ -402,11 +467,27 @@ function FilterModal({
             onRequestClose={onCancel}
         >
             <View style={styles.modalBackdrop}>
-                <View style={styles.modalCard}>
+                <View
+                    style={[
+                        styles.modalCard,
+                        {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                        },
+                    ]}
+                >
                     <View style={styles.modalHeader}>
                         <View style={styles.modalTitleGroup}>
-                            <Text style={styles.modalTitle}>Filter trips</Text>
-                            <Text style={styles.modalSubtitle}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>
+                                Filter trips
+                            </Text>
+
+                            <Text
+                                style={[
+                                    styles.modalSubtitle,
+                                    { color: colors.textMuted },
+                                ]}
+                            >
                                 Choose your options, then press OK to apply.
                             </Text>
                         </View>
@@ -414,17 +495,29 @@ function FilterModal({
                         <Pressable
                             accessibilityRole="button"
                             onPress={onCancel}
-                            style={({pressed}) => [
+                            style={({ pressed }) => [
                                 styles.modalCloseButton,
+                                { backgroundColor: colors.surfaceSoft },
                                 pressed && styles.pressed,
                             ]}
                         >
-                            <Ionicons name="close" size={22} color={colors.textMuted}/>
+                            <Ionicons
+                                name="close"
+                                size={22}
+                                color={colors.textMuted}
+                            />
                         </Pressable>
                     </View>
 
                     <View style={styles.modalSection}>
-                        <Text style={styles.modalSectionTitle}>Status</Text>
+                        <Text
+                            style={[
+                                styles.modalSectionTitle,
+                                { color: colors.text },
+                            ]}
+                        >
+                            Status
+                        </Text>
 
                         {STATUS_FILTERS.map((option) => (
                             <ModalOption
@@ -437,7 +530,14 @@ function FilterModal({
                     </View>
 
                     <View style={styles.modalSection}>
-                        <Text style={styles.modalSectionTitle}>Sort by</Text>
+                        <Text
+                            style={[
+                                styles.modalSectionTitle,
+                                { color: colors.text },
+                            ]}
+                        >
+                            Sort by
+                        </Text>
 
                         {SORT_OPTIONS.map((option) => (
                             <ModalOption
@@ -453,35 +553,61 @@ function FilterModal({
                         <Pressable
                             accessibilityRole="button"
                             onPress={onReset}
-                            style={({pressed}) => [
+                            style={({ pressed }) => [
                                 styles.modalGhostButton,
                                 pressed && styles.pressed,
                             ]}
                         >
-                            <Text style={styles.modalGhostButtonText}>Reset</Text>
+                            <Text
+                                style={[
+                                    styles.modalGhostButtonText,
+                                    { color: colors.textMuted },
+                                ]}
+                            >
+                                Reset
+                            </Text>
                         </Pressable>
 
                         <View style={styles.modalRightActions}>
                             <Pressable
                                 accessibilityRole="button"
                                 onPress={onCancel}
-                                style={({pressed}) => [
+                                style={({ pressed }) => [
                                     styles.modalSecondaryButton,
+                                    {
+                                        borderColor: colors.border,
+                                        backgroundColor: colors.surface,
+                                    },
                                     pressed && styles.pressed,
                                 ]}
                             >
-                                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
+                                <Text
+                                    style={[
+                                        styles.modalSecondaryButtonText,
+                                        { color: colors.text },
+                                    ]}
+                                >
+                                    Cancel
+                                </Text>
                             </Pressable>
 
                             <Pressable
                                 accessibilityRole="button"
                                 onPress={onApply}
-                                style={({pressed}) => [
+                                style={({ pressed }) => [
                                     styles.modalPrimaryButton,
+                                    { backgroundColor: colors.primary },
                                     pressed && styles.pressed,
                                 ]}
                             >
-                                <Text style={styles.modalPrimaryButtonText}>OK</Text>
+                                <Text
+                                    style={[
+                                        styles.modalPrimaryButtonText,
+                                        { color: colors.textLight },
+                                    ]}
+                                >
+                                    OK
+                                </Text>
                             </Pressable>
                         </View>
                     </View>
@@ -497,30 +623,48 @@ type ModalOptionProps = Readonly<{
     onPress: () => void;
 }>;
 
-function ModalOption({label, selected, onPress}: ModalOptionProps) {
+function ModalOption({ label, selected, onPress }: ModalOptionProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <Pressable
             accessibilityRole="button"
             onPress={onPress}
-            style={({pressed}) => [
+            style={({ pressed }) => [
                 styles.modalOption,
-                selected && styles.modalOptionSelected,
+                {
+                    borderColor: selected ? colors.primary : colors.border,
+                    backgroundColor: selected ? colors.primarySoft : colors.surface,
+                },
                 pressed && styles.pressed,
             ]}
         >
             <Text
                 style={[
                     styles.modalOptionText,
-                    selected && styles.modalOptionTextSelected,
+                    {
+                        color: selected ? colors.text : colors.textMuted,
+                        fontWeight: selected ? fontWeight.bold : fontWeight.semibold,
+                    },
                 ]}
             >
                 {label}
             </Text>
 
             {selected ? (
-                <Ionicons name="checkmark-circle" size={20} color={colors.primary}/>
+                <Ionicons
+                    name="checkmark-circle"
+                    size={20}
+                    color={colors.primary}
+                />
             ) : (
-                <View style={styles.modalOptionEmptyCircle}/>
+                <View
+                    style={[
+                        styles.modalOptionEmptyCircle,
+                        { borderColor: colors.border },
+                    ]}
+                />
             )}
         </Pressable>
     );
@@ -541,23 +685,60 @@ function TripSection({
                          emptyMessage,
                          onOpenTrip,
                      }: TripSectionProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <View style={styles.section}>
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTextGroup}>
-                    <Text style={styles.sectionTitle}>{title}</Text>
-                    <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                        {title}
+                    </Text>
+
+                    <Text
+                        style={[
+                            styles.sectionSubtitle,
+                            { color: colors.textMuted },
+                        ]}
+                    >
+                        {subtitle}
+                    </Text>
                 </View>
 
-                <View style={styles.countBadge}>
-                    <Text style={styles.countBadgeText}>{trips.length}</Text>
+                <View
+                    style={[
+                        styles.countBadge,
+                        { backgroundColor: colors.primarySoft },
+                    ]}
+                >
+                    <Text
+                        style={[
+                            styles.countBadgeText,
+                            { color: colors.primary },
+                        ]}
+                    >
+                        {trips.length}
+                    </Text>
                 </View>
             </View>
 
             {trips.length === 0 ? (
                 <AppCard contentStyle={styles.sectionEmptyCardContent}>
-                    <Ionicons name="folder-open-outline" size={22} color={colors.textMuted}/>
-                    <Text style={styles.sectionEmptyText}>{emptyMessage}</Text>
+                    <Ionicons
+                        name="folder-open-outline"
+                        size={22}
+                        color={colors.textMuted}
+                    />
+
+                    <Text
+                        style={[
+                            styles.sectionEmptyText,
+                            { color: colors.textMuted },
+                        ]}
+                    >
+                        {emptyMessage}
+                    </Text>
                 </AppCard>
             ) : (
                 <View style={styles.tripList}>
@@ -579,49 +760,116 @@ type TripCardProps = Readonly<{
     onPress: () => void;
 }>;
 
-function TripCard({trip, onPress}: TripCardProps) {
+function TripCard({ trip, onPress }: TripCardProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     const status = getTripStatus(trip);
 
     return (
-        <AppCard onPress={onPress} style={styles.tripCard} contentStyle={styles.tripCardContent}>
+        <AppCard
+            onPress={onPress}
+            style={styles.tripCard}
+            contentStyle={styles.tripCardContent}
+        >
             <View style={styles.tripMainRow}>
-                <View style={styles.tripIconBadge}>
-                    <Ionicons name="airplane-outline" size={20} color={colors.primary}/>
+                <View
+                    style={[
+                        styles.tripIconBadge,
+                        { backgroundColor: colors.primarySoft },
+                    ]}
+                >
+                    <Ionicons
+                        name="airplane-outline"
+                        size={20}
+                        color={colors.primary}
+                    />
                 </View>
 
                 <View style={styles.tripTextGroup}>
-                    <Text style={styles.tripTitle} numberOfLines={1}>
+                    <Text
+                        style={[styles.tripTitle, { color: colors.text }]}
+                        numberOfLines={1}
+                    >
                         {trip.tripName || "Untitled trip"}
                     </Text>
 
-                    <Text style={styles.tripDestination} numberOfLines={1}>
+                    <Text
+                        style={[
+                            styles.tripDestination,
+                            { color: colors.textMuted },
+                        ]}
+                        numberOfLines={1}
+                    >
                         {trip.destination || "No destination"}
                     </Text>
                 </View>
 
                 <View style={styles.tripRightGroup}>
-                    <StatusBadge status={status}/>
-                    <Ionicons name="chevron-forward" size={22} color={colors.textMuted}/>
+                    <StatusBadge status={status} />
+                    <Ionicons
+                        name="chevron-forward"
+                        size={22}
+                        color={colors.textMuted}
+                    />
                 </View>
             </View>
 
             <View style={styles.tripMetaRow}>
-                <View style={styles.metaPill}>
-                    <Ionicons name="calendar-outline" size={14} color={colors.textMuted}/>
+                <View
+                    style={[
+                        styles.metaPill,
+                        {
+                            backgroundColor: colors.surfaceSoft,
+                            borderColor: colors.border,
+                        },
+                    ]}
+                >
+                    <Ionicons
+                        name="calendar-outline"
+                        size={14}
+                        color={colors.textMuted}
+                    />
 
-                    <Text style={styles.metaText} numberOfLines={1}>
+                    <Text
+                        style={[
+                            styles.metaText,
+                            { color: colors.textMuted },
+                        ]}
+                        numberOfLines={1}
+                    >
                         {formatDateRange(trip.startDate, trip.endDate)}
                     </Text>
                 </View>
 
-                {trip.currentUserRole ? <RoleBadge role={trip.currentUserRole}/> : null}
+                {trip.currentUserRole ? (
+                    <RoleBadge role={trip.currentUserRole} />
+                ) : null}
             </View>
 
             <View style={styles.tripMetaRow}>
-                <View style={styles.metaPill}>
-                    <Ionicons name="time-outline" size={14} color={colors.textMuted}/>
+                <View
+                    style={[
+                        styles.metaPill,
+                        {
+                            backgroundColor: colors.surfaceSoft,
+                            borderColor: colors.border,
+                        },
+                    ]}
+                >
+                    <Ionicons
+                        name="time-outline"
+                        size={14}
+                        color={colors.textMuted}
+                    />
 
-                    <Text style={styles.metaText} numberOfLines={1}>
+                    <Text
+                        style={[
+                            styles.metaText,
+                            { color: colors.textMuted },
+                        ]}
+                        numberOfLines={1}
+                    >
                         Updated {formatDate(trip.modifiedDate || trip.createdDate)}
                     </Text>
                 </View>
@@ -634,7 +882,7 @@ type StatusBadgeProps = Readonly<{
     status: TripStatus;
 }>;
 
-function StatusBadge({status}: StatusBadgeProps) {
+function StatusBadge({ status }: StatusBadgeProps) {
     const labelByStatus: Record<TripStatus, string> = {
         PLANNING: "Planning",
         ONGOING: "Ongoing",
@@ -678,7 +926,7 @@ function StatusBadge({status}: StatusBadgeProps) {
                 },
             ]}
         >
-            <Text style={[styles.statusBadgeText, {color: statusStyle.color}]}>
+            <Text style={[styles.statusBadgeText, { color: statusStyle.color }]}>
                 {labelByStatus[status]}
             </Text>
         </View>
@@ -689,7 +937,10 @@ type RoleBadgeProps = Readonly<{
     role: NonNullable<Trip["currentUserRole"]>;
 }>;
 
-function RoleBadge({role}: RoleBadgeProps) {
+function RoleBadge({ role }: RoleBadgeProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     const labelByRole: Record<NonNullable<Trip["currentUserRole"]>, string> = {
         OWNER: "Owner",
         EDITOR: "Editor",
@@ -697,8 +948,18 @@ function RoleBadge({role}: RoleBadgeProps) {
     };
 
     return (
-        <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>{labelByRole[role]}</Text>
+        <View
+            style={[
+                styles.roleBadge,
+                {
+                    backgroundColor: colors.primarySoft,
+                    borderColor: colors.primarySoft,
+                },
+            ]}
+        >
+            <Text style={[styles.roleBadgeText, { color: colors.primary }]}>
+                {labelByRole[role]}
+            </Text>
         </View>
     );
 }
@@ -727,19 +988,16 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     eyebrow: {
-        color: colors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.7,
     },
     title: {
-        color: colors.text,
         fontSize: typography.hero,
         fontWeight: fontWeight.bold,
     },
     subtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -753,15 +1011,9 @@ const styles = StyleSheet.create({
         height: 50,
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-    },
-    filterIconButtonActive: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primary,
     },
     filterDot: {
         position: "absolute",
@@ -785,14 +1037,11 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
         borderRadius: radius.pill,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surfaceSoft,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
     },
     filterSummaryText: {
         flex: 1,
-        color: colors.textMuted,
         fontSize: typography.caption,
         fontWeight: fontWeight.semibold,
     },
@@ -801,7 +1050,7 @@ const styles = StyleSheet.create({
     },
     pressed: {
         opacity: 0.86,
-        transform: [{scale: 0.99}],
+        transform: [{ scale: 0.99 }],
     },
     modalBackdrop: {
         flex: 1,
@@ -811,9 +1060,7 @@ const styles = StyleSheet.create({
     },
     modalCard: {
         borderRadius: radius.xl,
-        backgroundColor: colors.background,
         borderWidth: 1,
-        borderColor: colors.border,
         padding: spacing.lg,
         gap: spacing.lg,
     },
@@ -828,12 +1075,10 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     modalTitle: {
-        color: colors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
     },
     modalSubtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -841,7 +1086,6 @@ const styles = StyleSheet.create({
         width: 38,
         height: 38,
         borderRadius: radius.pill,
-        backgroundColor: colors.surfaceSoft,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -849,7 +1093,6 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     modalSectionTitle: {
-        color: colors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
@@ -857,8 +1100,6 @@ const styles = StyleSheet.create({
         minHeight: 44,
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         flexDirection: "row",
@@ -866,26 +1107,15 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         gap: spacing.md,
     },
-    modalOptionSelected: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
-    },
     modalOptionText: {
         flex: 1,
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
-        fontWeight: fontWeight.semibold,
-    },
-    modalOptionTextSelected: {
-        color: colors.text,
-        fontWeight: fontWeight.bold,
     },
     modalOptionEmptyCircle: {
         width: 20,
         height: 20,
         borderRadius: 99,
         borderWidth: 1,
-        borderColor: colors.border,
     },
     modalActions: {
         flexDirection: "row",
@@ -904,7 +1134,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.md,
     },
     modalGhostButtonText: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
@@ -912,27 +1141,22 @@ const styles = StyleSheet.create({
         minHeight: 42,
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
         alignItems: "center",
         justifyContent: "center",
         paddingHorizontal: spacing.lg,
     },
     modalSecondaryButtonText: {
-        color: colors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
     modalPrimaryButton: {
         minHeight: 42,
         borderRadius: radius.lg,
-        backgroundColor: colors.primary,
         alignItems: "center",
         justifyContent: "center",
         paddingHorizontal: spacing.lg,
     },
     modalPrimaryButtonText: {
-        color: colors.textLight,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
@@ -950,12 +1174,10 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     sectionTitle: {
-        color: colors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
     },
     sectionSubtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -963,13 +1185,11 @@ const styles = StyleSheet.create({
         minWidth: 34,
         height: 34,
         borderRadius: radius.pill,
-        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
         paddingHorizontal: spacing.sm,
     },
     countBadgeText: {
-        color: colors.primary,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
@@ -980,7 +1200,6 @@ const styles = StyleSheet.create({
     },
     sectionEmptyText: {
         flex: 1,
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -1002,7 +1221,6 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: radius.lg,
-        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -1011,12 +1229,10 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     tripTitle: {
-        color: colors.text,
         fontSize: typography.body,
         fontWeight: fontWeight.bold,
     },
     tripDestination: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 19,
     },
@@ -1037,14 +1253,11 @@ const styles = StyleSheet.create({
     },
     roleBadge: {
         borderRadius: radius.pill,
-        backgroundColor: colors.primarySoft,
         borderWidth: 1,
-        borderColor: colors.primarySoft,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.xs,
     },
     roleBadgeText: {
-        color: colors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
     },
@@ -1059,15 +1272,12 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.xs,
-        backgroundColor: colors.surfaceSoft,
         borderRadius: radius.pill,
         borderWidth: 1,
-        borderColor: colors.border,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
     },
     metaText: {
-        color: colors.textMuted,
         fontSize: typography.caption,
         fontWeight: fontWeight.semibold,
     },

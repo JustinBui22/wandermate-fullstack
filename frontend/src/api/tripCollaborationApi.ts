@@ -124,6 +124,26 @@ export async function getPendingJoinRequests(
     return response.data.body;
 }
 
+export async function getPendingJoinRequestsForMyTrips(): Promise<TripCollaborationRequest[]> {
+    const response = await axiosClient.get<ApiResponse<TripCollaborationRequest[]>>(
+        "/api/v1/trips/join-requests/owned"
+    );
+
+    logger.debug("Pending join requests for my trips response:", response.data);
+
+    return response.data.body;
+}
+
+export async function getMySentPendingJoinRequests(): Promise<TripCollaborationRequest[]> {
+    const response = await axiosClient.get<ApiResponse<TripCollaborationRequest[]>>(
+        "/api/v1/trips/join-requests/sent"
+    );
+
+    logger.debug("My sent pending join requests response:", response.data);
+
+    return response.data.body;
+}
+
 export async function acceptJoinRequest(
     requestId: number
 ): Promise<TripCollaborationActionResponse> {

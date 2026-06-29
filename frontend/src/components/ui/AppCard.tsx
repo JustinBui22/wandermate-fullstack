@@ -11,14 +11,18 @@ import {
 import { fontWeight, radius, shadow, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 
+type AppCardVariant = "default" | "soft" | "outline";
+
 type AppCardProps = Readonly<{
     children?: ReactNode;
     title?: string;
     subtitle?: string;
     footer?: ReactNode;
     onPress?: () => void;
+    variant?: AppCardVariant;
     style?: StyleProp<ViewStyle>;
     contentStyle?: StyleProp<ViewStyle>;
+    testID?: string;
 }>;
 
 export function AppCard({
@@ -27,15 +31,23 @@ export function AppCard({
                             subtitle,
                             footer,
                             onPress,
+                            variant = "default",
                             style,
                             contentStyle,
+                            testID,
                         }: AppCardProps) {
     const theme = useAppTheme();
     const colors = theme.colors;
 
+    const cardBackgroundColor =
+        variant === "soft" ? colors.surfaceSoft : colors.card;
+
+    const cardBorderColor =
+        variant === "outline" ? colors.borderStrong : colors.border;
+
     const cardContent = (
         <>
-            {(title || subtitle) ? (
+            {title || subtitle ? (
                 <View style={styles.header}>
                     {title ? (
                         <Text style={[styles.title, { color: colors.text }]}>
@@ -68,9 +80,10 @@ export function AppCard({
     const cardStyle = [
         styles.card,
         {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
+            backgroundColor: cardBackgroundColor,
+            borderColor: cardBorderColor,
         },
+        variant !== "soft" && shadow.card,
         style,
     ];
 
@@ -78,6 +91,7 @@ export function AppCard({
         return (
             <Pressable
                 onPress={onPress}
+                testID={testID}
                 style={({ pressed }) => [
                     cardStyle,
                     pressed && styles.pressed,
@@ -89,7 +103,7 @@ export function AppCard({
     }
 
     return (
-        <View style={cardStyle}>
+        <View style={cardStyle} testID={testID}>
             {cardContent}
         </View>
     );
@@ -101,7 +115,6 @@ const styles = StyleSheet.create({
         borderRadius: radius.xl,
         padding: spacing.lg,
         gap: spacing.md,
-        ...shadow.card,
     },
     pressed: {
         opacity: 0.9,

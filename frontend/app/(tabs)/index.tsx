@@ -12,15 +12,30 @@ import { useRouter } from "expo-router";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useAuthStore } from "@/src/stores/authStore";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 
 export default function HomeScreen() {
     const router = useRouter();
+
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     const { logoutUser, username } = useAuthStore();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    async function handleLogout() {
+    async function performLogout() {
+        try {
+            setIsLoggingOut(true);
+            await logoutUser();
+            router.replace("/login" as any);
+        } finally {
+            setIsLoggingOut(false);
+        }
+    }
+
+    function handleLogout() {
         Alert.alert(
             "Log out",
             "Are you sure you want to log out of WanderMate?",
@@ -29,14 +44,8 @@ export default function HomeScreen() {
                 {
                     text: "Log out",
                     style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setIsLoggingOut(true);
-                            await logoutUser();
-                            router.replace("/login" as any);
-                        } finally {
-                            setIsLoggingOut(false);
-                        }
+                    onPress: () => {
+                        void performLogout();
                     },
                 },
             ]
@@ -55,9 +64,17 @@ export default function HomeScreen() {
         <AppScreen contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
                 <View style={styles.headerTextGroup}>
-                    <Text style={styles.eyebrow}>WanderMate</Text>
-                    <Text style={styles.title}>Welcome back{username ? `, ${username}` : ""}</Text>
-                    <Text style={styles.subtitle}>Ready to plan your next trip?</Text>
+                    <Text style={[styles.eyebrow, { color: colors.primary }]}>
+                        WanderMate
+                    </Text>
+
+                    <Text style={[styles.title, { color: colors.text }]}>
+                        Welcome back{username ? `, ${username}` : ""}
+                    </Text>
+
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                        Ready to plan your next trip?
+                    </Text>
                 </View>
 
                 <Pressable
@@ -67,21 +84,42 @@ export default function HomeScreen() {
                     disabled={isLoggingOut}
                     style={({ pressed }) => [
                         styles.logoutButton,
+                        {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                        },
                         pressed && styles.pressed,
                         isLoggingOut && styles.disabled,
                     ]}
                 >
-                    <Ionicons name="log-out-outline" size={22} color={colors.text} />
+                    <Ionicons
+                        name="log-out-outline"
+                        size={22}
+                        color={colors.text}
+                    />
                 </Pressable>
             </View>
 
-            <AppCard style={styles.heroCard} contentStyle={styles.heroCardContent}>
+            <AppCard
+                style={[
+                    styles.heroCard,
+                    { backgroundColor: colors.primary },
+                ]}
+                contentStyle={styles.heroCardContent}
+            >
                 <View style={styles.heroIconBadge}>
-                    <Ionicons name="airplane" size={30} color={colors.textLight} />
+                    <Ionicons
+                        name="airplane"
+                        size={30}
+                        color={colors.textLight}
+                    />
                 </View>
 
                 <View style={styles.heroTextGroup}>
-                    <Text style={styles.heroTitle}>Plan smarter trips</Text>
+                    <Text style={[styles.heroTitle, { color: colors.textLight }]}>
+                        Plan smarter trips
+                    </Text>
+
                     <Text style={styles.heroSubtitle}>
                         Create trips, organise destinations, and schedule activities from one clean workspace.
                     </Text>
@@ -91,12 +129,20 @@ export default function HomeScreen() {
                     title="Create new trip"
                     onPress={handleCreateTrip}
                     variant="secondary"
-                    rightIcon={<Ionicons name="add-circle-outline" size={20} color={colors.primaryDark} />}
+                    rightIcon={
+                        <Ionicons
+                            name="add-circle-outline"
+                            size={20}
+                            color={colors.primaryDark}
+                        />
+                    }
                 />
             </AppCard>
 
             <View style={styles.quickActions}>
-                <Text style={styles.sectionTitle}>Quick actions</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Quick actions
+                </Text>
 
                 <ActionCard
                     icon="map-outline"
@@ -114,13 +160,25 @@ export default function HomeScreen() {
             </View>
 
             <AppCard variant="soft" contentStyle={styles.infoCardContent}>
-                <View style={styles.infoIconBadge}>
-                    <Ionicons name="shield-checkmark-outline" size={22} color={colors.success} />
+                <View
+                    style={[
+                        styles.infoIconBadge,
+                        { backgroundColor: colors.successSoft },
+                    ]}
+                >
+                    <Ionicons
+                        name="shield-checkmark-outline"
+                        size={22}
+                        color={colors.success}
+                    />
                 </View>
 
                 <View style={styles.infoTextGroup}>
-                    <Text style={styles.infoTitle}>Protected account session</Text>
-                    <Text style={styles.infoSubtitle}>
+                    <Text style={[styles.infoTitle, { color: colors.text }]}>
+                        Protected account session
+                    </Text>
+
+                    <Text style={[styles.infoSubtitle, { color: colors.textMuted }]}>
                         Your trips are connected to your signed-in account and protected by token-based authentication.
                     </Text>
                 </View>
@@ -137,18 +195,39 @@ type ActionCardProps = Readonly<{
 }>;
 
 function ActionCard({ icon, title, subtitle, onPress }: ActionCardProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <AppCard onPress={onPress} contentStyle={styles.actionCardContent}>
-            <View style={styles.actionIconBadge}>
-                <Ionicons name={icon} size={24} color={colors.primary} />
+            <View
+                style={[
+                    styles.actionIconBadge,
+                    { backgroundColor: colors.primarySoft },
+                ]}
+            >
+                <Ionicons
+                    name={icon}
+                    size={24}
+                    color={colors.primary}
+                />
             </View>
 
             <View style={styles.actionTextGroup}>
-                <Text style={styles.actionTitle}>{title}</Text>
-                <Text style={styles.actionSubtitle}>{subtitle}</Text>
+                <Text style={[styles.actionTitle, { color: colors.text }]}>
+                    {title}
+                </Text>
+
+                <Text style={[styles.actionSubtitle, { color: colors.textMuted }]}>
+                    {subtitle}
+                </Text>
             </View>
 
-            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+            <Ionicons
+                name="chevron-forward"
+                size={22}
+                color={colors.textMuted}
+            />
         </AppCard>
     );
 }
@@ -170,20 +249,17 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     eyebrow: {
-        color: colors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.7,
     },
     title: {
-        color: colors.text,
         fontSize: typography.hero,
         fontWeight: fontWeight.bold,
         lineHeight: 38,
     },
     subtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -191,9 +267,7 @@ const styles = StyleSheet.create({
         width: 46,
         height: 46,
         borderRadius: radius.lg,
-        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: colors.border,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -205,7 +279,7 @@ const styles = StyleSheet.create({
         opacity: 0.55,
     },
     heroCard: {
-        backgroundColor: colors.primary,
+        borderWidth: 0,
     },
     heroCardContent: {
         padding: spacing.xl,
@@ -223,7 +297,6 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     heroTitle: {
-        color: colors.textLight,
         fontSize: typography.heading,
         lineHeight: 32,
         fontWeight: fontWeight.bold,
@@ -238,7 +311,6 @@ const styles = StyleSheet.create({
         gap: spacing.md,
     },
     sectionTitle: {
-        color: colors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
     },
@@ -251,7 +323,6 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: radius.lg,
-        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -260,12 +331,10 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     actionTitle: {
-        color: colors.text,
         fontSize: typography.body,
         fontWeight: fontWeight.bold,
     },
     actionSubtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -278,7 +347,6 @@ const styles = StyleSheet.create({
         width: 46,
         height: 46,
         borderRadius: radius.lg,
-        backgroundColor: colors.successSoft,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -287,12 +355,10 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     infoTitle: {
-        color: colors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
     infoSubtitle: {
-        color: colors.textMuted,
         fontSize: typography.caption,
         lineHeight: 18,
         fontWeight: fontWeight.semibold,

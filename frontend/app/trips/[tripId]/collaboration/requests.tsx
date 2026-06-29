@@ -24,6 +24,39 @@ function getRequestUsername(request: TripCollaborationRequest) {
     return value.requesterUsername || value.requester || value.requesterUser?.username || value.username || "Unknown user";
 }
 
+function isRequestPending(request: TripCollaborationRequest) {
+    return request.status === "PENDING";
+}
+
+function isAlreadyHandledError(error: any) {
+    const data = error?.response?.data;
+    const code = data?.code;
+    const message = String(data?.message || data?.body || error?.message || "").toLowerCase();
+
+    return (
+        code === "E073" ||
+        message.includes("request not found") ||
+        message.includes("collaboration request not found") ||
+        message.includes("already accepted") ||
+        message.includes("already rejected") ||
+        message.includes("already declined") ||
+        message.includes("already handled")
+    );
+}
+
+function showAlreadyHandledAlert(onRefresh?: () => void) {
+    Alert.alert(
+        "Request already handled",
+        "This join request has already been accepted or declined. The list will refresh now.",
+        [
+            {
+                text: "OK",
+                onPress: onRefresh,
+            },
+        ]
+    );
+}
+
 export default function TripJoinRequestsScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -37,7 +70,7 @@ export default function TripJoinRequestsScreen() {
     const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
     const [error, setError] = useState<string | null>(null);
 
-    async function loadRequests() {
+    const loadRequests = useCallback(async () => {
         if (!hasValidTripId) {
             setError("Trip ID is missing or invalid.");
             setIsLoading(false);
@@ -55,43 +88,84 @@ export default function TripJoinRequestsScreen() {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }
+    }, [hasValidTripId, tripId]);
 
     useFocusEffect(
         useCallback(() => {
             setIsLoading(true);
-            loadRequests();
-        }, [tripIdParam])
+            void loadRequests();
+        }, [loadRequests])
     );
 
-    async function handleRefresh() {
+    async function performRefresh() {
         setIsRefreshing(true);
         await loadRequests();
     }
 
-    async function handleAccept(request: TripCollaborationRequest) {
+    function handleRefresh() {
+        void performRefresh();
+    }
+
+    async function performAccept(request: TripCollaborationRequest) {
+        if (!isRequestPending(request)) {
+            showAlreadyHandledAlert(() => {
+                void loadRequests();
+            });
+            return;
+        }
+
         try {
             setLoadingAction({ requestId: request.requestId, action: "ACCEPT" });
             await acceptJoinRequest(request.requestId);
             await loadRequests();
             Alert.alert("Request accepted", `${getRequestUsername(request)} can now access this trip.`);
         } catch (error: any) {
+            if (isAlreadyHandledError(error)) {
+                showAlreadyHandledAlert(() => {
+                    void loadRequests();
+                });
+                return;
+            }
+
             Alert.alert("Accept failed", getApiErrorMessage(error, "Please try again."));
         } finally {
             setLoadingAction(null);
         }
     }
 
-    async function handleReject(request: TripCollaborationRequest) {
+    function handleAccept(request: TripCollaborationRequest) {
+        void performAccept(request);
+    }
+
+    async function performReject(request: TripCollaborationRequest) {
+        if (!isRequestPending(request)) {
+            showAlreadyHandledAlert(() => {
+                void loadRequests();
+            });
+            return;
+        }
+
         try {
             setLoadingAction({ requestId: request.requestId, action: "REJECT" });
             await rejectJoinRequest(request.requestId);
             await loadRequests();
+            Alert.alert("Request rejected", `You declined ${getRequestUsername(request)}'s request to join this trip.`);
         } catch (error: any) {
+            if (isAlreadyHandledError(error)) {
+                showAlreadyHandledAlert(() => {
+                    void loadRequests();
+                });
+                return;
+            }
+
             Alert.alert("Reject failed", getApiErrorMessage(error, "Please try again."));
         } finally {
             setLoadingAction(null);
         }
+    }
+
+    function handleReject(request: TripCollaborationRequest) {
+        void performReject(request);
     }
 
     if (isLoading) {

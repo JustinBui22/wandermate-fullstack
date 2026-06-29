@@ -8,6 +8,7 @@ import {
     type StyleProp,
     type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { spacing } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
@@ -17,6 +18,8 @@ type AppScreenProps = Readonly<{
     scroll?: boolean;
     centerContent?: boolean;
     keyboardAvoiding?: boolean;
+    style?: StyleProp<ViewStyle>;
+    safeAreaStyle?: StyleProp<ViewStyle>;
     contentContainerStyle?: StyleProp<ViewStyle>;
 }>;
 
@@ -25,14 +28,16 @@ export function AppScreen({
                               scroll = true,
                               centerContent = false,
                               keyboardAvoiding = false,
+                              style,
+                              safeAreaStyle,
                               contentContainerStyle,
                           }: AppScreenProps) {
     const theme = useAppTheme();
     const colors = theme.colors;
 
-    const content = scroll ? (
+    const body = scroll ? (
         <ScrollView
-            style={[styles.container, { backgroundColor: colors.background }]}
+            style={[styles.container, { backgroundColor: colors.background }, style]}
             contentContainerStyle={[
                 styles.content,
                 centerContent && styles.centerContent,
@@ -50,6 +55,7 @@ export function AppScreen({
                 styles.content,
                 centerContent && styles.centerContent,
                 { backgroundColor: colors.background },
+                style,
                 contentContainerStyle,
             ]}
         >
@@ -57,17 +63,27 @@ export function AppScreen({
         </View>
     );
 
-    if (!keyboardAvoiding) {
-        return content;
-    }
-
-    return (
+    const content = keyboardAvoiding ? (
         <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: colors.background }]}
+            style={styles.container}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-            {content}
+            {body}
         </KeyboardAvoidingView>
+    ) : (
+        body
+    );
+
+    return (
+        <SafeAreaView
+            style={[
+                styles.container,
+                { backgroundColor: colors.background },
+                safeAreaStyle,
+            ]}
+        >
+            {content}
+        </SafeAreaView>
     );
 }
 

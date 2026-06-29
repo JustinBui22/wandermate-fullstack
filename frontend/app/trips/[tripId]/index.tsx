@@ -24,6 +24,7 @@ import type {Destination} from "@/src/types/destination";
 import type {Trip} from "@/src/types/trip";
 import {getApiErrorMessage} from "@/src/utils/apiWarningUtils";
 import {formatDateTime} from "@/src/utils/dateFormat";
+import {useAppTheme} from "@/src/hooks/useAppTheme";
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
@@ -343,9 +344,34 @@ type InfoCardProps = Readonly<{
 }>;
 
 function InfoCard({icon, label, value}: InfoCardProps) {
-    return (<AppCard variant="soft" contentStyle={styles.infoCardContent}> <View style={styles.infoIconBadge}> <Ionicons
-            name={icon} size={20} color={colors.primary}/> </View> <View style={styles.infoTextGroup}> <Text
-            style={styles.infoLabel}>{label}</Text> <Text style={styles.infoValue}>{value}</Text> </View> </AppCard>
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
+    return (
+        <AppCard variant="soft" contentStyle={styles.infoCardContent}>
+            <View
+                style={[
+                    styles.infoIconBadge,
+                    {backgroundColor: colors.primarySoft},
+                ]}
+            >
+                <Ionicons
+                    name={icon}
+                    size={20}
+                    color={colors.primary}
+                />
+            </View>
+
+            <View style={styles.infoTextGroup}>
+                <Text style={[styles.infoLabel, {color: colors.textMuted}]}>
+                    {label}
+                </Text>
+
+                <Text style={[styles.infoValue, {color: colors.text}]}>
+                    {value}
+                </Text>
+            </View>
+        </AppCard>
     );
 }
 
