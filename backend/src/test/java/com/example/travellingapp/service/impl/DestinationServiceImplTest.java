@@ -6,12 +6,14 @@ import com.example.travellingapp.dto.response.DestinationResponseDTO;
 import com.example.travellingapp.entity.DestinationEntity;
 import com.example.travellingapp.entity.ErrorCodeEntity;
 import com.example.travellingapp.entity.TripEntity;
+import com.example.travellingapp.entity.User;
 import com.example.travellingapp.enums.ErrorCodeEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.DestinationMapper;
 import com.example.travellingapp.repository.ActivityRepository;
 import com.example.travellingapp.repository.DestinationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
+import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.TripAccessService;
@@ -60,6 +62,9 @@ class DestinationServiceImplTest {
     @Mock
     private TripAccessService tripAccessService;
 
+    @Mock
+    private UserRepository userRepository;
+
     private DestinationServiceImpl destinationService;
 
     private static final Long TRIP_ID = 1L;
@@ -75,7 +80,8 @@ class DestinationServiceImplTest {
                 authenticatedUserProvider,
                 destinationMapper,
                 activityRepository,
-                tripAccessService
+                tripAccessService,
+                userRepository
         );
     }
 
@@ -87,6 +93,7 @@ class DestinationServiceImplTest {
     void createDestination_shouldCreateDestination_whenInputIsValidAndNoOverlapExists() {
         CreateDestinationDTO request = validCreateRequest();
         TripEntity trip = trip();
+        User currentUser = user();
         DestinationResponseDTO responseDTO = mock(DestinationResponseDTO.class);
 
         mockErrorCode(DESTINATION_CREATED_SUCCESS, DESTINATION.name());
@@ -97,6 +104,8 @@ class DestinationServiceImplTest {
                 .thenReturn(USERNAME);
         when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
                 .thenReturn(trip);
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(currentUser));
         when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
                 TRIP_ID,
                 request.getEndDate(),
@@ -125,6 +134,7 @@ class DestinationServiceImplTest {
         assertThat(savedDestination.getDestinationOrder()).isEqualTo(request.getDestinationOrder());
         assertThat(savedDestination.getNotes()).isEqualTo(request.getNotes());
         assertThat(savedDestination.getTrip()).isEqualTo(trip);
+        assertThat(savedDestination.getCreatedBy()).isEqualTo(currentUser);
         assertThat(savedDestination.getCreatedDate()).isNotNull();
 
         verify(destinationValidator).validateDestinationInsideTrip(
@@ -186,6 +196,8 @@ class DestinationServiceImplTest {
                 .thenReturn(USERNAME);
         when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
                 .thenReturn(trip);
+        lenient().when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(user()));
 
         doThrow(new BusinessException(DESTINATION_DATE_OUTSIDE_TRIP_RANGE, DESTINATION.name()))
                 .when(destinationValidator)
@@ -220,6 +232,8 @@ class DestinationServiceImplTest {
                 .thenReturn(USERNAME);
         when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
                 .thenReturn(trip);
+        lenient().when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(user()));
         when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
                 TRIP_ID,
                 request.getEndDate(),
@@ -252,6 +266,8 @@ class DestinationServiceImplTest {
                 .thenReturn(USERNAME);
         when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
                 .thenReturn(trip);
+        lenient().when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(user()));
         when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
                 TRIP_ID,
                 request.getEndDate(),
@@ -491,6 +507,7 @@ class DestinationServiceImplTest {
         UpdateDestinationDTO request = validUpdateRequest();
 
         TripEntity trip = trip();
+        User currentUser = user();
         DestinationEntity existingDestination = destination("Old Adelaide", 1);
         DestinationResponseDTO responseDTO = mock(DestinationResponseDTO.class);
 
@@ -502,6 +519,8 @@ class DestinationServiceImplTest {
                 .thenReturn(USERNAME);
         when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
                 .thenReturn(trip);
+        lenient().when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(currentUser));
         when(destinationRepository.findByDestinationIdAndTrip_TripId(DESTINATION_ID, TRIP_ID))
                 .thenReturn(Optional.of(existingDestination));
         when(activityRepository.existsByDestination_DestinationIdAndStartDateTimeBefore(
@@ -537,6 +556,7 @@ class DestinationServiceImplTest {
         assertThat(existingDestination.getEndDate()).isEqualTo(request.getEndDate());
         assertThat(existingDestination.getDestinationOrder()).isEqualTo(request.getDestinationOrder());
         assertThat(existingDestination.getNotes()).isEqualTo(request.getNotes());
+        assertThat(existingDestination.getModifiedBy()).isEqualTo(currentUser);
         assertThat(existingDestination.getModifiedDate()).isNotNull();
 
         verify(destinationValidator).validateDestinationInsideTrip(
@@ -764,6 +784,7 @@ class DestinationServiceImplTest {
         UpdateDestinationDTO request = validUpdateRequest();
         request.setAllowOverlap(true);
 
+        User currentUser = user();
         DestinationEntity existingDestination = destination("Adelaide", 1);
         DestinationResponseDTO responseDTO = mock(DestinationResponseDTO.class);
 
@@ -775,6 +796,8 @@ class DestinationServiceImplTest {
                 .thenReturn(USERNAME);
         when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
                 .thenReturn(trip());
+        lenient().when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(currentUser));
         when(destinationRepository.findByDestinationIdAndTrip_TripId(DESTINATION_ID, TRIP_ID))
                 .thenReturn(Optional.of(existingDestination));
         when(activityRepository.existsByDestination_DestinationIdAndStartDateTimeBefore(
@@ -802,6 +825,7 @@ class DestinationServiceImplTest {
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(DESTINATION_UPDATED_SUCCESS.getCode());
+        assertThat(existingDestination.getModifiedBy()).isEqualTo(currentUser);
 
         verify(destinationRepository).save(existingDestination);
     }
@@ -964,6 +988,17 @@ class DestinationServiceImplTest {
         request.setNotes("Updated notes");
         request.setAllowOverlap(false);
         return request;
+    }
+
+    private User user() {
+        User user = new User();
+        user.setUserId(1L);
+        user.setUsername(USERNAME);
+        user.setEmail("justin@example.com");
+        user.setActive(true);
+        user.setDisplayName("Justin");
+        user.setProfileImageUrl("https://example.com/avatar.png");
+        return user;
     }
 
     private TripEntity trip() {

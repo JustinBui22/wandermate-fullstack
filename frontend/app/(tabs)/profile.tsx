@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
     Alert,
+    Image,
     Pressable,
     StyleSheet,
     Text,
@@ -70,11 +71,6 @@ export default function ProfileScreen() {
     const [savingTheme, setSavingTheme] = useState<UserThemePreference | null>(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const avatarInitial = useMemo(() => {
-        const name = profile?.displayName || profile?.username || "W";
-        return name.trim().charAt(0).toUpperCase() || "W";
-    }, [profile]);
 
     const loadProfile = useCallback(async () => {
         try {
@@ -202,21 +198,7 @@ export default function ProfileScreen() {
     return (
         <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
-                <View
-                    style={[
-                        styles.avatarBadge,
-                        { backgroundColor: themedColors.primary },
-                    ]}
-                >
-                    <Text
-                        style={[
-                            styles.avatarText,
-                            { color: themedColors.textLight },
-                        ]}
-                    >
-                        {avatarInitial}
-                    </Text>
-                </View>
+                <ProfileAvatar profile={profile} />
 
                 <View style={styles.headerTextGroup}>
                     <Text
@@ -491,6 +473,54 @@ export default function ProfileScreen() {
                 />
             </AppCard>
         </AppScreen>
+    );
+}
+
+type ProfileAvatarProps = Readonly<{
+    profile: UserProfile | null;
+}>;
+
+function ProfileAvatar({ profile }: ProfileAvatarProps) {
+    const theme = useAppTheme();
+    const themedColors = theme.colors;
+    const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+
+    const imageUrl = profile?.profileImageUrl?.trim() || null;
+    const shouldShowImage = Boolean(imageUrl) && failedImageUrl !== imageUrl;
+    const fallbackInitial = (profile?.displayName || profile?.username || "W")
+        .trim()
+        .charAt(0)
+        .toUpperCase() || "W";
+
+    if (shouldShowImage) {
+        return (
+            <Image
+                source={{ uri: imageUrl as string }}
+                style={[
+                    styles.avatarBadge,
+                    { backgroundColor: themedColors.primary },
+                ]}
+                onError={() => setFailedImageUrl(imageUrl)}
+            />
+        );
+    }
+
+    return (
+        <View
+            style={[
+                styles.avatarBadge,
+                { backgroundColor: themedColors.primary },
+            ]}
+        >
+            <Text
+                style={[
+                    styles.avatarText,
+                    { color: themedColors.textLight },
+                ]}
+            >
+                {fallbackInitial}
+            </Text>
+        </View>
     );
 }
 

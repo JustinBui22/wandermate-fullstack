@@ -49,6 +49,14 @@ public class DestinationEntity implements Serializable {
     @JoinColumn(name = "trip_id", nullable = false)
     private TripEntity trip;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_user_id")
+    private User createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "modified_by_user_id")
+    private User modifiedBy;
+
     @OneToMany(mappedBy = "destination", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ActivityEntity> activities = new ArrayList<>();
 

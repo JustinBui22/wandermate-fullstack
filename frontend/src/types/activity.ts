@@ -11,6 +11,14 @@ export type Activity = {
     endDateTime: string;
     createdDate?: string;
     modifiedDate?: string | null;
+    createdByUserId?: number | null;
+    createdByUsername?: string | null;
+    createdByDisplayName?: string | null;
+    createdByProfileImageUrl?: string | null;
+    modifiedByUserId?: number | null;
+    modifiedByUsername?: string | null;
+    modifiedByDisplayName?: string | null;
+    modifiedByProfileImageUrl?: string | null;
 };
 
 export type CreateActivityRequest = {

@@ -21,8 +21,12 @@ public class ActivityMapper {
                 activity.getModifiedDate(),
                 activity.getCreatedBy() == null ? null : activity.getCreatedBy().getUserId(),
                 activity.getCreatedBy() == null ? null : activity.getCreatedBy().getUsername(),
+                activity.getCreatedBy() == null ? null : activity.getCreatedBy().getDisplayName(),
+                activity.getCreatedBy() == null ? null : activity.getCreatedBy().getProfileImageUrl(),
                 activity.getModifiedBy() == null ? null : activity.getModifiedBy().getUserId(),
-                activity.getModifiedBy() == null ? null : activity.getModifiedBy().getUsername()
+                activity.getModifiedBy() == null ? null : activity.getModifiedBy().getUsername(),
+                activity.getModifiedBy() == null ? null : activity.getModifiedBy().getDisplayName(),
+                activity.getModifiedBy() == null ? null : activity.getModifiedBy().getProfileImageUrl()
         );
     }
 }

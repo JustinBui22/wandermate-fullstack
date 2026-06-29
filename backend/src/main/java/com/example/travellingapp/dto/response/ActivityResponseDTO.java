@@ -23,7 +23,12 @@ public class ActivityResponseDTO {
 
     private Long createdByUserId;
     private String createdByUsername;
+    private String createdByDisplayName;
+    private String createdByProfileImageUrl;
+
     private Long modifiedByUserId;
     private String modifiedByUsername;
+    private String modifiedByDisplayName;
+    private String modifiedByProfileImageUrl;
 }
 

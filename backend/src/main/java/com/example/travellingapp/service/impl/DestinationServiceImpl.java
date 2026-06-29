@@ -5,11 +5,13 @@ import com.example.travellingapp.dto.request.update.UpdateDestinationDTO;
 import com.example.travellingapp.dto.response.DestinationResponseDTO;
 import com.example.travellingapp.entity.DestinationEntity;
 import com.example.travellingapp.entity.TripEntity;
+import com.example.travellingapp.entity.User;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.DestinationMapper;
 import com.example.travellingapp.repository.ActivityRepository;
 import com.example.travellingapp.repository.DestinationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
+import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.DestinationService;
@@ -36,6 +38,7 @@ public class DestinationServiceImpl implements DestinationService {
     private final DestinationMapper destinationMapper;
     private final ActivityRepository activityRepository;
     private final TripAccessService tripAccessService;
+    private final UserRepository userRepository;
 
     public DestinationServiceImpl(
             DestinationRepository destinationRepository,
@@ -44,7 +47,7 @@ public class DestinationServiceImpl implements DestinationService {
             AuthenticatedUserProvider authenticatedUserProvider,
             DestinationMapper destinationMapper,
             ActivityRepository activityRepository,
-            TripAccessService tripAccessService) {
+            TripAccessService tripAccessService, UserRepository userRepository) {
         this.destinationRepository = destinationRepository;
         this.errorCodeRepository = errorCodeRepository;
         this.destinationValidator = destinationValidator;
@@ -52,6 +55,7 @@ public class DestinationServiceImpl implements DestinationService {
         this.destinationMapper = destinationMapper;
         this.activityRepository = activityRepository;
         this.tripAccessService = tripAccessService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -69,6 +73,9 @@ public class DestinationServiceImpl implements DestinationService {
 
             // OWNER and EDITOR can create destination
             TripEntity trip = tripAccessService.getTripIfCanEdit(tripId, username);
+
+            User currentUser = userRepository.findByUsernameAndActive(username)
+                    .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
             // Keep destination inside trip date range
             destinationValidator.validateDestinationInsideTrip(
@@ -102,6 +109,7 @@ public class DestinationServiceImpl implements DestinationService {
                     null,
                     trip
             );
+            destination.setCreatedBy(currentUser);
 
             destinationRepository.save(destination);
             return getCompleteResponse(
@@ -204,6 +212,9 @@ public class DestinationServiceImpl implements DestinationService {
             // OWNER and EDITOR can update destination
             TripEntity trip = tripAccessService.getTripIfCanEdit(tripId, username);
 
+            User currentUser = userRepository.findByUsernameAndActive(username)
+                    .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
+
             // Get destination by trip ID and destination ID
             DestinationEntity destination = destinationRepository
                     .findByDestinationIdAndTrip_TripId(destinationId, tripId)
@@ -257,6 +268,7 @@ public class DestinationServiceImpl implements DestinationService {
             destination.setDestinationOrder(destinationDTO.getDestinationOrder());
             destination.setNotes(destinationDTO.getNotes());
             destination.setModifiedDate(LocalDateTime.now());
+            destination.setModifiedBy(currentUser);
 
             destinationRepository.save(destination);
             return getCompleteResponse(

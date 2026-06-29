@@ -21,6 +21,20 @@ public class DestinationMapper {
         if (destination.getTrip() != null) {
             dto.setTripId(destination.getTrip().getTripId());
         }
+
+        if (destination.getCreatedBy() != null) {
+            dto.setCreatedByUserId(destination.getCreatedBy().getUserId());
+            dto.setCreatedByUsername(destination.getCreatedBy().getUsername());
+            dto.setCreatedByDisplayName(destination.getCreatedBy().getDisplayName());
+            dto.setCreatedByProfileImageUrl(destination.getCreatedBy().getProfileImageUrl());
+        }
+
+        if (destination.getModifiedBy() != null) {
+            dto.setModifiedByUserId(destination.getModifiedBy().getUserId());
+            dto.setModifiedByUsername(destination.getModifiedBy().getUsername());
+            dto.setModifiedByDisplayName(destination.getModifiedBy().getDisplayName());
+            dto.setModifiedByProfileImageUrl(destination.getModifiedBy().getProfileImageUrl());
+        }
         return dto;
     }
 }
