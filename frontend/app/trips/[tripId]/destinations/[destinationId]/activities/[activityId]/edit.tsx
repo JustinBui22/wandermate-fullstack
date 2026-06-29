@@ -21,7 +21,8 @@ import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import {
     getApiErrorMessage,
     getApiErrorTitle,
@@ -48,6 +49,9 @@ function parseDateOrFallback(value: string | undefined, fallback: Date) {
 export default function EditActivityScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+
+    const theme = useAppTheme();
+    const colors = theme.colors;
 
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const destinationIdParam = Array.isArray(params.destinationId)
@@ -77,7 +81,7 @@ export default function EditActivityScreen() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    async function loadActivityForEdit() {
+    const loadActivityForEdit = useCallback(async () => {
         if (!hasValidRouteIds) {
             setError("Trip ID, destination ID, or activity ID is missing or invalid.");
             setIsLoading(false);
@@ -104,17 +108,16 @@ export default function EditActivityScreen() {
             setStartDateTime(parseDateOrFallback(data.startDateTime, fallbackStart));
             setEndDateTime(parseDateOrFallback(data.endDateTime, fallbackEnd));
         } catch (error: any) {
-
             setError(getApiErrorMessage(error, "Failed to load activity. Please try again."));
         } finally {
             setIsLoading(false);
         }
-    }
+    }, [hasValidRouteIds, tripNumberId, destinationNumberId, activityNumberId]);
 
     useFocusEffect(
         useCallback(() => {
-            loadActivityForEdit();
-        }, [tripIdParam, destinationIdParam, activityIdParam])
+            void loadActivityForEdit();
+        }, [loadActivityForEdit])
     );
 
     function applySelectedDateTime(selectedDate: Date) {
@@ -137,8 +140,11 @@ export default function EditActivityScreen() {
             setEndDateTime((current) => updateTimePart(current, selectedDate));
         }
     }
+
     function handlePickerValueChange(selectedDate: Date) {
-        if (!activePicker) return;
+        if (!activePicker) {
+            return;
+        }
 
         applySelectedDateTime(selectedDate);
     }
@@ -184,24 +190,28 @@ export default function EditActivityScreen() {
             Alert.alert("Activity updated", "Activity has been updated.");
             router.back();
         } catch (error: any) {
-
-            setError(
-                getApiErrorMessage(
-                    error,
-                    "Please check the activity time and try again."
-                )
+            const message = getApiErrorMessage(
+                error,
+                "Please check the activity time and try again."
             );
+
+            setError(message);
 
             Alert.alert(
                 getApiErrorTitle(error, "Update activity failed"),
-                getApiErrorMessage(
-                    error,
-                    "Please check the activity time and try again."
-                )
+                message
             );
         } finally {
             setIsSubmitting(false);
         }
+    }
+
+    function handleUpdateActivityPress() {
+        void handleUpdateActivity();
+    }
+
+    function handleRetryPress() {
+        void loadActivityForEdit();
     }
 
     if (isLoading) {
@@ -219,16 +229,21 @@ export default function EditActivityScreen() {
     if (error && !activityName) {
         return (
             <AppScreen scroll={false} centerContent contentContainerStyle={styles.centerContent}>
-                <View style={styles.errorIconBadge}>
+                <View
+                    style={[
+                        styles.errorIconBadge,
+                        { backgroundColor: colors.dangerSoft },
+                    ]}
+                >
                     <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
                 </View>
 
                 <View style={styles.centerTextGroup}>
-                    <Text style={styles.centerTitle}>Unable to load activity</Text>
-                    <Text style={styles.centerSubtitle}>{error}</Text>
+                    <Text style={[styles.centerTitle, { color: colors.text }]}>Unable to load activity</Text>
+                    <Text style={[styles.centerSubtitle, { color: colors.textMuted }]}>{error}</Text>
                 </View>
 
-                <AppButton title="Try again" onPress={loadActivityForEdit} />
+                <AppButton title="Try again" onPress={handleRetryPress} />
                 <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
             </AppScreen>
         );
@@ -237,14 +252,23 @@ export default function EditActivityScreen() {
     return (
         <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
-                <Pressable onPress={() => router.back()} style={styles.backButton}>
+                <Pressable
+                    onPress={() => router.back()}
+                    style={[
+                        styles.backButton,
+                        {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                        },
+                    ]}
+                >
                     <Ionicons name="chevron-back" size={22} color={colors.primary} />
                 </Pressable>
 
                 <View style={styles.headerTextGroup}>
-                    <Text style={styles.eyebrow}>Edit activity</Text>
-                    <Text style={styles.title}>Update Activity</Text>
-                    <Text style={styles.subtitle}>Edit activity details, location, and time.</Text>
+                    <Text style={[styles.eyebrow, { color: colors.primary }]}>Edit activity</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Update Activity</Text>
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>Edit activity details, location, and time.</Text>
                 </View>
             </View>
 
@@ -276,7 +300,7 @@ export default function EditActivityScreen() {
                     leftIcon={<Ionicons name="document-text-outline" size={20} color={colors.textMuted} />}
                 />
 
-                <View style={styles.divider} />
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                 <DateTimeSection
                     title="Start"
@@ -296,7 +320,7 @@ export default function EditActivityScreen() {
 
                 <AppButton
                     title="Save Activity"
-                    onPress={handleUpdateActivity}
+                    onPress={handleUpdateActivityPress}
                     loading={isSubmitting}
                     rightIcon={<Ionicons name="checkmark-circle" size={20} color={colors.textLight} />}
                 />
@@ -329,13 +353,11 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     centerTitle: {
-        color: colors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
         textAlign: "center",
     },
     centerSubtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 21,
         textAlign: "center",
@@ -344,7 +366,6 @@ const styles = StyleSheet.create({
         width: 72,
         height: 72,
         borderRadius: radius.xl,
-        backgroundColor: colors.dangerSoft,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -357,9 +378,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: radius.lg,
-        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: colors.border,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -368,19 +387,16 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     eyebrow: {
-        color: colors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.6,
     },
     title: {
-        color: colors.text,
         fontSize: typography.heading,
         fontWeight: fontWeight.bold,
     },
     subtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -392,6 +408,5 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: colors.border,
     },
 });

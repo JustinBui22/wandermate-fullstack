@@ -17,7 +17,8 @@ import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import {
     getApiErrorMessage,
     getApiErrorTitle,
@@ -44,6 +45,9 @@ function getDefaultEndDateTime() {
 export default function CreateActivityScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+
+    const theme = useAppTheme();
+    const colors = theme.colors;
 
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const destinationIdParam = Array.isArray(params.destinationId)
@@ -86,8 +90,11 @@ export default function CreateActivityScreen() {
             setEndDateTime((current) => updateTimePart(current, selectedDate));
         }
     }
+
     function handlePickerValueChange(selectedDate: Date) {
-        if (!activePicker) return;
+        if (!activePicker) {
+            return;
+        }
 
         applySelectedDateTime(selectedDate);
     }
@@ -128,37 +135,46 @@ export default function CreateActivityScreen() {
             Alert.alert("Activity created", "Activity has been added.");
             router.back();
         } catch (error: any) {
-
-            setError(
-                getApiErrorMessage(
-                    error,
-                    "Please check the activity time and try again."
-                )
+            const message = getApiErrorMessage(
+                error,
+                "Please check the activity time and try again."
             );
+
+            setError(message);
 
             Alert.alert(
                 getApiErrorTitle(error, "Create activity failed"),
-                getApiErrorMessage(
-                    error,
-                    "Please check the activity time and try again."
-                )
+                message
             );
         } finally {
             setIsSubmitting(false);
         }
     }
 
+    function handleCreateActivityPress() {
+        void handleCreateActivity();
+    }
+
     return (
         <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
-                <Pressable onPress={() => router.back()} style={styles.backButton}>
+                <Pressable
+                    onPress={() => router.back()}
+                    style={[
+                        styles.backButton,
+                        {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                        },
+                    ]}
+                >
                     <Ionicons name="chevron-back" size={22} color={colors.primary} />
                 </Pressable>
 
                 <View style={styles.headerTextGroup}>
-                    <Text style={styles.eyebrow}>New activity</Text>
-                    <Text style={styles.title}>Add Activity</Text>
-                    <Text style={styles.subtitle}>Add a plan inside this destination.</Text>
+                    <Text style={[styles.eyebrow, { color: colors.primary }]}>New activity</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Add Activity</Text>
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>Add a plan inside this destination.</Text>
                 </View>
             </View>
 
@@ -190,7 +206,7 @@ export default function CreateActivityScreen() {
                     leftIcon={<Ionicons name="document-text-outline" size={20} color={colors.textMuted} />}
                 />
 
-                <View style={styles.divider} />
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                 <DateTimeSection
                     title="Start"
@@ -210,7 +226,7 @@ export default function CreateActivityScreen() {
 
                 <AppButton
                     title="Create Activity"
-                    onPress={handleCreateActivity}
+                    onPress={handleCreateActivityPress}
                     loading={isSubmitting}
                     rightIcon={<Ionicons name="checkmark-circle" size={20} color={colors.textLight} />}
                 />
@@ -244,9 +260,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: radius.lg,
-        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: colors.border,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -255,19 +269,16 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     eyebrow: {
-        color: colors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.6,
     },
     title: {
-        color: colors.text,
         fontSize: typography.heading,
         fontWeight: fontWeight.bold,
     },
     subtitle: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -279,6 +290,5 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: colors.border,
     },
 });

@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { formatDisplayDate, formatDisplayTime } from "@/src/utils/dateTimePickerUtils";
 
 type DateTimeSectionProps = Readonly<{
@@ -12,14 +13,19 @@ type DateTimeSectionProps = Readonly<{
 }>;
 
 export function DateTimeSection({
-                                    title,
-                                    dateTime,
-                                    onDatePress,
-                                    onTimePress,
-                                }: DateTimeSectionProps) {
+    title,
+    dateTime,
+    onDatePress,
+    onTimePress,
+}: DateTimeSectionProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <View style={styles.dateSection}>
-            <Text style={styles.sectionTitle}>{title}</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                {title}
+            </Text>
 
             <View style={styles.pickerRow}>
                 <PickerButton
@@ -48,19 +54,40 @@ type PickerButtonProps = Readonly<{
 }>;
 
 function PickerButton({ icon, label, value, onPress }: PickerButtonProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <Pressable
             accessibilityRole="button"
             onPress={onPress}
-            style={({ pressed }) => [styles.pickerButton, pressed && styles.pickerButtonPressed]}
+            style={({ pressed }) => [
+                styles.pickerButton,
+                {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surface,
+                },
+                pressed && styles.pickerButtonPressed,
+            ]}
         >
-            <View style={styles.pickerIconBadge}>
+            <View
+                style={[
+                    styles.pickerIconBadge,
+                    { backgroundColor: colors.primarySoft },
+                ]}
+            >
                 <Ionicons name={icon} size={19} color={colors.primary} />
             </View>
 
             <View style={styles.pickerTextGroup}>
-                <Text style={styles.pickerLabel}>{label}</Text>
-                <Text style={styles.pickerValue} numberOfLines={1}>
+                <Text style={[styles.pickerLabel, { color: colors.textMuted }]}>
+                    {label}
+                </Text>
+
+                <Text
+                    style={[styles.pickerValue, { color: colors.text }]}
+                    numberOfLines={1}
+                >
                     {value}
                 </Text>
             </View>
@@ -73,7 +100,6 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     sectionTitle: {
-        color: colors.text,
         fontSize: typography.body,
         fontWeight: fontWeight.bold,
     },
@@ -84,8 +110,6 @@ const styles = StyleSheet.create({
         minHeight: 64,
         borderRadius: radius.md,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
         paddingHorizontal: spacing.md,
         flexDirection: "row",
         alignItems: "center",
@@ -99,7 +123,6 @@ const styles = StyleSheet.create({
         width: 38,
         height: 38,
         borderRadius: radius.md,
-        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -108,14 +131,12 @@ const styles = StyleSheet.create({
         gap: 2,
     },
     pickerLabel: {
-        color: colors.textMuted,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.4,
     },
     pickerValue: {
-        color: colors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },

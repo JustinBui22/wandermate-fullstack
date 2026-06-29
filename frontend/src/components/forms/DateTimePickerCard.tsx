@@ -3,7 +3,8 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { AppCard } from "@/src/components/ui/AppCard";
-import { colors, fontWeight, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import {
     getPickerMode,
     getPickerTitle,
@@ -24,12 +25,15 @@ type DateTimePickerCardProps = Readonly<{
 }>;
 
 export function DateTimePickerCard({
-                                       activePicker,
-                                       startDateTime,
-                                       endDateTime,
-                                       onChangeDate,
-                                       onClose,
-                                   }: DateTimePickerCardProps) {
+    activePicker,
+    startDateTime,
+    endDateTime,
+    onChangeDate,
+    onClose,
+}: DateTimePickerCardProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     const handlePickerValueChange: DateTimePickerValueChange = (_event, selectedDate) => {
         if (selectedDate) {
             onChangeDate(selectedDate);
@@ -43,11 +47,13 @@ export function DateTimePickerCard({
     return (
         <AppCard variant="outline" contentStyle={styles.pickerCardContent}>
             <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>{getPickerTitle(activePicker)}</Text>
+                <Text style={[styles.pickerTitle, { color: colors.text }]}>
+                    {getPickerTitle(activePicker)}
+                </Text>
 
                 {Platform.OS === "ios" ? (
                     <Pressable onPress={onClose} hitSlop={10}>
-                        <Text style={styles.doneText}>Done</Text>
+                        <Text style={[styles.doneText, { color: colors.primary }]}>Done</Text>
                     </Pressable>
                 ) : null}
             </View>
@@ -74,12 +80,10 @@ const styles = StyleSheet.create({
         gap: spacing.md,
     },
     pickerTitle: {
-        color: colors.text,
         fontSize: typography.body,
         fontWeight: fontWeight.bold,
     },
     doneText: {
-        color: colors.primary,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
