@@ -12,6 +12,7 @@ import java.util.Optional;
 
 public interface TripCollaborationRequestRepository extends JpaRepository<TripCollaborationRequestEntity, Long> {
 
+    // Check if a collaboration request exists for a specific trip, requester, target user, and status
     boolean existsByTrip_TripIdAndRequester_UserIdAndTargetUser_UserIdAndStatus(
             Long tripId,
             long requesterUserId,
@@ -19,18 +20,21 @@ public interface TripCollaborationRequestRepository extends JpaRepository<TripCo
             TripEnum status
     );
 
+    // For invitations
     Optional<TripCollaborationRequestEntity> findByRequestIdAndRequestTypeAndStatus(
             Long requestId,
             TripEnum requestType,
             TripEnum status
     );
 
+    // For received invitations
     List<TripCollaborationRequestEntity> findAllByTargetUser_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
             String username,
             TripEnum requestType,
             TripEnum status
     );
 
+    // For sent invitations
     List<TripCollaborationRequestEntity> findAllByTrip_TripIdAndTargetUser_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
             Long tripId,
             String targetUsername,
@@ -38,20 +42,37 @@ public interface TripCollaborationRequestRepository extends JpaRepository<TripCo
             TripEnum status
     );
 
+    // For join requests
+    List<TripCollaborationRequestEntity> findAllByTrip_User_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
+            String ownerUsername,
+            TripEnum requestType,
+            TripEnum status
+    );
+
+    // For sent join requests
+    List<TripCollaborationRequestEntity> findAllByRequester_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
+            String requesterUsername,
+            TripEnum requestType,
+            TripEnum status
+    );
+
     // For projection
 
+    // Count the number of pending join requests for a specific user and request type
     long countByTargetUser_UsernameAndRequestTypeAndStatus(
             String username,
             TripEnum requestType,
             TripEnum status
     );
 
+    // Count the number of pending join requests for a specific trip owner and request type
     long countByTrip_User_UsernameAndRequestTypeAndStatus(
             String username,
             TripEnum requestType,
             TripEnum status
     );
 
+    // Count the number of pending join requests for each trip owned by a specific user and request type
     @Query("""
         SELECT request.trip.tripId AS tripId,
                COUNT(request.requestId) AS pendingCount

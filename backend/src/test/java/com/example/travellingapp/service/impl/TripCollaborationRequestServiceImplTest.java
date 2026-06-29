@@ -394,6 +394,78 @@ class TripCollaborationRequestServiceImplTest {
     }
 
     @Test
+    void getPendingJoinRequestsForMyTrips_shouldReturnRequestsForTripsOwnedByCurrentUser() {
+        User owner = owner();
+        User requester = friend();
+        TripEntity trip = trip(owner);
+        TripCollaborationRequestEntity joinRequest = joinRequest(trip, requester, owner);
+        TripCollaborationRequestResponseDTO responseDTO = mock(TripCollaborationRequestResponseDTO.class);
+
+        mockErrorCode(TRIP_JOIN_REQUESTS_RETRIEVED_SUCCESS, TRIP_MEMBER.name());
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(OWNER_USERNAME);
+        when(requestRepository.findAllByTrip_User_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
+                OWNER_USERNAME,
+                TripEnum.JOIN_REQUEST,
+                TripEnum.PENDING
+        )).thenReturn(List.of(joinRequest));
+        when(requestMapper.toResponseDTO(joinRequest)).thenReturn(responseDTO);
+
+        CompleteResponse<Object> response = service.getPendingJoinRequestsForMyTrips();
+
+        assertThat(response.getResponseBody().getCode()).isEqualTo(TRIP_JOIN_REQUESTS_RETRIEVED_SUCCESS.getCode());
+
+        @SuppressWarnings("unchecked")
+        List<TripCollaborationRequestResponseDTO> body =
+                (List<TripCollaborationRequestResponseDTO>) response.getResponseBody().getBody();
+
+        assertThat(body).containsExactly(responseDTO);
+
+        verify(requestRepository).findAllByTrip_User_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
+                OWNER_USERNAME,
+                TripEnum.JOIN_REQUEST,
+                TripEnum.PENDING
+        );
+        verify(tripAccessService, never()).getTripIfOwner(anyLong(), anyString());
+    }
+
+    @Test
+    void getMySentPendingJoinRequests_shouldReturnPendingJoinRequestsSentByCurrentUser() {
+        User owner = owner();
+        User requester = friend();
+        TripEntity trip = trip(owner);
+        TripCollaborationRequestEntity joinRequest = joinRequest(trip, requester, owner);
+        TripCollaborationRequestResponseDTO responseDTO = mock(TripCollaborationRequestResponseDTO.class);
+
+        mockErrorCode(TRIP_JOIN_REQUESTS_RETRIEVED_SUCCESS, TRIP_MEMBER.name());
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(FRIEND_USERNAME);
+        when(requestRepository.findAllByRequester_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
+                FRIEND_USERNAME,
+                TripEnum.JOIN_REQUEST,
+                TripEnum.PENDING
+        )).thenReturn(List.of(joinRequest));
+        when(requestMapper.toResponseDTO(joinRequest)).thenReturn(responseDTO);
+
+        CompleteResponse<Object> response = service.getMySentPendingJoinRequests();
+
+        assertThat(response.getResponseBody().getCode()).isEqualTo(TRIP_JOIN_REQUESTS_RETRIEVED_SUCCESS.getCode());
+
+        @SuppressWarnings("unchecked")
+        List<TripCollaborationRequestResponseDTO> body =
+                (List<TripCollaborationRequestResponseDTO>) response.getResponseBody().getBody();
+
+        assertThat(body).containsExactly(responseDTO);
+
+        verify(requestRepository).findAllByRequester_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
+                FRIEND_USERNAME,
+                TripEnum.JOIN_REQUEST,
+                TripEnum.PENDING
+        );
+        verify(tripAccessService, never()).getTripIfOwner(anyLong(), anyString());
+    }
+
+    @Test
     void acceptJoinRequest_shouldCreateMemberAndAcceptRequest() {
         User owner = owner();
         User requester = friend();

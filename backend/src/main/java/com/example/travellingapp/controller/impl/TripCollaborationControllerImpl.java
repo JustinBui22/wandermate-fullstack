@@ -59,6 +59,18 @@ public class TripCollaborationControllerImpl implements TripCollaborationControl
     }
 
     @Override
+    public ResponseEntity<ResponseBody<Object>> getPendingJoinRequestsForMyTrips() {
+        CompleteResponse<Object> response = tripCollaborationRequestService.getPendingJoinRequestsForMyTrips();
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
+    }
+
+    @Override
+    public ResponseEntity<ResponseBody<Object>> getMySentPendingJoinRequests() {
+        CompleteResponse<Object> response = tripCollaborationRequestService.getMySentPendingJoinRequests();
+        return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
+    }
+
+    @Override
     public ResponseEntity<ResponseBody<Object>> acceptJoinRequest(Long requestId) {
         CompleteResponse<Object> response = tripCollaborationRequestService.acceptJoinRequest(requestId);
         return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));

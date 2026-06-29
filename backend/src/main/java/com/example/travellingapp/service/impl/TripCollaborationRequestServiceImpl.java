@@ -3,6 +3,7 @@ package com.example.travellingapp.service.impl;
 import com.example.travellingapp.dto.request.SendTripInvitationDTO;
 import com.example.travellingapp.dto.request.SendTripJoinRequestDTO;
 import com.example.travellingapp.dto.response.TripCollaborationActionResponseDTO;
+import com.example.travellingapp.dto.response.TripCollaborationRequestResponseDTO;
 import com.example.travellingapp.entity.TripEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.entity.collaboration.TripCollaborationRequestEntity;
@@ -374,6 +375,61 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
         }
     }
 
+    @Override
+    public CompleteResponse<Object> getPendingJoinRequestsForMyTrips() {
+        try {
+            String username = authenticatedUserProvider.getUsername();
+            List<TripCollaborationRequestResponseDTO> joinRequests = requestRepository
+                    .findAllByTrip_User_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
+                            username,
+                            TripEnum.JOIN_REQUEST,
+                            TripEnum.PENDING
+                    )
+                    .stream()
+                    .map(requestMapper::toResponseDTO)
+                    .toList();
+
+            return getCompleteResponse(
+                    errorCodeRepository,
+                    TRIP_JOIN_REQUESTS_RETRIEVED_SUCCESS,
+                    TRIP_MEMBER.name(),
+                    joinRequests
+            );
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error occurred while getting pending join requests for current user's trips", e);
+            throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
+        }
+    }
+
+    @Override
+    public CompleteResponse<Object> getMySentPendingJoinRequests() {
+        try {
+            String username = authenticatedUserProvider.getUsername();
+            List<TripCollaborationRequestResponseDTO> joinRequests = requestRepository
+                    .findAllByRequester_UsernameAndRequestTypeAndStatusOrderByCreatedDateDesc(
+                            username,
+                            TripEnum.JOIN_REQUEST,
+                            TripEnum.PENDING
+                    )
+                    .stream()
+                    .map(requestMapper::toResponseDTO)
+                    .toList();
+            return getCompleteResponse(
+                    errorCodeRepository,
+                    TRIP_JOIN_REQUESTS_RETRIEVED_SUCCESS,
+                    TRIP_MEMBER.name(),
+                    joinRequests
+            );
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error occurred while getting current user's sent pending join requests", e);
+            throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
+        }
+    }
+
     @Transactional
     @Override
     public CompleteResponse<Object> acceptJoinRequest(Long requestId) {
@@ -436,7 +492,6 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
 
             // Mark join request as rejected
             markRequestAsResponded(joinRequest, TripEnum.REJECTED);
-
             return getCompleteResponse(
                     errorCodeRepository,
                     TRIP_JOIN_REQUEST_REJECTED_SUCCESS,

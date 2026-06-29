@@ -39,6 +39,12 @@ public interface TripCollaborationController {
             @PathVariable Long tripId
     );
 
+    @GetMapping("/join-requests/owned")
+    ResponseEntity<ResponseBody<Object>> getPendingJoinRequestsForMyTrips();
+
+    @GetMapping("/join-requests/sent")
+    ResponseEntity<ResponseBody<Object>> getMySentPendingJoinRequests();
+
     @PatchMapping("/join-requests/{requestId}/accept")
     ResponseEntity<ResponseBody<Object>> acceptJoinRequest(
             @PathVariable Long requestId

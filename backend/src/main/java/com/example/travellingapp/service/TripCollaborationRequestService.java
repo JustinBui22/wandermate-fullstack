@@ -17,6 +17,10 @@ public interface TripCollaborationRequestService {
 
     CompleteResponse<Object> getPendingJoinRequests(Long tripId);
 
+    CompleteResponse<Object> getPendingJoinRequestsForMyTrips();
+
+    CompleteResponse<Object> getMySentPendingJoinRequests();
+
     CompleteResponse<Object> acceptJoinRequest(Long requestId);
 
     CompleteResponse<Object> rejectJoinRequest(Long requestId);

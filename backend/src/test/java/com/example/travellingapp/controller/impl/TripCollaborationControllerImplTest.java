@@ -224,6 +224,72 @@ class TripCollaborationControllerImplTest {
     }
 
     @Test
+    void getPendingJoinRequestsForMyTrips_shouldReturnServiceResponse() throws Exception {
+        ResponseBody<Object> responseBody = new ResponseBody<>(
+                "E000",
+                "Trip join requests retrieved successfully",
+                TRIP_MEMBER.name(),
+                List.of(
+                        Map.of(
+                                "requestId", 9,
+                                "tripId", 1,
+                                "tripName", "Adelaide Trip",
+                                "requesterUsername", "FriendUser",
+                                "requestedRole", "VIEWER",
+                                "status", "PENDING"
+                        )
+                )
+        );
+
+        when(tripCollaborationRequestService.getPendingJoinRequestsForMyTrips())
+                .thenReturn(new CompleteResponse<>(responseBody, 200));
+
+        mockMvc.perform(get("/api/v1/trips/join-requests/owned")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("E000"))
+                .andExpect(jsonPath("$.body[0].requestId").value(9))
+                .andExpect(jsonPath("$.body[0].tripName").value("Adelaide Trip"))
+                .andExpect(jsonPath("$.body[0].requesterUsername").value("FriendUser"))
+                .andExpect(jsonPath("$.body[0].status").value("PENDING"));
+
+        verify(tripCollaborationRequestService).getPendingJoinRequestsForMyTrips();
+    }
+
+    @Test
+    void getMySentPendingJoinRequests_shouldReturnServiceResponse() throws Exception {
+        ResponseBody<Object> responseBody = new ResponseBody<>(
+                "E000",
+                "Trip join requests retrieved successfully",
+                TRIP_MEMBER.name(),
+                List.of(
+                        Map.of(
+                                "requestId", 11,
+                                "tripId", 2,
+                                "tripName", "Melbourne Trip",
+                                "targetUsername", "OwnerUser",
+                                "requestedRole", "VIEWER",
+                                "status", "PENDING"
+                        )
+                )
+        );
+
+        when(tripCollaborationRequestService.getMySentPendingJoinRequests())
+                .thenReturn(new CompleteResponse<>(responseBody, 200));
+
+        mockMvc.perform(get("/api/v1/trips/join-requests/sent")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("E000"))
+                .andExpect(jsonPath("$.body[0].requestId").value(11))
+                .andExpect(jsonPath("$.body[0].tripName").value("Melbourne Trip"))
+                .andExpect(jsonPath("$.body[0].targetUsername").value("OwnerUser"))
+                .andExpect(jsonPath("$.body[0].status").value("PENDING"));
+
+        verify(tripCollaborationRequestService).getMySentPendingJoinRequests();
+    }
+
+    @Test
     void acceptJoinRequest_shouldReturnServiceResponse() throws Exception {
         ResponseBody<Object> responseBody = new ResponseBody<>(
                 "E000",
