@@ -45,6 +45,12 @@ The frontend V2.5 polish is complete: shared UI components, reusable date/time p
 ✅ Activity overlap validation error is displayed
 ✅ Frontend environment switching uses Expo public env variables
 ✅ Frontend TypeScript check runs in CI
+✅ Collaboration tab implemented
+✅ Received invitations, owned-trip join requests, and sent join requests implemented
+✅ Per-trip collaboration screens implemented
+✅ Share-code join flow implemented
+✅ Profile page and dynamic theme implemented
+✅ Destination/activity attribution UI implemented
 ✅ Frontend has been tested against the deployed Render backend
 ```
 
@@ -52,7 +58,7 @@ Not enabled yet:
 
 ```text
 ⚠️ Real SMS delivery is not enabled
-⚠️ Screenshots/demo video are planned for V3
+⚠️ Screenshots/demo video are planned for V4
 ```
 
 ---
@@ -419,7 +425,7 @@ npm run typecheck
 
 ## Current Next Phase
 
-V2.5 frontend polish is complete. The next phase is V3 portfolio proof:
+V3 frontend collaboration is complete. The next phase is V4 portfolio proof:
 
 ```text
 1. Take screenshots of key screens
@@ -444,5 +450,56 @@ Suggested screenshots:
 Suggested demo flow:
 
 ```text
-Login → Create Trip → Add Destination → Add Activity → Edit/Delete → Logout
+Login → Create Trip → Add Destination → Add Activity → Invite User / Share Code → Accept Request → Show Role Access → Show Attribution → Profile Theme → Logout
 ```
+
+## V3 Collaboration UI
+
+V3 collaboration screens:
+
+```text
+(tabs)/collaboration
+join-trip
+trips/[tripId]/collaboration/index
+trips/[tripId]/collaboration/invite
+trips/[tripId]/collaboration/members
+trips/[tripId]/collaboration/requests
+trips/[tripId]/collaboration/share-code
+```
+
+Supported behaviour:
+
+```text
+- Received invitations
+- Owned-trip join requests
+- Sent join requests
+- Invite member by username
+- Member list and role management
+- Share-code generation and preview
+- Join trip by share code
+- Collaboration badge counts
+- Private overlap warning display
+```
+
+## V3 Profile, Theme, and Attribution UI
+
+Profile screen supports:
+
+```text
+- Display name
+- Phone number
+- Date of birth
+- Profile image URL
+- Preferred theme: LIGHT / DARK / SYSTEM
+```
+
+Destination and activity screens support:
+
+```text
+- Created by user attribution
+- Last edited by user attribution
+- Avatar/profile-image display
+- Quick user attribution card
+```
+
+Real file upload/storage is not implemented yet. Profile image support is URL-based in V3.

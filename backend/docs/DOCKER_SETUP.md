@@ -338,3 +338,26 @@ For production/cloud deployment:
 - Consider setting `spring.jpa.hibernate.ddl-auto=validate` or migration tooling later.
 - Restrict or disable Swagger UI in production.
 - Store all secrets outside Git.
+
+## V3 Frontend Testing Notes
+
+For V3 frontend collaboration testing, use at least two accounts:
+
+```text
+Account A: creates trip and acts as OWNER
+Account B: accepts invitation or requests to join as EDITOR/VIEWER
+```
+
+Android emulator URLs:
+
+```text
+Local IntelliJ backend: http://10.0.2.2:8080/The-Project
+Docker backend:         http://10.0.2.2:8082/The-Project
+Production backend:     https://wandermate-fullstack.onrender.com/The-Project
+```
+
+After changing frontend `.env`, restart Expo:
+
+```bash
+npx expo start --clear
+```

@@ -276,3 +276,20 @@ Production Render: Swagger disabled
 Production health: /api/v1/health
 Production docs: markdown + Postman guide
 ```
+
+## V3 Production API Areas
+
+Production markdown docs now cover these V3 areas:
+
+```text
+- Profile/settings API
+- Collaboration summary API
+- Invitations
+- Join requests
+- Share-code preview/join request
+- Trip member role management
+- Private overlap warnings
+- Destination/activity creator-editor attribution
+```
+
+Swagger remains disabled in production, so these markdown docs and Postman guide are the source of production API usage notes.

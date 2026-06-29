@@ -12,8 +12,8 @@ This repository is a portfolio project focused on production-style backend API d
 ## Project Status
 
 ```text
-Current phase: V3 backend collaboration completed
-Next phase: V3 frontend collaboration UI
+Current phase: V3 collaboration complete
+Next phase: V4 portfolio proof, screenshots, demo video, README media, and CV/GitHub write-up
 ```
 
 ### Completed
@@ -51,15 +51,20 @@ Next phase: V3 frontend collaboration UI
 ✅ Reusable frontend date/time picker components extracted
 ✅ Frontend API error messages polished
 ✅ Frontend debug/console logs removed from app/src code
-✅ Backend test suite passing with 316 tests
+✅ Backend test suite passing with 373 tests
 ✅ Frontend TypeScript check passing
+✅ Frontend collaboration tab completed
+✅ Received invitations, owned-trip join requests, and sent join requests UI completed
+✅ Per-trip collaboration screens completed
+✅ Share-code preview and join-request flow completed
+✅ Profile page, dynamic theme, and attribution UI completed
 ```
 
 ### Not enabled yet
 
 ```text
 ⚠️ Real SMS provider integration is not enabled
-⚠️ Frontend collaboration UI is not implemented yet
+⚠️ Final screenshots/demo video are planned for V4
 ⚠️ Viewer suggestion workflow is not implemented yet
 ⚠️ Cost sharing is not implemented yet
 ⚠️ Final screenshots/demo video are planned after V3 frontend integration
@@ -216,7 +221,7 @@ GET    /api/v1/trips/{tripId}/my-overlap-warnings
 
 Direct member creation through `POST /members` is not exposed at controller level. Collaboration should go through invitations or join requests.
 
-### Frontend V2.5 Polish
+### Frontend V3 Polish
 
 ```text
 - Shared theme constants
@@ -436,7 +441,7 @@ env:
 Focused backend test suite status:
 
 ```text
-316 passing tests
+373 passing tests
 0 failures
 0 errors
 0 skipped
@@ -486,7 +491,7 @@ cd frontend
 npm run typecheck
 ```
 
-Current V2.5 frontend polish has been typechecked successfully.
+Current V3 frontend collaboration and polish should be verified with npm run typecheck.
 
 Manual regression checklist:
 
@@ -593,15 +598,14 @@ Do not commit or share real `.env`, local DB dumps, OAuth refresh tokens, access
 ✅ Backend role-based collaboration
 ✅ Backend trip member access control
 ✅ Backend invitation and join request flow
+✅ Backend share-code join flow
 ✅ Backend private member overlap warning
 ✅ Backend collaboration tests
-
-Next:
-1. Build frontend collaboration API/types
-2. Build frontend member/invitation/join-request screens
-3. Show role-based UI controls
-4. Show private overlap warning to affected member
-5. Update Postman/API documentation
+✅ Frontend collaboration API/types
+✅ Frontend member/invitation/join-request screens
+✅ Role-based UI controls
+✅ Private overlap warning UI
+✅ Profile/theme/attribution UI
 ```
 
 ### V4 - Portfolio proof
@@ -643,3 +647,23 @@ Next:
 11. Show private overlap warning
 12. Show GitHub Actions backend/frontend CI
 ```
+
+## V3 Completed Collaboration Summary
+
+```text
+- Trip roles: OWNER, EDITOR, VIEWER
+- Owner invitation flow
+- Received invitation list
+- Join request flow
+- Owned-trip join request list
+- Sent join request list
+- Share-code preview and join request
+- Collaboration summary badge counts
+- Member list and role management
+- Private overlap warnings for affected members only
+- Profile display name, preferred theme, and profile image URL
+- Light/Dark/System theme support
+- Destination/activity creator and last-editor attribution
+```
+
+Direct member creation is intentionally not exposed through the controller. New members are added through accepted invitations or accepted join requests.

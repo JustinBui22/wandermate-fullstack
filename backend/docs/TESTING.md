@@ -6,16 +6,17 @@ This document summarizes the backend test suite and how to run it.
 
 ## Test Style
 
-The current backend tests are mainly service-level unit tests using:
+The current backend tests are mainly service/controller tests using:
 
 ```text
 JUnit 5
 Mockito
 AssertJ
+Spring MockMvc
 Maven Surefire
 ```
 
-These tests focus on business logic without needing a real database connection.
+These tests focus on business logic and controller behaviour without needing a real database connection for most cases.
 
 ---
 
@@ -39,37 +40,72 @@ Run one test class:
 .\mvnw -Dtest=TripServiceImplTest test
 ```
 
+Run one method:
+
+```powershell
+.\mvnw -Dtest=DestinationServiceImplTest#updateDestination_shouldUpdateDestination_whenUserCanEditAndNoOverlapOrActivityConflictExists test
+```
+
 ---
 
-## Current Passing Service Test Suite
+## Current Passing Test Suite
 
-Current surefire reports show:
-
-| Test Class | Tests | Failures | Errors |
-|---|---:|---:|---:|
-| `ActivityServiceImplTest` | 25 | 0 | 0 |
-| `DestinationServiceImplTest` | 31 | 0 | 0 |
-| `EmailServiceImplTest` | 9 | 0 | 0 |
-| `OtpServiceImplTest` | 28 | 0 | 0 |
-| `SmsServiceImplTest` | 3 | 0 | 0 |
-| `TokenServiceImplTest` | 33 | 0 | 0 |
-| `TripServiceImplTest` | 39 | 0 | 0 |
-| `UserServiceImplTest` | 29 | 0 | 0 |
-
-Total service tests:
+The uploaded project contains Surefire reports showing:
 
 ```text
-197 passed
+373 tests
 0 failures
 0 errors
+0 skipped
+```
+
+Main test areas:
+
+```text
+Controller tests
+Service tests
+Validator tests
+```
+
+Test classes include:
+
+```text
+ActivityControllerImplTest
+DestinationControllerImplTest
+HealthControllerImplTest
+OtpControllerImplTest
+TokenControllerImplTest
+TripCollaborationControllerImplTest
+TripControllerImplTest
+TripMemberControllerImplTest
+TripShareCodeControllerImplTest
+UserControllerImplTest
+
+ActivityServiceImplTest
+DestinationServiceImplTest
+EmailServiceImplTest
+OtpServiceImplTest
+SmsServiceImplTest
+TokenServiceImplTest
+TripAccessServiceImplTest
+TripCollaborationRequestServiceImplTest
+TripMemberServiceImplTest
+TripOverlapWarningServiceImplTest
+TripServiceImplTest
+TripShareCodeServiceImplTest
+UserServiceImplTest
+
+TripCollaborationRequestValidatorTest
+TripShareCodeValidatorTest
 ```
 
 ---
 
 ## What Is Covered
 
-### User Service
+### User/Auth/OTP
 
+```text
 - Register validation
 - Duplicate username/email/phone checks
 - Password hashing flow
@@ -78,55 +114,57 @@ Total service tests:
 - Forgot password with OTP
 - Logout flow
 - User check flow
-- Business exception handling
+- Profile/settings retrieval and updates
+- Access token generation and validation
+- Refresh token rotation and reuse detection
+- Session token validation/revocation
+- OTP send/verify retry, expiry, destination mismatch, and consume-on-success
+```
 
-### Token Service
+### Trip/Destination/Activity
 
-- Access token generation
-- JWT validation
-- Expired/invalid token handling
-- Refresh token generation and hashing
-- Refresh token rotation
-- Refresh token reuse detection
-- Session token generation/validation/revocation
-- Max active session handling
-
-### OTP Service
-
-- Email OTP send flow
-- Phone OTP service branch with mocked `SmsServiceImpl`
-- OTP retry/send limits
-- OTP verification retry limits
-- OTP expiry
-- OTP destination mismatch checks
-- Blocking and restriction reset logic
-
-### Trip Service
-
+```text
 - Create/list/detail/update/delete trips
-- Ownership checks
-- Duplicate trip name checks
-- Trip overlap warning
-- `allowOverlap` flow
-- Trip date conflict with existing destinations
-- Search/suggest methods
-
-### Destination Service
-
 - Create/list/detail/update/delete destinations
-- Ownership checks through parent trip
-- Destination inside trip range
-- Destination overlap warning
-- `allowOverlap` flow
-- Destination date conflict with existing activities
-
-### Activity Service
-
 - Create/list/detail/update/delete activities
-- Ownership checks through destination/trip
-- Activity inside destination range
-- Activity time overlap hard error
-- Invalid/missing activity time checks
+- Owner/member access checks
+- Trip/destination overlap warning
+- allowOverlap flow
+- Trip date conflict with existing destinations
+- Destination date conflict with existing activities
+- Activity overlap hard error
+- createdBy/modifiedBy attribution behaviour
+```
+
+### Collaboration and Share Codes
+
+```text
+- Owner/editor/viewer access checks
+- Trip member listing
+- Member role updates
+- Member removal
+- Invitation creation and accept/reject
+- Join request creation and accept/reject
+- Duplicate request prevention
+- Request stale-status handling
+- Private overlap warning behaviour
+- Owner-only share-code generation/regeneration
+- Share-code trip preview
+- Join request by share code
+- Share-code role validation
+- Collaboration summary counts
+```
+
+### Controller/API Tests
+
+```text
+- HTTP status mapping
+- Request binding
+- Success response mapping
+- Business exception response mapping
+- Authenticated endpoint controller behaviour
+- Collaboration/share-code endpoint behaviour
+```
 
 ---
 
@@ -150,53 +188,41 @@ spring.datasource.url=${DB_URL}
 
 that test requires real DB environment variables or a dedicated test profile.
 
-If `DB_URL` is missing, the test can fail with:
-
-```text
-Driver org.mariadb.jdbc.Driver claims to not accept jdbcUrl, ${DB_URL}
-```
-
 Acceptable options:
 
 ```text
-Option A: Remove the generated contextLoads test if service tests are the main proof.
+Option A: Remove the generated contextLoads test if service/controller tests are the main proof.
 Option B: Add application-test.properties and @ActiveProfiles("test").
 Option C: Use Testcontainers later for a real integration test setup.
 ```
 
-For the current portfolio stage, service-level tests are the strongest proof of business logic.
-
 ---
 
-## Mockito Notes
+## Common Test Maintenance Rule
 
-When mocking repository `save(...)`, remember that Mockito does not behave like JPA.
+When a service method validates several conditions, tests should usually expect the earliest meaningful business error in the service order.
 
-Example: JPA may generate UUID/ID values after save, but a mocked repository will not.
+Recommended order for update flows:
 
-Tests that need generated IDs should simulate it:
-
-```java
-when(refreshTokenRepository.save(any(RefreshTokenEntity.class)))
-        .thenAnswer(invocation -> {
-            RefreshTokenEntity token = invocation.getArgument(0);
-            if (token.getTokenId() == null) {
-                token.setTokenId(UUID.randomUUID());
-            }
-            return token;
-        });
+```text
+1. Validate input
+2. Check current user/session
+3. Check trip access
+4. Check entity exists
+5. Check date/business conflicts
+6. Load current user for attribution if save will happen
+7. Save and map response
 ```
+
+Do not load attribution-only data too early if it can hide the real business error.
 
 ---
 
 ## Future Testing Improvements
 
-Recommended next testing improvements:
-
 ```text
-1. Add GitHub Actions CI to run backend tests on every push/PR
-2. Add integration tests for key auth and trip flows
-3. Add Testcontainers for MariaDB integration testing
-4. Add controller tests with MockMvc
-5. Add frontend tests later after frontend stabilizes
+1. Add integration tests for key auth and trip flows
+2. Add Testcontainers for MariaDB integration testing
+3. Add frontend tests after frontend stabilizes
+4. Add end-to-end demo smoke checklist for V4 portfolio proof
 ```

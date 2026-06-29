@@ -334,3 +334,22 @@ The current `SmsServiceImpl` returns `SMS_SENT_SUCCESS` without calling an exter
 - Access token includes session id, so a stolen access token alone is not enough if the session token is missing/invalid.
 - Refresh token reuse triggers session revocation.
 - Public/private routes are configured from the database-backed configuration table.
+
+## Protected Profile and Settings Flow
+
+The current profile/settings endpoints are protected and use the same auth headers as trip APIs.
+
+```text
+GET   /api/v1/users/me
+PATCH /api/v1/users/me/profile
+PATCH /api/v1/users/me/settings
+```
+
+Required headers:
+
+```text
+Authorization: Bearer <accessToken>
+Session-Token: <sessionToken>
+```
+
+Profile/settings update non-sensitive user-facing fields such as display name, profile image URL, and preferred theme. Password reset still goes through the forgot-password OTP flow.

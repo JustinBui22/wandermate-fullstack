@@ -50,6 +50,10 @@ This backend is written as a portfolio-grade API project. It demonstrates real b
 ✅ Invitation accept/reject flow implemented
 ✅ User join request flow implemented
 ✅ Owner join request approval/rejection implemented
+✅ Share-code preview and join-request flow implemented
+✅ Collaboration summary counts implemented
+✅ Profile/settings API implemented
+✅ Destination createdBy/modifiedBy tracking implemented
 ✅ Members are created only after invitation/join request acceptance
 ✅ Private member overlap warning implemented
 ✅ Activity createdBy and modifiedBy tracking implemented
@@ -60,7 +64,7 @@ This backend is written as a portfolio-grade API project. It demonstrates real b
 ✅ Production profile available for Render deployment
 ✅ Public health endpoint implemented
 ✅ Backend CI/CD runs tests before triggering Render deployment
-✅ Focused backend service/controller test suite has 316 passing tests
+✅ Uploaded Surefire reports show 373 passing backend tests
 ```
 
 Not enabled yet:
@@ -529,7 +533,7 @@ cd backend
 Focused backend suite status:
 
 ```text
-316 passed
+373 passed
 0 failures
 0 errors
 0 skipped
@@ -653,12 +657,12 @@ Use `.env.example` for safe templates and cloud provider environment settings fo
 
 ## Current Next Phase
 
-Backend V3 collaboration is implemented and tested.
+V3 collaboration is implemented across backend and frontend.
 
 Next project phase:
 
 ```text
-V3 frontend collaboration integration:
+V4 portfolio proof:
 1. Add frontend collaboration types and API functions
 2. Add member list and role management UI
 3. Add invitation send/receive UI
@@ -667,12 +671,31 @@ V3 frontend collaboration integration:
 6. Show private overlap warning to affected member only
 ```
 
-After frontend V3 collaboration is complete:
+V4 portfolio proof tasks:
 
 ```text
-V4 portfolio proof:
 1. Take screenshots
 2. Record 60-90 second demo video
 3. Add screenshot/demo section to root README
 4. Add final project summary to CV/GitHub portfolio
 ```
+
+## V3 API Additions
+
+```text
+GET    /api/v1/collaboration/summary
+
+GET    /api/v1/users/me
+PATCH  /api/v1/users/me/profile
+PATCH  /api/v1/users/me/settings
+
+GET    /api/v1/trips/join-requests/owned
+GET    /api/v1/trips/join-requests/sent
+
+POST   /api/v1/trips/{tripId}/share-codes/regenerate
+GET    /api/v1/trips/share-codes/{code}
+POST   /api/v1/trips/share-codes/{code}/join-requests
+GET    /api/v1/trips/{tripId}/share-codes/active
+```
+
+These endpoints support the V3 mobile collaboration tab, profile page, dynamic theme, share-code join flow, and pending collaboration badges.

@@ -482,3 +482,116 @@ Trip and destination overlap warnings are intended for frontend confirmation dia
 ```
 
 Activity overlap is not a warning. It is blocked directly.
+
+## V3 Profile, Collaboration, and Share-Code APIs
+
+### Current profile/settings
+
+```text
+GET    /api/v1/users/me
+PATCH  /api/v1/users/me/profile
+PATCH  /api/v1/users/me/settings
+```
+
+Update profile request:
+
+```json
+{
+  "displayName": "Justin Bui",
+  "phoneNumber": "0412345678",
+  "dob": "01/01/2000",
+  "profileImageUrl": "https://example.com/avatar.jpg"
+}
+```
+
+Update settings request:
+
+```json
+{
+  "preferredTheme": "SYSTEM"
+}
+```
+
+Allowed theme values:
+
+```text
+LIGHT
+DARK
+SYSTEM
+```
+
+### Collaboration summary
+
+```text
+GET /api/v1/collaboration/summary
+```
+
+Response body example:
+
+```json
+{
+  "pendingInvitationCount": 2,
+  "pendingOwnedTripJoinRequestCount": 3,
+  "totalPendingActionCount": 5,
+  "tripPendingJoinRequestCounts": {
+    "10": 2,
+    "11": 1
+  }
+}
+```
+
+### Join request list endpoints
+
+```text
+GET /api/v1/trips/join-requests/owned
+GET /api/v1/trips/join-requests/sent
+```
+
+`owned` returns pending join requests for trips owned by the current user. `sent` returns join requests created by the current user.
+
+### Share-code endpoints
+
+```text
+POST /api/v1/trips/{tripId}/share-codes/regenerate
+GET  /api/v1/trips/share-codes/{code}
+POST /api/v1/trips/share-codes/{code}/join-requests
+GET  /api/v1/trips/{tripId}/share-codes/active
+```
+
+Generate/regenerate request:
+
+```json
+{
+  "defaultRole": "VIEWER"
+}
+```
+
+Join by share code request:
+
+```json
+{
+  "role": "VIEWER"
+}
+```
+
+Allowed share-code roles:
+
+```text
+EDITOR
+VIEWER
+```
+
+### Attribution response fields
+
+Destination and activity responses can include:
+
+```text
+createdByUserId
+createdByUsername
+createdByDisplayName
+createdByProfileImageUrl
+modifiedByUserId
+modifiedByUsername
+modifiedByDisplayName
+modifiedByProfileImageUrl
+```

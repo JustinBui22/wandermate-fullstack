@@ -417,3 +417,21 @@ Production docs: markdown docs + Postman guide
 ```
 
 This setup is simple, safe, and appropriate for a junior backend/full-stack portfolio project.
+
+## V3 Deployment Checks
+
+After deploying V3, verify:
+
+```text
+1. /api/v1/health returns UP
+2. Login returns accessToken, refreshToken, and sessionToken
+3. /api/v1/users/me returns profile fields
+4. /api/v1/collaboration/summary returns badge counts
+5. Owner can invite another user
+6. User can request to join through trip/share code
+7. Owner can accept/reject join request
+8. Destination/activity attribution fields appear in API responses
+9. Frontend can switch Light/Dark/System theme
+```
+
+If profile or attribution fails, check that the production database has the V3 columns.

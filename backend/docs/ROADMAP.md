@@ -1,12 +1,12 @@
 # Project Roadmap
 
-This document describes the suggested roadmap for turning WanderMate into a stronger portfolio project.
+This document describes the roadmap for turning WanderMate into a stronger full-stack portfolio project.
 
 ---
 
 ## Current Position
 
-The project is already beyond basic CRUD.
+The project has reached V3 collaboration-complete status.
 
 Current strengths:
 
@@ -17,11 +17,20 @@ Current strengths:
 ✅ Logout/session revocation
 ✅ Email OTP flow
 ✅ Trip → Destination → Activity hierarchy
-✅ Ownership checks
-✅ Overlap and date/time validation
+✅ Role-based collaboration with OWNER/EDITOR/VIEWER
+✅ Invitation and join-request workflows
+✅ Share-code join workflow
+✅ Collaboration summary badge counts
+✅ Profile/settings API
+✅ Creator/editor attribution
+✅ Private overlap warnings
 ✅ Docker Compose local backend + MariaDB
 ✅ React Native frontend integration
-✅ 197 passing service-level backend tests
+✅ Dynamic frontend theme and profile UI
+✅ Collaboration screens in the mobile app
+✅ GitHub Actions CI workflows
+✅ Render deployment profile
+✅ Uploaded Surefire reports show 373 passing backend tests
 ```
 
 Current limitations:
@@ -29,119 +38,135 @@ Current limitations:
 ```text
 ⚠️ Real SMS provider integration is not enabled
 ⚠️ Public Docker demo does not include real email/OAuth secrets
-⚠️ Frontend environment switching is still manual
-⚠️ No GitHub Actions CI yet
-⚠️ No collaborator/share-trip feature yet
+⚠️ Real profile image upload/storage is not implemented
+⚠️ Viewer suggestion workflow is not implemented yet
+⚠️ Cost sharing is not implemented yet
+⚠️ Final screenshots/demo video are still needed for portfolio proof
 ```
 
 ---
 
 ## V1 — Stable Portfolio MVP
 
-Goal:
-
-```text
-A clean, working full-stack travel planner with authentication, CRUD, Docker, tests, and documentation.
-```
-
-V1 includes:
-
-- Register/login/logout
-- Email OTP
-- JWT access token
-- Refresh token
-- Session token
-- Max active session handling
-- Trip CRUD
-- Destination CRUD
-- Activity CRUD
-- Ownership checks
-- Overlap/date validation
-- Docker Compose setup
-- Swagger docs
-- README/docs
-- Service-level tests
-
 Status:
 
 ```text
-Mostly complete. Current focus should be cleanup, docs, GitHub polish, and demo proof.
+✅ Complete
 ```
+
+Included auth, OTP, trip/destination/activity CRUD, ownership checks, overlap validation, Docker, Swagger, README/docs, and backend tests.
 
 ---
 
 ## V2 — Professional Backend Polish
 
-Goal:
+Status:
 
 ```text
-Make the backend look reliable, clean, and employer-ready.
+✅ Complete
 ```
 
-Recommended tasks:
+Included CI/CD, production profile, Render deployment, health check, Swagger disabled in production, Docker docs, API docs, and stronger tests.
+
+---
+
+## V2.5 — Frontend Polish
+
+Status:
 
 ```text
-1. Add GitHub Actions CI for backend tests
-2. Keep root .gitignore clean and ensure .env/target/node_modules are not tracked
-3. Add screenshots and demo flow to README
-4. Add a Postman collection export
-5. Add a short demo video/GIF
-6. Add production profile settings
-7. Disable/restrict Swagger in production
-8. Add integration tests or Testcontainers later
-9. Clean remaining debug logs if needed
-10. Add cloud/local environment documentation
+✅ Complete
 ```
 
-Why V2 matters:
-
-```text
-Employers trust clean testing, CI, docs, Docker, and deployment more than unfinished extra features.
-```
+Included shared UI components, reusable date/time picker components, polished auth/trip/destination/activity screens, cleaner API errors, and Expo public env configuration.
 
 ---
 
 ## V3 — Collaboration Features
 
-Goal:
+Status:
 
 ```text
-Turn the app from a personal planner into a shared trip planning product.
+✅ Complete
 ```
 
-Recommended features:
+Included:
 
 ```text
-1. Trip collaborators
-2. Owner/editor/viewer roles
-3. Invite link or invite by username/email
-4. Shared-with-me screen
-5. Permission checks for every trip/destination/activity operation
-6. Audit fields for who created/modified an item
+✅ Trip collaborators
+✅ Owner/editor/viewer roles
+✅ Trip member management
+✅ Invite user flow
+✅ Received invitation list
+✅ Join request flow
+✅ Owned-trip join request list
+✅ Sent join request list
+✅ Share-code preview and join request
+✅ Collaboration summary badge counts
+✅ Permission checks for trip/destination/activity operations
+✅ Private overlap warning for affected member only
+✅ Profile display name, theme, and avatar URL
+✅ Creator/editor attribution for destinations and activities
+✅ Frontend collaboration tab and per-trip collaboration screens
 ```
 
 Why V3 is valuable:
 
 ```text
-It demonstrates authorization, relationship modelling, product thinking, and multi-user backend design.
-```
-
-Suggested role model:
-
-```text
-OWNER  → full access, delete trip, invite/remove collaborators
-EDITOR → create/update destinations and activities
-VIEWER → read-only access
+It demonstrates authorization, relationship modelling, product thinking, and multi-user backend/frontend design.
 ```
 
 ---
 
-## V4 — Smart Planning and Cost Features
+## V4 — Portfolio Proof
 
 Goal:
 
 ```text
-Make the app feel more like a real travel product.
+Make the project easy for employers to understand in 30-90 seconds.
+```
+
+Recommended tasks:
+
+```text
+1. Take screenshots of key mobile screens
+2. Record a 60-90 second demo video
+3. Add screenshots/demo link to root README
+4. Add a short architecture diagram image if desired
+5. Add final project summary to CV/GitHub portfolio
+6. Pin the repo and update the GitHub repository description
+7. Add a concise demo flow section near the top of README
+```
+
+Suggested screenshots:
+
+```text
+- Login
+- My Trips
+- Trip Detail
+- Collaboration tab
+- Invite member
+- Join request list
+- Share-code screen
+- Profile/theme screen
+- Destination detail with attribution
+- Activity detail with attribution
+```
+
+Suggested demo flow:
+
+```text
+Login → Create Trip → Add Destination → Add Activity → Open Collaboration → Invite User → Accept Invitation → Show Role Access → Show Attribution → Show Profile Theme
+```
+
+---
+
+## V5 — Smart Planning and Cost Features
+
+Goal:
+
+```text
+Make the app feel more like a real travel product after the portfolio proof is ready.
 ```
 
 Recommended features:
@@ -152,15 +177,10 @@ Recommended features:
 3. Cost sharing between collaborators
 4. Paid-by / split-between fields
 5. Summary per person
-6. AI itinerary suggestions
-7. Place/map API integration
-8. Smart conflict suggestions
-```
-
-Why V4 should come later:
-
-```text
-These features are useful, but only after the core app is stable and professionally presented.
+6. Viewer destination/activity suggestion workflow
+7. AI itinerary suggestions
+8. Place/map API integration
+9. Smart conflict suggestions
 ```
 
 ---
@@ -168,15 +188,14 @@ These features are useful, but only after the core app is stable and professiona
 ## Recommended Next Order
 
 ```text
-1. Commit Docker Compose + .env.example fixes
-2. Commit README/docs updates
-3. Confirm Docker Swagger URL works
-4. Confirm service tests pass
-5. Add GitHub Actions CI
-6. Add screenshots/demo GIF
-7. Polish GitHub repository description and pinned repo
-8. Add project to CV
-9. Start V3 collaboration design
+1. Fix any final local backend/frontend test issues
+2. Commit V3 docs update
+3. Run backend tests and frontend typecheck locally
+4. Capture screenshots
+5. Record demo video
+6. Add README media section
+7. Update CV project bullet points
+8. Start V5 only after portfolio proof is finished
 ```
 
 ---
@@ -186,7 +205,5 @@ These features are useful, but only after the core app is stable and professiona
 Recommended CV wording:
 
 ```text
-Built a production-style full-stack travel planning app using Spring Boot, MariaDB, JWT authentication, refresh/session token management, Docker, and Expo React Native. Implemented ownership checks, OTP-based registration flow, trip/destination/activity CRUD, overlap validation, standardized error responses, and 190+ service-level backend tests.
+Built a production-style full-stack travel planning app using Spring Boot, MariaDB, JWT authentication, refresh/session token management, Docker, and Expo React Native. Implemented role-based trip collaboration with owner/editor/viewer permissions, invitation and join-request workflows, share-code joining, OTP registration, trip/destination/activity CRUD, overlap validation, creator/editor attribution, standardized API responses, and 370+ backend tests.
 ```
-
-Avoid describing it as only a student app. Present it as a production-style portfolio system built to practise backend engineering patterns.

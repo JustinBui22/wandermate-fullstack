@@ -144,3 +144,22 @@ Schema migration
 Seed reference data
 Private runtime secrets
 ```
+
+## V3 Schema Fields to Keep
+
+The V3 schema needs these columns for profile/theme/attribution features:
+
+```text
+users.display_name
+users.preferred_theme
+users.profile_image_url
+users.modified_date
+
+trip_destinations.created_by_user_id
+trip_destinations.modified_by_user_id
+
+destination_activities.created_by_user_id
+destination_activities.modified_by_user_id
+```
+
+If a local database was created before V3, verify these columns exist before testing profile and attribution screens.

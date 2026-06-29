@@ -20,16 +20,10 @@ This document explains how the Expo React Native frontend connects to the Spring
 
 ## Backend URL Setup
 
-The frontend backend URL is currently configured in:
-
-```text
-frontend/src/constants/env.ts
-```
-
-Current local Android emulator setup:
+The frontend API URL is configured with Expo public environment variables. Example local Android emulator setup:
 
 ```ts
-export const API_BASE_URL = "http://10.0.2.2:8080/The-Project";
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080/The-Project
 ```
 
 Use this when:
@@ -42,7 +36,7 @@ Frontend runs on Android emulator
 For Android emulator connecting to Docker backend:
 
 ```ts
-export const API_BASE_URL = "http://10.0.2.2:8082/The-Project";
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8082/The-Project
 ```
 
 For browser/Postman on host machine:
@@ -240,3 +234,50 @@ EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8082/The-Project
 ```
 
 This would make switching between local/Docker/cloud cleaner.
+
+## V3 Collaboration Frontend Integration
+
+Frontend collaboration screens use these backend areas:
+
+```text
+GET    /api/v1/collaboration/summary
+GET    /api/v1/trips/invitations/received
+GET    /api/v1/trips/join-requests/owned
+GET    /api/v1/trips/join-requests/sent
+POST   /api/v1/trips/{tripId}/invitations
+POST   /api/v1/trips/{tripId}/join-requests
+PATCH  /api/v1/trips/invitations/{requestId}/accept
+PATCH  /api/v1/trips/invitations/{requestId}/reject
+PATCH  /api/v1/trips/join-requests/{requestId}/accept
+PATCH  /api/v1/trips/join-requests/{requestId}/reject
+POST   /api/v1/trips/{tripId}/share-codes/regenerate
+GET    /api/v1/trips/share-codes/{code}
+POST   /api/v1/trips/share-codes/{code}/join-requests
+```
+
+Frontend should refresh lists after accept/reject so stale requests disappear or show a clear handled-status message.
+
+## V3 Profile, Theme, and Attribution Integration
+
+Profile/theme endpoints:
+
+```text
+GET   /api/v1/users/me
+PATCH /api/v1/users/me/profile
+PATCH /api/v1/users/me/settings
+```
+
+Destination/activity attribution fields:
+
+```text
+createdByUserId
+createdByUsername
+createdByDisplayName
+createdByProfileImageUrl
+modifiedByUserId
+modifiedByUsername
+modifiedByDisplayName
+modifiedByProfileImageUrl
+```
+
+The frontend uses these fields for avatar/initials display and quick user attribution cards.

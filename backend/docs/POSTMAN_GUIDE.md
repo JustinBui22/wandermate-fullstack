@@ -414,3 +414,113 @@ Current status:
 Email OTP: real when email config is valid
 SMS OTP: mocked/stubbed service flow only
 ```
+
+## V3 Collaboration Manual Test
+
+Use two accounts.
+
+```text
+Account A = trip owner
+Account B = invited/requesting user
+```
+
+Owner sends invitation:
+
+```http
+POST {{baseUrl}}/api/v1/trips/{{tripId}}/invitations
+```
+
+```json
+{
+  "username": "TravelFriend",
+  "role": "EDITOR"
+}
+```
+
+Invited user lists received invitations:
+
+```http
+GET {{baseUrl}}/api/v1/trips/invitations/received
+```
+
+Invited user accepts/rejects:
+
+```http
+PATCH {{baseUrl}}/api/v1/trips/invitations/{{requestId}}/accept
+PATCH {{baseUrl}}/api/v1/trips/invitations/{{requestId}}/reject
+```
+
+Requester sends join request:
+
+```http
+POST {{baseUrl}}/api/v1/trips/{{tripId}}/join-requests
+```
+
+```json
+{
+  "role": "VIEWER"
+}
+```
+
+Owner lists owned-trip join requests:
+
+```http
+GET {{baseUrl}}/api/v1/trips/join-requests/owned
+```
+
+Requester lists sent join requests:
+
+```http
+GET {{baseUrl}}/api/v1/trips/join-requests/sent
+```
+
+Owner accepts/rejects:
+
+```http
+PATCH {{baseUrl}}/api/v1/trips/join-requests/{{requestId}}/accept
+PATCH {{baseUrl}}/api/v1/trips/join-requests/{{requestId}}/reject
+```
+
+Collaboration summary:
+
+```http
+GET {{baseUrl}}/api/v1/collaboration/summary
+```
+
+## V3 Share-Code Manual Test
+
+Owner regenerates active share code:
+
+```http
+POST {{baseUrl}}/api/v1/trips/{{tripId}}/share-codes/regenerate
+```
+
+```json
+{
+  "defaultRole": "VIEWER"
+}
+```
+
+Another user previews the code:
+
+```http
+GET {{baseUrl}}/api/v1/trips/share-codes/{{shareCode}}
+```
+
+Another user requests to join with the code:
+
+```http
+POST {{baseUrl}}/api/v1/trips/share-codes/{{shareCode}}/join-requests
+```
+
+```json
+{
+  "role": "VIEWER"
+}
+```
+
+Owner gets active share code:
+
+```http
+GET {{baseUrl}}/api/v1/trips/{{tripId}}/share-codes/active
+```

@@ -24,7 +24,7 @@ flowchart TD
 The code follows this structure:
 
 ```text
-Controller → Service → Validator / Mapper → Repository → Database
+Controller → Service → Access Control / Validator / Mapper → Repository → Database
 ```
 
 ---
@@ -133,7 +133,7 @@ Responsibilities:
 
 ---
 
-## Ownership Pattern
+## Authorization Pattern
 
 Ownership is enforced by querying through the authenticated username.
 
@@ -322,3 +322,49 @@ From host machine: localhost:3307
 - Swagger is currently part of the app; for production, it should be restricted or disabled.
 - The generated full-context Spring Boot test needs DB env variables or a dedicated test profile.
 - Frontend environment switching is currently manual through `src/constants/env.ts`.
+
+## V3 Collaboration Architecture
+
+The project now uses role-based collaboration instead of simple owner-only access.
+
+```text
+TripEntity
+├── TripMemberEntity
+│   ├── OWNER
+│   ├── EDITOR
+│   └── VIEWER
+├── TripCollaborationRequestEntity
+│   ├── INVITATION
+│   └── JOIN_REQUEST
+└── TripShareCodeEntity
+```
+
+`TripAccessService` centralizes these checks:
+
+```text
+getTripIfOwner
+getTripIfCanEdit
+getTripIfMember
+assertCanView
+assertCanEdit
+```
+
+This keeps permission logic out of controllers and avoids duplicating access checks in every service.
+
+## V3 Attribution and Profile Model
+
+V3 adds user-facing profile fields and content attribution.
+
+```text
+users.display_name
+users.preferred_theme
+users.profile_image_url
+
+trip_destinations.created_by_user_id
+trip_destinations.modified_by_user_id
+
+destination_activities.created_by_user_id
+destination_activities.modified_by_user_id
+```
+
+The frontend uses these fields to show creator/last-editor avatars and quick user cards on destination and activity screens.
