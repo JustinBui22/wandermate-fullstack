@@ -212,9 +212,6 @@ public class DestinationServiceImpl implements DestinationService {
             // OWNER and EDITOR can update destination
             TripEntity trip = tripAccessService.getTripIfCanEdit(tripId, username);
 
-            User currentUser = userRepository.findByUsernameAndActive(username)
-                    .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
-
             // Get destination by trip ID and destination ID
             DestinationEntity destination = destinationRepository
                     .findByDestinationIdAndTrip_TripId(destinationId, tripId)
@@ -260,6 +257,9 @@ public class DestinationServiceImpl implements DestinationService {
                 log.error("Updated destination date range overlaps with another destination in trip {}.", tripId);
                 throw new BusinessException(DESTINATION_OVERLAP_WARNING, DESTINATION.name());
             }
+
+            User currentUser = userRepository.findByUsernameAndActive(username)
+                    .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
             // Update destination
             destination.setDestinationName(destinationName);
