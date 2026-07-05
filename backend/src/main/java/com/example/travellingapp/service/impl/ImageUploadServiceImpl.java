@@ -1,8 +1,10 @@
 package com.example.travellingapp.service.impl;
 
 import com.example.travellingapp.dto.response.ImageUploadResponseDTO;
+import com.example.travellingapp.entity.User;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.ErrorCodeRepository;
+import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.CloudinaryImageClient;
@@ -18,9 +20,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
-import static com.example.travellingapp.enums.ErrorCodeEnum.INTERNAL_SERVER_ERROR;
-import static com.example.travellingapp.enums.ErrorCodeEnum.INVALID_INPUT;
-import static com.example.travellingapp.enums.ErrorCodeEnum.SEARCH_INFO_SUCCESS;
+import static com.example.travellingapp.enums.ErrorCodeEnum.*;
 import static com.example.travellingapp.response_template.CompleteResponse.getCompleteResponse;
 
 @Service
@@ -44,29 +44,40 @@ public class ImageUploadServiceImpl implements ImageUploadService {
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final CloudinaryImageClient cloudinaryImageClient;
     private final String cloudinaryBaseFolder;
+    private final UserRepository userRepository;
 
     public ImageUploadServiceImpl(
             ErrorCodeRepository errorCodeRepository,
             AuthenticatedUserProvider authenticatedUserProvider,
             CloudinaryImageClient cloudinaryImageClient,
-            @Value("${cloudinary.base-folder:wandermate}") String cloudinaryBaseFolder
+            @Value("${cloudinary.base-folder:wandermate}") String cloudinaryBaseFolder,
+            UserRepository userRepository
     ) {
         this.errorCodeRepository = errorCodeRepository;
         this.authenticatedUserProvider = authenticatedUserProvider;
         this.cloudinaryImageClient = cloudinaryImageClient;
         this.cloudinaryBaseFolder = normalizeBaseFolder(cloudinaryBaseFolder);
+        this.userRepository = userRepository;
     }
 
     @Override
     public CompleteResponse<Object> uploadImage(MultipartFile file, String imageType) {
         try {
             String username = authenticatedUserProvider.getUsername();
+            User currentUser = userRepository.findByUsernameAndActive(username)
+                    .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
+
             String uploadFolder = normalizeUploadFolder(imageType);
             validateImageFile(file);
 
-            String publicId = buildPublicId(username);
-            String cloudinaryFolder = cloudinaryBaseFolder + "/" + uploadFolder;
+            String cloudinaryFolder = cloudinaryBaseFolder
+                    + "/"
+                    + uploadFolder
+                    + "/users/"
+                    + currentUser.getUserId();
 
+            String publicId = buildPublicId(uploadFolder, currentUser.getUserId());
+            log.info("Uploading image for user: {}, publicId: {}, cloudinaryFolder: {}", username, publicId, cloudinaryFolder);
             ImageUploadResponseDTO responseDTO = cloudinaryImageClient.uploadImage(
                     file.getBytes(),
                     publicId,
@@ -144,5 +155,10 @@ public class ImageUploadServiceImpl implements ImageUploadService {
         }
 
         return safeUsername + "-" + UUID.randomUUID();
+    }
+
+    private String buildPublicId(String uploadFolder, Long userId) {
+        String prefix = "profile-images".equals(uploadFolder) ? "profile" : "trip-cover";
+        return prefix + "-" + userId + "-" + UUID.randomUUID();
     }
 }

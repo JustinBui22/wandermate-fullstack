@@ -9,6 +9,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class ImageUploadResponseDTO {
     private String imageUrl;
+    private String publicId;
     private String fileName;
     private String imageType;
 }

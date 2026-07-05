@@ -2,15 +2,18 @@ package com.example.travellingapp.service.impl;
 
 import com.example.travellingapp.dto.response.ImageUploadResponseDTO;
 import com.example.travellingapp.entity.ErrorCodeEntity;
+import com.example.travellingapp.entity.User;
 import com.example.travellingapp.enums.ErrorCodeEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.ErrorCodeRepository;
+import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.CloudinaryImageClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
@@ -24,6 +27,7 @@ import static com.example.travellingapp.enums.CommonEnum.COMMON;
 import static com.example.travellingapp.enums.ErrorCodeEnum.INTERNAL_SERVER_ERROR;
 import static com.example.travellingapp.enums.ErrorCodeEnum.INVALID_INPUT;
 import static com.example.travellingapp.enums.ErrorCodeEnum.SEARCH_INFO_SUCCESS;
+import static com.example.travellingapp.enums.ErrorCodeEnum.USER_NOT_FOUND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
@@ -39,10 +43,14 @@ class ImageUploadServiceImplTest {
     private AuthenticatedUserProvider authenticatedUserProvider;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private CloudinaryImageClient cloudinaryImageClient;
 
     private ImageUploadServiceImpl imageUploadService;
 
+    private static final Long USER_ID = 1L;
     private static final String USERNAME = "JustinBo123";
 
     @BeforeEach
@@ -51,31 +59,30 @@ class ImageUploadServiceImplTest {
                 errorCodeRepository,
                 authenticatedUserProvider,
                 cloudinaryImageClient,
-                "wandermate"
+                "wandermate",
+                userRepository
         );
     }
 
     @Test
-    void uploadImage_shouldUploadProfileImageToCloudinary_whenFileIsValid() throws IOException {
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "avatar.png",
-                "image/png",
-                "fake-image-content".getBytes()
-        );
+    void uploadImage_shouldUploadProfileImageToCloudinaryUserFolder_whenFileIsValid() throws IOException {
+        MockMultipartFile file = validImage("avatar.png", "image/png");
+        User currentUser = activeUser();
 
         ImageUploadResponseDTO cloudinaryResponse = new ImageUploadResponseDTO(
-                "https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/justinbo123-avatar.png",
-                "wandermate/profile-images/justinbo123-avatar",
+                "https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/users/1/profile-1-abc.png",
+                "wandermate/profile-images/users/1/profile-1-abc",
+                "wandermate/profile-images/users/1/profile-1-abc",
                 "profile-images"
         );
 
         mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
         when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME)).thenReturn(Optional.of(currentUser));
         when(cloudinaryImageClient.uploadImage(
                 any(byte[].class),
-                startsWith("justinbo123-"),
-                eq("wandermate/profile-images"),
+                startsWith("profile-1-"),
+                eq("wandermate/profile-images/users/1"),
                 eq("profile-images")
         )).thenReturn(cloudinaryResponse);
 
@@ -86,49 +93,77 @@ class ImageUploadServiceImplTest {
         assertThat(response.getResponseBody().getFlow()).isEqualTo(COMMON.name());
         assertThat(response.getResponseBody().getBody()).isEqualTo(cloudinaryResponse);
 
+        ArgumentCaptor<String> publicIdCaptor = ArgumentCaptor.forClass(String.class);
+
         verify(cloudinaryImageClient).uploadImage(
                 any(byte[].class),
-                startsWith("justinbo123-"),
-                eq("wandermate/profile-images"),
+                publicIdCaptor.capture(),
+                eq("wandermate/profile-images/users/1"),
                 eq("profile-images")
         );
+
+        assertThat(publicIdCaptor.getValue()).startsWith("profile-1-");
     }
 
     @Test
-    void uploadImage_shouldUploadTripCoverAndNormalizeImageType_whenImageTypeHasExtraSpacesAndUppercase() throws IOException {
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "cover.jpeg",
-                "image/jpeg",
-                "fake-cover-content".getBytes()
-        );
+    void uploadImage_shouldUploadTripCoverToCloudinaryUserFolder_whenImageTypeHasExtraSpacesAndUppercase() throws IOException {
+        MockMultipartFile file = validImage("cover.jpeg", "image/jpeg");
+        User currentUser = activeUser();
 
         ImageUploadResponseDTO cloudinaryResponse = new ImageUploadResponseDTO(
-                "https://res.cloudinary.com/demo/image/upload/v123/wandermate/trip-covers/justinbo123-cover.jpg",
-                "wandermate/trip-covers/justinbo123-cover",
+                "https://res.cloudinary.com/demo/image/upload/v123/wandermate/trip-covers/users/1/trip-cover-1-abc.jpg",
+                "wandermate/trip-covers/users/1/trip-cover-1-abc",
+                "wandermate/trip-covers/users/1/trip-cover-1-abc",
                 "trip-covers"
         );
 
         mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
         when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME)).thenReturn(Optional.of(currentUser));
         when(cloudinaryImageClient.uploadImage(
                 any(byte[].class),
-                startsWith("justinbo123-"),
-                eq("wandermate/trip-covers"),
+                startsWith("trip-cover-1-"),
+                eq("wandermate/trip-covers/users/1"),
                 eq("trip-covers")
         )).thenReturn(cloudinaryResponse);
 
         CompleteResponse<Object> response = imageUploadService.uploadImage(file, "  TRIP-COVERS  ");
 
-        ImageUploadResponseDTO body = (ImageUploadResponseDTO) response.getResponseBody().getBody();
+        ImageUploadResponseDTO body =
+                (ImageUploadResponseDTO) response.getResponseBody().getBody();
 
+        assertThat(body.getImageUrl()).isEqualTo("https://res.cloudinary.com/demo/image/upload/v123/wandermate/trip-covers/users/1/trip-cover-1-abc.jpg");
+        assertThat(body.getPublicId()).isEqualTo("wandermate/trip-covers/users/1/trip-cover-1-abc");
+        assertThat(body.getFileName()).isEqualTo("wandermate/trip-covers/users/1/trip-cover-1-abc");
         assertThat(body.getImageType()).isEqualTo("trip-covers");
-        assertThat(body.getImageUrl()).contains("res.cloudinary.com");
+
+        verify(cloudinaryImageClient).uploadImage(
+                any(byte[].class),
+                startsWith("trip-cover-1-"),
+                eq("wandermate/trip-covers/users/1"),
+                eq("trip-covers")
+        );
+    }
+
+    @Test
+    void uploadImage_shouldThrowUserNotFound_whenAuthenticatedUserDoesNotExist() throws IOException {
+        MockMultipartFile file = validImage("avatar.png", "image/png");
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME)).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> imageUploadService.uploadImage(file, "profile-images")
+        );
+
+        assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
+        verify(cloudinaryImageClient, never()).uploadImage(any(), anyString(), anyString(), anyString());
     }
 
     @Test
     void uploadImage_shouldThrowInvalidInput_whenFileIsNull() throws IOException {
-        when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        mockCurrentUser();
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -149,7 +184,7 @@ class ImageUploadServiceImplTest {
                 new byte[0]
         );
 
-        when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        mockCurrentUser();
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -162,14 +197,9 @@ class ImageUploadServiceImplTest {
 
     @Test
     void uploadImage_shouldThrowInvalidInput_whenImageTypeIsUnsupported() throws IOException {
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "avatar.png",
-                "image/png",
-                "fake-image-content".getBytes()
-        );
+        MockMultipartFile file = validImage("avatar.png", "image/png");
 
-        when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        mockCurrentUser();
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -189,7 +219,7 @@ class ImageUploadServiceImplTest {
                 "not-an-image".getBytes()
         );
 
-        when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        mockCurrentUser();
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -209,7 +239,7 @@ class ImageUploadServiceImplTest {
                 new byte[(5 * 1024 * 1024) + 1]
         );
 
-        when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        mockCurrentUser();
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -224,7 +254,7 @@ class ImageUploadServiceImplTest {
     void uploadImage_shouldThrowInternalServerError_whenFileCannotBeRead() throws IOException {
         MultipartFile file = mock(MultipartFile.class);
 
-        when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        mockCurrentUser();
         when(file.isEmpty()).thenReturn(false);
         when(file.getSize()).thenReturn(100L);
         when(file.getContentType()).thenReturn("image/png");
@@ -240,18 +270,13 @@ class ImageUploadServiceImplTest {
 
     @Test
     void uploadImage_shouldThrowInternalServerError_whenCloudinaryUploadFails() throws IOException {
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "avatar.png",
-                "image/png",
-                "fake-image-content".getBytes()
-        );
+        MockMultipartFile file = validImage("avatar.png", "image/png");
 
-        when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        mockCurrentUser();
         when(cloudinaryImageClient.uploadImage(
                 any(byte[].class),
-                startsWith("justinbo123-"),
-                eq("wandermate/profile-images"),
+                startsWith("profile-1-"),
+                eq("wandermate/profile-images/users/1"),
                 eq("profile-images")
         )).thenThrow(new IOException("Cloudinary unavailable"));
 
@@ -261,6 +286,29 @@ class ImageUploadServiceImplTest {
         );
 
         assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());
+    }
+
+    private MockMultipartFile validImage(String filename, String contentType) {
+        return new MockMultipartFile(
+                "file",
+                filename,
+                contentType,
+                "fake-image-content".getBytes()
+        );
+    }
+
+    private User activeUser() {
+        User user = new User();
+        user.setUserId(USER_ID);
+        user.setUsername(USERNAME);
+        user.setEmail("justin@example.com");
+        user.setActive(true);
+        return user;
+    }
+
+    private void mockCurrentUser() {
+        when(authenticatedUserProvider.getUsername()).thenReturn(USERNAME);
+        when(userRepository.findByUsernameAndActive(USERNAME)).thenReturn(Optional.of(activeUser()));
     }
 
     private void mockErrorCode(ErrorCodeEnum errorCodeEnum, String flow) {

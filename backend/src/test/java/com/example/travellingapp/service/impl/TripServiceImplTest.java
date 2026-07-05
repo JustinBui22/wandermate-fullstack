@@ -26,6 +26,7 @@ import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
+import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.TripAccessService;
 import com.example.travellingapp.validator.TripValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -78,6 +80,9 @@ class TripServiceImplTest {
     private TripAccessService tripAccessService;
 
     @Mock
+    private CloudinaryImageClient cloudinaryImageClient;
+
+    @Mock
     private AuthenticatedUserProvider authenticatedUserProvider;
 
     @Mock
@@ -109,7 +114,8 @@ class TripServiceImplTest {
                 tripValidator,
                 destinationRepository,
                 tripMemberRepository,
-                tripAccessService
+                tripAccessService,
+                cloudinaryImageClient
         );
     }
 
@@ -161,6 +167,8 @@ class TripServiceImplTest {
         assertThat(savedTrip.getEndDate()).isEqualTo(request.getEndDate());
         assertThat(savedTrip.getUser()).isEqualTo(user);
         assertThat(savedTrip.getCreatedDate()).isNotNull();
+        assertThat(savedTrip.getCoverImageUrl()).isEqualTo(request.getCoverImageUrl());
+        assertThat(savedTrip.getCoverImagePublicId()).isEqualTo(request.getCoverImagePublicId());
 
         ArgumentCaptor<TripMemberEntity> memberCaptor =
                 ArgumentCaptor.forClass(TripMemberEntity.class);
@@ -482,7 +490,7 @@ class TripServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void updateTrip_shouldUpdateTrip_whenUserCanEditTripAndNoConflictsExist() {
+    void updateTrip_shouldUpdateTrip_whenUserCanEditTripAndNoConflictsExist() throws IOException {
         UpdateTripDTO request = validUpdateRequest();
         TripEntity existingTrip = trip("Old Trip");
         TripResponseDTO responseDTO = mock(TripResponseDTO.class);
@@ -529,8 +537,72 @@ class TripServiceImplTest {
         assertThat(existingTrip.getStartDate()).isEqualTo(request.getStartDate());
         assertThat(existingTrip.getEndDate()).isEqualTo(request.getEndDate());
         assertThat(existingTrip.getModifiedDate()).isNotNull();
+        assertThat(existingTrip.getCoverImageUrl()).isEqualTo(request.getCoverImageUrl());
+        assertThat(existingTrip.getCoverImagePublicId()).isEqualTo(request.getCoverImagePublicId());
 
         verify(tripRepository).save(existingTrip);
+        verify(cloudinaryImageClient).deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
+    }
+
+
+    @Test
+    void updateTrip_shouldDeleteOldCloudinaryCover_whenCoverImageIsRemoved() throws IOException {
+        UpdateTripDTO request = validUpdateRequest();
+        request.setCoverImageUrl("");
+        request.setCoverImagePublicId("");
+
+        TripEntity existingTrip = trip("Old Trip");
+        existingTrip.setCoverImageUrl("https://res.cloudinary.com/demo/image/upload/old-cover.png");
+        existingTrip.setCoverImagePublicId("wandermate/trip-covers/users/1/trip-cover-1-old");
+        TripResponseDTO responseDTO = mock(TripResponseDTO.class);
+
+        mockSuccessfulUpdateDependencies(request, existingTrip, responseDTO);
+
+        CompleteResponse<Object> response = tripService.updateTrip(TRIP_ID, request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(TRIP_UPDATED_SUCCESS.getCode());
+        assertThat(existingTrip.getCoverImageUrl()).isNull();
+        assertThat(existingTrip.getCoverImagePublicId()).isNull();
+        verify(cloudinaryImageClient).deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
+    }
+
+    @Test
+    void updateTrip_shouldNotDeleteCloudinaryCover_whenPublicIdIsUnchanged() throws IOException {
+        UpdateTripDTO request = validUpdateRequest();
+        request.setCoverImageUrl("https://res.cloudinary.com/demo/image/upload/same-cover.png");
+        request.setCoverImagePublicId("wandermate/trip-covers/users/1/trip-cover-1-same");
+
+        TripEntity existingTrip = trip("Old Trip");
+        existingTrip.setCoverImageUrl("https://res.cloudinary.com/demo/image/upload/same-cover.png");
+        existingTrip.setCoverImagePublicId("wandermate/trip-covers/users/1/trip-cover-1-same");
+        TripResponseDTO responseDTO = mock(TripResponseDTO.class);
+
+        mockSuccessfulUpdateDependencies(request, existingTrip, responseDTO);
+
+        CompleteResponse<Object> response = tripService.updateTrip(TRIP_ID, request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(TRIP_UPDATED_SUCCESS.getCode());
+        verify(cloudinaryImageClient, never()).deleteImage(anyString());
+    }
+
+    @Test
+    void updateTrip_shouldStillReturnSuccess_whenOldCloudinaryCoverDeleteFails() throws IOException {
+        UpdateTripDTO request = validUpdateRequest();
+        TripEntity existingTrip = trip("Old Trip");
+        TripResponseDTO responseDTO = mock(TripResponseDTO.class);
+
+        mockSuccessfulUpdateDependencies(request, existingTrip, responseDTO);
+        doThrow(new IOException("Cloudinary delete failed"))
+                .when(cloudinaryImageClient)
+                .deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
+
+        CompleteResponse<Object> response = tripService.updateTrip(TRIP_ID, request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(TRIP_UPDATED_SUCCESS.getCode());
+        verify(cloudinaryImageClient).deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
     }
 
     @Test
@@ -791,7 +863,7 @@ class TripServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void deleteTrip_shouldDeleteTrip_whenUserIsOwner() {
+    void deleteTrip_shouldDeleteTrip_whenUserIsOwner() throws IOException {
         TripEntity trip = trip("Adelaide Trip");
 
         mockErrorCode(TRIP_DELETED_SUCCESS, TRIP.name());
@@ -808,6 +880,7 @@ class TripServiceImplTest {
         assertThat(response.getResponseBody().getBody()).isNull();
 
         verify(tripRepository).delete(trip);
+        verify(cloudinaryImageClient).deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
     }
 
     @Test
@@ -1118,6 +1191,8 @@ class TripServiceImplTest {
         request.setStartDate(LocalDateTime.of(2026, 7, 10, 0, 0));
         request.setEndDate(LocalDateTime.of(2026, 7, 15, 23, 59));
         request.setAllowOverlap(false);
+        request.setCoverImageUrl("https://res.cloudinary.com/demo/image/upload/new-cover.png");
+        request.setCoverImagePublicId("wandermate/trip-covers/users/1/trip-cover-1-new");
         return request;
     }
 
@@ -1128,6 +1203,8 @@ class TripServiceImplTest {
         request.setStartDate(LocalDateTime.of(2026, 7, 20, 0, 0));
         request.setEndDate(LocalDateTime.of(2026, 7, 25, 23, 59));
         request.setAllowOverlap(false);
+        request.setCoverImageUrl("https://res.cloudinary.com/demo/image/upload/new-cover.png");
+        request.setCoverImagePublicId("wandermate/trip-covers/users/1/trip-cover-1-new");
         return request;
     }
 
@@ -1148,8 +1225,47 @@ class TripServiceImplTest {
         trip.setStartDate(LocalDateTime.of(2026, 7, 10, 0, 0));
         trip.setEndDate(LocalDateTime.of(2026, 7, 15, 23, 59));
         trip.setCreatedDate(LocalDateTime.now());
+        trip.setCoverImageUrl("https://res.cloudinary.com/demo/image/upload/old-cover.png");
+        trip.setCoverImagePublicId("wandermate/trip-covers/users/1/trip-cover-1-old");
         trip.setUser(activeUser());
         return trip;
+    }
+
+
+    private void mockSuccessfulUpdateDependencies(
+            UpdateTripDTO request,
+            TripEntity existingTrip,
+            TripResponseDTO responseDTO
+    ) {
+        mockErrorCode(TRIP_UPDATED_SUCCESS, TRIP.name());
+
+        when(tripValidator.validateUpdateInput(TRIP_ID, request))
+                .thenReturn("Updated Trip");
+        when(authenticatedUserProvider.getUsername())
+                .thenReturn(USERNAME);
+        when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
+                .thenReturn(existingTrip);
+        when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
+                USERNAME,
+                "Updated Trip",
+                TRIP_ID
+        )).thenReturn(false);
+        when(tripRepository.existsByUser_UsernameAndTripIdNotAndStartDateLessThanAndEndDateGreaterThan(
+                USERNAME,
+                TRIP_ID,
+                request.getEndDate(),
+                request.getStartDate()
+        )).thenReturn(false);
+        when(destinationRepository.existsByTrip_TripIdAndStartDateBefore(
+                TRIP_ID,
+                request.getStartDate()
+        )).thenReturn(false);
+        when(destinationRepository.existsByTrip_TripIdAndEndDateAfter(
+                TRIP_ID,
+                request.getEndDate()
+        )).thenReturn(false);
+        when(tripMapper.toResponseDTO(existingTrip))
+                .thenReturn(responseDTO);
     }
 
     private void mockMinSuggestCharacter(String value) {

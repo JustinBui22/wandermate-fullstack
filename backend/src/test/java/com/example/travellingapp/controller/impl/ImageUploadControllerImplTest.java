@@ -35,7 +35,7 @@ class ImageUploadControllerImplTest {
     }
 
     @Test
-    void uploadImage_shouldReturnUploadedImageResponse_whenServiceSucceeds() throws Exception {
+    void uploadImage_shouldReturnUploadedImageResponseWithPublicId_whenServiceSucceeds() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "avatar.png",
@@ -48,8 +48,9 @@ class ImageUploadControllerImplTest {
                 "Search info successfully",
                 COMMON.name(),
                 Map.of(
-                        "imageUrl", "https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/JustinBo123-avatar.png",
-                        "fileName", "JustinBo123-avatar.png",
+                        "imageUrl", "https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/users/1/profile-1-abc.png",
+                        "publicId", "wandermate/profile-images/users/1/profile-1-abc",
+                        "fileName", "wandermate/profile-images/users/1/profile-1-abc",
                         "imageType", "profile-images"
                 )
         );
@@ -67,8 +68,9 @@ class ImageUploadControllerImplTest {
                 .andExpect(jsonPath("$.code").value("E000"))
                 .andExpect(jsonPath("$.message").value("Search info successfully"))
                 .andExpect(jsonPath("$.flow").value(COMMON.name()))
-                .andExpect(jsonPath("$.body.imageUrl").value("https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/JustinBo123-avatar.png"))
-                .andExpect(jsonPath("$.body.fileName").value("JustinBo123-avatar.png"))
+                .andExpect(jsonPath("$.body.imageUrl").value("https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/users/1/profile-1-abc.png"))
+                .andExpect(jsonPath("$.body.publicId").value("wandermate/profile-images/users/1/profile-1-abc"))
+                .andExpect(jsonPath("$.body.fileName").value("wandermate/profile-images/users/1/profile-1-abc"))
                 .andExpect(jsonPath("$.body.imageType").value("profile-images"));
 
         verify(imageUploadService).uploadImage(any(MultipartFile.class), eq("profile-images"));

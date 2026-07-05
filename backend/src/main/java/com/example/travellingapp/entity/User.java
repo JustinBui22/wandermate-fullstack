@@ -65,6 +65,9 @@ public class User implements Serializable, UserDetails {
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
+    @Column(name = "profile_image_public_id", length = 500)
+    private String profileImagePublicId;
+
     @Column(name = "modified_date")
     private LocalDateTime modifiedDate;
 

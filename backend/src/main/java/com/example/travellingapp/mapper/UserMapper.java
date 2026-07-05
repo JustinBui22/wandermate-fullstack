@@ -37,6 +37,7 @@ public class UserMapper {
         response.setProfileImageUrl(user.getProfileImageUrl());
         response.setCreatedDate(user.getCreatedDate());
         response.setModifiedDate(user.getModifiedDate());
+        response.setProfileImagePublicId(user.getProfileImagePublicId());
 
         return response;
     }
@@ -61,6 +62,10 @@ public class UserMapper {
         }
         if (updateUserProfileDTO.getProfileImageUrl() != null) {
             user.setProfileImageUrl(trimToNull(updateUserProfileDTO.getProfileImageUrl()));
+        }
+
+        if (updateUserProfileDTO.getProfileImagePublicId() != null) {
+            user.setProfileImagePublicId(trimToNull(updateUserProfileDTO.getProfileImagePublicId()));
         }
     }
 

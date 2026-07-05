@@ -30,5 +30,8 @@ public class CreateTripDTO {
 
     @Size(max = 500, message = "Cover image URL must be at most 500 characters")
     private String coverImageUrl;
+
+    @Size(max = 500, message = "Cover image public ID must be at most 500 characters")
+    private String coverImagePublicId;
 }
 

@@ -26,6 +26,7 @@ public class TripResponseDTO {
     private TripEnum tripStatus;
 
     private String coverImageUrl;
+    private String coverImagePublicId;
 
     public TripResponseDTO() {
     }
@@ -33,7 +34,7 @@ public class TripResponseDTO {
     public TripResponseDTO(Long tripId, String tripName, String destination,
                            LocalDateTime createdDate, LocalDateTime startDate,
                            LocalDateTime endDate, LocalDateTime modifiedDate,
-                           Long userId, String username, String coverImageUrl, TripEnum tripStatus, TripEnum currentUserRole) {
+                           Long userId, String username, String coverImageUrl, String coverImagePublicId, TripEnum tripStatus, TripEnum currentUserRole) {
         this.tripId = tripId;
         this.tripName = tripName;
         this.destination = destination;
@@ -46,12 +47,13 @@ public class TripResponseDTO {
         this.tripStatus = tripStatus;
         this.currentUserRole = currentUserRole;
         this.coverImageUrl = coverImageUrl;
+        this.coverImagePublicId = coverImagePublicId;
     }
 
     public TripResponseDTO(Long tripId, String tripName, String destination,
                            LocalDateTime createdDate, LocalDateTime startDate,
                            LocalDateTime endDate, LocalDateTime modifiedDate,
-                           Long userId, String username, String coverImageUrl, TripEnum tripStatus) {
+                           Long userId, String username, String coverImageUrl, String coverImagePublicId, TripEnum tripStatus) {
         this.tripId = tripId;
         this.tripName = tripName;
         this.destination = destination;
@@ -63,6 +65,7 @@ public class TripResponseDTO {
         this.username = username;
         this.tripStatus = tripStatus;
         this.coverImageUrl = coverImageUrl;
+        this.coverImagePublicId = coverImagePublicId;
     }
 }
 

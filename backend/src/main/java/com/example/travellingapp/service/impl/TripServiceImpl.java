@@ -12,12 +12,14 @@ import com.example.travellingapp.repository.*;
 import com.example.travellingapp.repository.collaboration.TripMemberRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
+import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.TripAccessService;
 import com.example.travellingapp.service.TripService;
 import com.example.travellingapp.validator.TripValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -45,6 +47,7 @@ public class TripServiceImpl implements TripService {
     private final DestinationRepository destinationRepository;
     private final TripMemberRepository tripMemberRepository;
     private final TripAccessService tripAccessService;
+    private final CloudinaryImageClient cloudinaryImageClient;
 
     public TripServiceImpl(
             ErrorCodeRepository errorCodeRepository,
@@ -59,7 +62,7 @@ public class TripServiceImpl implements TripService {
             TripValidator tripValidator,
             DestinationRepository destinationRepository,
             TripMemberRepository tripMemberRepository,
-            TripAccessService tripAccessService) {
+            TripAccessService tripAccessService, CloudinaryImageClient cloudinaryImageClient) {
         this.errorCodeRepository = errorCodeRepository;
         this.cityRepository = cityRepository;
         this.restaurantRepository = restaurantRepository;
@@ -73,6 +76,7 @@ public class TripServiceImpl implements TripService {
         this.destinationRepository = destinationRepository;
         this.tripMemberRepository = tripMemberRepository;
         this.tripAccessService = tripAccessService;
+        this.cloudinaryImageClient = cloudinaryImageClient;
     }
 
     @Override
@@ -119,11 +123,6 @@ public class TripServiceImpl implements TripService {
                     user
             );
 
-            // Set cover image URL if provided
-            if (tripDTO.getCoverImageUrl() != null) {
-                trip.setCoverImageUrl(tripDTO.getCoverImageUrl());
-            }
-
             // Allow user to set status manually
             if (tripDTO.getTripStatus() != null) {
                 trip.setTripStatus(tripDTO.getTripStatus());
@@ -131,6 +130,10 @@ public class TripServiceImpl implements TripService {
 
             // Autocorrect status based on trip date
             refreshTripStatusIfNeeded(trip);
+
+            // Set cover image URL and public ID if provided
+            trip.setCoverImageUrl(trimToNull(tripDTO.getCoverImageUrl()));
+            trip.setCoverImagePublicId(trimToNull(tripDTO.getCoverImagePublicId()));
 
             // Save trip first so it has tripId for member relation
             TripEntity savedTrip = tripRepository.save(trip);
@@ -312,7 +315,9 @@ public class TripServiceImpl implements TripService {
             trip.setModifiedDate(LocalDateTime.now());
 
             // Update cover image URL if provided
+            String oldCoverImagePublicId = trip.getCoverImagePublicId();
             trip.setCoverImageUrl(trimToNull(tripDTO.getCoverImageUrl()));
+            trip.setCoverImagePublicId(trimToNull(tripDTO.getCoverImagePublicId()));
 
 
             // Allow user to set status manually
@@ -325,6 +330,13 @@ public class TripServiceImpl implements TripService {
 
             // Save updated trip
             tripRepository.save(trip);
+
+            // Delete old cover image from Cloudinary if it has changed
+            deleteOldCloudinaryImageIfChanged(
+                    oldCoverImagePublicId,
+                    trip.getCoverImagePublicId(),
+                    "trip cover"
+            );
 
             // Build response with current user's role and trip status
             TripResponseDTO responseDTO = toTripResponseDTOWithCurrentUserRole(trip, username);
@@ -356,8 +368,14 @@ public class TripServiceImpl implements TripService {
             // Only owner can delete trip
             TripEntity trip = tripAccessService.getTripIfOwner(tripId, username);
 
+            String oldCoverImagePublicId = trip.getCoverImagePublicId();
+
             // Delete trip
             tripRepository.delete(trip);
+
+            // Delete old cover image from Cloudinary if it exists
+            deleteOldCloudinaryImageIfChanged(oldCoverImagePublicId, null, "trip cover");
+
             return getCompleteResponse(
                     errorCodeRepository,
                     TRIP_DELETED_SUCCESS,
@@ -725,5 +743,19 @@ public class TripServiceImpl implements TripService {
             return null;
         }
         return value.trim();
+    }
+
+    private void deleteOldCloudinaryImageIfChanged(String oldPublicId, String newPublicId, String imagePurpose) {
+        if (oldPublicId == null || oldPublicId.isBlank()) {
+            return;
+        }
+        if (oldPublicId.equals(newPublicId)) {
+            return;
+        }
+        try {
+            cloudinaryImageClient.deleteImage(oldPublicId);
+        } catch (IOException e) {
+            log.error("Failed to delete old Cloudinary {}: {}", imagePurpose, oldPublicId, e);
+        }
     }
 }

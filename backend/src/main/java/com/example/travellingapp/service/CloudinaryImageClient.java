@@ -11,4 +11,6 @@ public interface CloudinaryImageClient {
             String cloudinaryFolder,
             String imageType
     ) throws IOException;
+
+    void deleteImage(String publicId) throws IOException;
 }

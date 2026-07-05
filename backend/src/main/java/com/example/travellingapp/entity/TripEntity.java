@@ -51,6 +51,9 @@ public class TripEntity implements Serializable {
     @Column(name = "cover_image_url", length = 500)
     private String coverImageUrl;
 
+    @Column(name = "cover_image_public_id", length = 500)
+    private String coverImagePublicId;
+
     // Many trips can belong to one user, but each trip belongs to one user
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

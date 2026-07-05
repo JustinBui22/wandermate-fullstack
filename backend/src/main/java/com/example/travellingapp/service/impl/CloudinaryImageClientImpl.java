@@ -4,11 +4,13 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.example.travellingapp.dto.response.ImageUploadResponseDTO;
 import com.example.travellingapp.service.CloudinaryImageClient;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.Map;
 
+@Log4j2
 @Service
 public class CloudinaryImageClientImpl implements CloudinaryImageClient {
     private final Cloudinary cloudinary;
@@ -43,10 +45,28 @@ public class CloudinaryImageClientImpl implements CloudinaryImageClient {
             throw new IOException("Cloudinary upload did not return a secure URL.");
         }
 
+        log.info("Image uploaded successfully. Secure URL: {}, Public ID: {}", secureUrl, returnedPublicId);
+
+        String finalPublicId = returnedPublicId == null || returnedPublicId.isBlank()
+                ? publicId
+                : returnedPublicId;
         return new ImageUploadResponseDTO(
                 secureUrl,
-                returnedPublicId == null || returnedPublicId.isBlank() ? publicId : returnedPublicId,
+                finalPublicId,
+                finalPublicId,
                 imageType
+        );
+    }
+
+    @Override
+    public void deleteImage(String publicId) throws IOException {
+        if (publicId == null || publicId.isBlank()) {
+            return;
+        }
+
+        cloudinary.uploader().destroy(
+                publicId,
+                ObjectUtils.asMap("resource_type", "image")
         );
     }
 

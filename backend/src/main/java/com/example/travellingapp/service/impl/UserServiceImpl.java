@@ -12,6 +12,7 @@ import com.example.travellingapp.mapper.UserMapper;
 import com.example.travellingapp.repository.ConfigurationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
+import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.TokenService;
 import com.example.travellingapp.service.UserService;
 import com.example.travellingapp.dto.request.create.CreateUserDTO;
@@ -26,6 +27,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -49,9 +51,10 @@ public class UserServiceImpl implements UserService {
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final UserValidator userValidator;
     private final UserMapper userMapper;
+    private final CloudinaryImageClient cloudinaryImageClient;
 
 
-    public UserServiceImpl(UserRepository userRepository, ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, TokenService tokenService, PasswordEncoder passwordEncoder, OtpServiceImpl otpServiceImpl, AuthenticatedUserProvider authenticatedUserProvider, UserValidator userValidator, UserMapper userMapper) {
+    public UserServiceImpl(UserRepository userRepository, ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, TokenService tokenService, PasswordEncoder passwordEncoder, OtpServiceImpl otpServiceImpl, AuthenticatedUserProvider authenticatedUserProvider, UserValidator userValidator, UserMapper userMapper, CloudinaryImageClient cloudinaryImageClient) {
         this.userRepository = userRepository;
         this.configurationRepository = configurationRepository;
         this.errorCodeRepository = errorCodeRepository;
@@ -61,6 +64,7 @@ public class UserServiceImpl implements UserService {
         this.authenticatedUserProvider = authenticatedUserProvider;
         this.userValidator = userValidator;
         this.userMapper = userMapper;
+        this.cloudinaryImageClient = cloudinaryImageClient;
     }
 
     @Transactional
@@ -293,10 +297,18 @@ public class UserServiceImpl implements UserService {
 
             LocalDate parsedDob = userValidator.validateUpdateProfileInput(updateUserProfileDTO, user);
 
+            String oldProfileImagePublicId = user.getProfileImagePublicId();
+
             userMapper.updateProfileEntity(user, updateUserProfileDTO, parsedDob);
             user.setModifiedDate(LocalDateTime.now());
-
             User savedUser = userRepository.save(user);
+
+            // Delete the old profile image from Cloudinary if it has changed
+            deleteOldCloudinaryImageIfChanged(
+                    oldProfileImagePublicId,
+                    savedUser.getProfileImagePublicId(),
+                    "profile image"
+            );
 
             return getCompleteResponse(
                     errorCodeRepository,
@@ -343,5 +355,19 @@ public class UserServiceImpl implements UserService {
         String username = authenticatedUserProvider.getUsername();
         return userRepository.findByUsernameAndActive(username)
                 .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
+    }
+
+    private void deleteOldCloudinaryImageIfChanged(String oldPublicId, String newPublicId, String imagePurpose) {
+        if (oldPublicId == null || oldPublicId.isBlank()) {
+            return;
+        }
+        if (oldPublicId.equals(newPublicId)) {
+            return;
+        }
+        try {
+            cloudinaryImageClient.deleteImage(oldPublicId);
+        } catch (IOException e) {
+            log.error("Failed to delete old Cloudinary {}: {}", imagePurpose, oldPublicId, e);
+        }
     }
 }

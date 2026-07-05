@@ -19,6 +19,7 @@ public class TripMapper {
                 trip.getUser().getUserId(),
                 trip.getUser().getUsername(),
                 trip.getCoverImageUrl(),
+                trip.getCoverImagePublicId(),
                 trip.getTripStatus()
         );
     }

@@ -20,6 +20,7 @@ import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.response_template.ResponseBody;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
+import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.TokenService;
 import com.example.travellingapp.util.Common;
 import com.example.travellingapp.validator.UserValidator;
@@ -34,6 +35,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -78,6 +80,9 @@ class UserServiceImplTest {
     @Mock
     private UserMapper userMapper;
 
+    @Mock
+    private CloudinaryImageClient cloudinaryImageClient;
+
     private UserServiceImpl userService;
 
     @BeforeEach
@@ -91,7 +96,8 @@ class UserServiceImplTest {
                 otpServiceImpl,
                 authenticatedUserProvider,
                 userValidator,
-                userMapper
+                userMapper,
+                cloudinaryImageClient
         );
     }
 
@@ -1056,7 +1062,8 @@ class UserServiceImplTest {
         request.setDisplayName("Justin Bui");
         request.setPhoneNumber("0412345678");
         request.setDob("1999-08-16");
-        request.setProfileImageUrl("https://example.com/avatar.png");
+        request.setProfileImageUrl("https://res.cloudinary.com/demo/image/upload/new-avatar.png");
+        request.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-new");
 
         LocalDate parsedDob = LocalDate.of(1999, 8, 16);
         UserProfileResponseDTO responseDTO = profileResponseDTO(user);
@@ -1082,6 +1089,145 @@ class UserServiceImplTest {
         verify(userMapper).updateProfileEntity(user, request, parsedDob);
         verify(userRepository).save(user);
         verify(userMapper).toProfileResponseDTO(user);
+    }
+
+
+    @Test
+    void updateMyProfile_shouldDeleteOldCloudinaryImage_whenProfileImageIsReplaced() throws IOException {
+        User user = profileUser();
+        user.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-old");
+
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setDisplayName("Justin Bui");
+        request.setProfileImageUrl("https://res.cloudinary.com/demo/image/upload/new-avatar.png");
+        request.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-new");
+
+        LocalDate parsedDob = LocalDate.of(1999, 8, 16);
+        UserProfileResponseDTO responseDTO = profileResponseDTO(user);
+
+        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+        when(userValidator.validateUpdateProfileInput(request, user))
+                .thenReturn(parsedDob);
+        doAnswer(invocation -> {
+            User mappedUser = invocation.getArgument(0);
+            mappedUser.setProfileImageUrl(request.getProfileImageUrl());
+            mappedUser.setProfileImagePublicId(request.getProfileImagePublicId());
+            return null;
+        }).when(userMapper).updateProfileEntity(user, request, parsedDob);
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toProfileResponseDTO(user)).thenReturn(responseDTO);
+
+        CompleteResponse<Object> response = userService.updateMyProfile(request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
+        verify(cloudinaryImageClient).deleteImage("wandermate/profile-images/users/1/profile-1-old");
+    }
+
+    @Test
+    void updateMyProfile_shouldDeleteOldCloudinaryImage_whenProfileImageIsRemoved() throws IOException {
+        User user = profileUser();
+        user.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-old");
+
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setProfileImageUrl("");
+        request.setProfileImagePublicId("");
+
+        UserProfileResponseDTO responseDTO = profileResponseDTO(user);
+
+        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+        when(userValidator.validateUpdateProfileInput(request, user))
+                .thenReturn(user.getDob());
+        doAnswer(invocation -> {
+            User mappedUser = invocation.getArgument(0);
+            mappedUser.setProfileImageUrl(null);
+            mappedUser.setProfileImagePublicId(null);
+            return null;
+        }).when(userMapper).updateProfileEntity(user, request, user.getDob());
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toProfileResponseDTO(user)).thenReturn(responseDTO);
+
+        CompleteResponse<Object> response = userService.updateMyProfile(request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
+        verify(cloudinaryImageClient).deleteImage("wandermate/profile-images/users/1/profile-1-old");
+    }
+
+    @Test
+    void updateMyProfile_shouldNotDeleteCloudinaryImage_whenProfileImagePublicIdIsUnchanged() throws IOException {
+        User user = profileUser();
+        user.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-same");
+
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setProfileImageUrl("https://res.cloudinary.com/demo/image/upload/same-avatar.png");
+        request.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-same");
+
+        UserProfileResponseDTO responseDTO = profileResponseDTO(user);
+
+        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+        when(userValidator.validateUpdateProfileInput(request, user))
+                .thenReturn(user.getDob());
+        doAnswer(invocation -> null)
+                .when(userMapper)
+                .updateProfileEntity(user, request, user.getDob());
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toProfileResponseDTO(user)).thenReturn(responseDTO);
+
+        CompleteResponse<Object> response = userService.updateMyProfile(request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
+        verify(cloudinaryImageClient, never()).deleteImage(anyString());
+    }
+
+    @Test
+    void updateMyProfile_shouldStillReturnSuccess_whenOldCloudinaryImageDeleteFails() throws IOException {
+        User user = profileUser();
+        user.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-old");
+
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setProfileImageUrl("https://res.cloudinary.com/demo/image/upload/new-avatar.png");
+        request.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-new");
+
+        UserProfileResponseDTO responseDTO = profileResponseDTO(user);
+
+        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(user.getUsername());
+        when(userRepository.findByUsernameAndActive(user.getUsername()))
+                .thenReturn(Optional.of(user));
+        when(userValidator.validateUpdateProfileInput(request, user))
+                .thenReturn(user.getDob());
+        doAnswer(invocation -> {
+            User mappedUser = invocation.getArgument(0);
+            mappedUser.setProfileImageUrl(request.getProfileImageUrl());
+            mappedUser.setProfileImagePublicId(request.getProfileImagePublicId());
+            return null;
+        }).when(userMapper).updateProfileEntity(user, request, user.getDob());
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toProfileResponseDTO(user)).thenReturn(responseDTO);
+        doThrow(new IOException("Cloudinary delete failed"))
+                .when(cloudinaryImageClient)
+                .deleteImage("wandermate/profile-images/users/1/profile-1-old");
+
+        CompleteResponse<Object> response = userService.updateMyProfile(request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
+        verify(cloudinaryImageClient).deleteImage("wandermate/profile-images/users/1/profile-1-old");
     }
 
     @Test
@@ -1271,6 +1417,7 @@ class UserServiceImplTest {
         user.setCreatedDate(LocalDateTime.of(2026, 1, 1, 9, 0));
         user.setPreferredTheme(UserSettingEnum.SYSTEM);
         user.setProfileImageUrl("https://example.com/avatar.png");
+        user.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-existing");
         return user;
     }
 
@@ -1284,6 +1431,7 @@ class UserServiceImplTest {
         responseDTO.setDob(user.getDob());
         responseDTO.setPreferredTheme(user.getPreferredTheme());
         responseDTO.setProfileImageUrl(user.getProfileImageUrl());
+        responseDTO.setProfileImagePublicId(user.getProfileImagePublicId());
         responseDTO.setCreatedDate(user.getCreatedDate());
         responseDTO.setModifiedDate(user.getModifiedDate());
         return responseDTO;

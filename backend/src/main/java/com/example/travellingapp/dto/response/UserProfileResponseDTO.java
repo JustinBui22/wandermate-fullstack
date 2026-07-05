@@ -20,4 +20,5 @@ public class UserProfileResponseDTO {
     private String profileImageUrl;
     private LocalDateTime createdDate;
     private LocalDateTime modifiedDate;
+    private String profileImagePublicId;
 }

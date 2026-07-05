@@ -1,82 +1,67 @@
 # WanderMate Backend
 
-Spring Boot backend for the WanderMate travel planning application. The backend provides authentication, refresh/session token handling, OTP verification, trip/destination/activity management, role-based collaboration, invitation and join request flows, private overlap warnings, Docker-based local setup, tests, CI/CD, and Render deployment configuration.
+Spring Boot backend for the WanderMate travel planning application. It provides secure authentication, token/session handling, OTP flows, trip/destination/activity planning, role-based collaboration, Cloudinary image upload, MariaDB persistence, Docker setup, tests, CI/CD, and Render deployment configuration.
 
-This backend is written as a portfolio-grade API project. It demonstrates real backend concerns such as secure authentication, token lifecycle management, database-backed configuration, relational modelling, business validation, collaboration authorization, testable service design, production profiles, and production-safe documentation.
+The backend is written as a portfolio-grade API project. It demonstrates production-style backend concerns: authentication, token lifecycle management, business validation, access control, relational modelling, media storage integration, testable service design, deployment profiles, and safe documentation.
 
 ---
 
 ## Tech Stack
 
-| Area              | Technology                                           |
-| ----------------- | ---------------------------------------------------- |
-| Language          | Java 21                                              |
-| Framework         | Spring Boot 3.5.4                                    |
-| Database          | MariaDB                                              |
-| ORM               | Spring Data JPA / Hibernate                          |
-| Security          | Spring Security, JWT, refresh tokens, session tokens |
-| Email / OTP       | Spring Mail, OAuth/email configuration               |
-| API documentation | SpringDoc OpenAPI / Swagger for local development    |
-| Build tool        | Maven                                                |
-| Testing           | JUnit 5, Mockito, Spring MockMvc, Maven Surefire     |
-| Containerization  | Docker, Docker Compose                               |
-| Deployment        | Render                                               |
-| CI/CD             | GitHub Actions + Render deploy hook                  |
+| Area | Technology |
+|---|---|
+| Language | Java 21 |
+| Framework | Spring Boot 3.5.x |
+| Database | MariaDB |
+| ORM | Spring Data JPA / Hibernate |
+| Security | Spring Security, JWT, refresh tokens, session tokens |
+| OTP / Email | Spring Mail, OAuth/email configuration |
+| Media storage | Cloudinary |
+| API docs | SpringDoc OpenAPI / Swagger for local development |
+| Build | Maven |
+| Tests | JUnit 5, Mockito, MockMvc, AssertJ |
+| Containerization | Docker, Docker Compose |
+| Deployment | Render |
+| CI/CD | GitHub Actions + Render deploy hook |
 
 ---
 
 ## Current Status
 
 ```text
-✅ User registration, login, logout, forgot password
+✅ User registration/login/logout/forgot-password
 ✅ Password hashing and safe auth responses
 ✅ JWT access token authentication
 ✅ Refresh token rotation, revocation, and reuse detection
 ✅ Session token handling for active login sessions
 ✅ Max active session enforcement
-✅ Email OTP implemented end-to-end when email secrets/config are provided
+✅ Email OTP implemented when email config is provided
 ✅ OTP expiry, retry/block handling, destination matching, and consume-on-success
-✅ Forgot-password validates the new password before consuming OTP
-✅ Registration and forgot-password flows are transaction-protected
-✅ Phone/SMS OTP service path exists and is covered with mocked unit tests
-✅ Trip, destination, and activity CRUD implemented
-✅ Trip/destination/activity date and time validation implemented
-✅ Trip and destination overlap warnings implemented with allowOverlap support
-✅ Activity overlap blocked as a hard validation error
-✅ Role-based trip collaboration implemented
-✅ Trip member roles: OWNER, EDITOR, VIEWER
-✅ Centralized collaboration access checks through TripAccessService
-✅ Owner invitation flow implemented
-✅ Invitation accept/reject flow implemented
-✅ User join request flow implemented
-✅ Owner join request approval/rejection implemented
-✅ Share-code preview and join-request flow implemented
-✅ Collaboration summary counts implemented
-✅ Profile/settings API implemented
-✅ Destination createdBy/modifiedBy tracking implemented
-✅ Members are created only after invitation/join request acceptance
-✅ Private member overlap warning implemented
-✅ Activity createdBy and modifiedBy tracking implemented
+✅ Trip, destination, and activity CRUD
+✅ Date/time validation and overlap handling
+✅ Role-based collaboration: OWNER, EDITOR, VIEWER
+✅ Invitation and join-request collaboration flows
+✅ Share-code join flow
+✅ Private member overlap warnings
+✅ Destination/activity createdBy and modifiedBy attribution
+✅ Profile settings with display name, theme, and profile image
+✅ Trip cover image support
+✅ Cloudinary upload with secure URL + publicId storage
+✅ Old Cloudinary asset cleanup when images are replaced/removed
 ✅ Standardized response wrapper and error code system
 ✅ Swagger UI available locally
 ✅ Swagger/OpenAPI disabled in production profile
 ✅ Docker Compose local backend + MariaDB setup
-✅ Production profile available for Render deployment
-✅ Public health endpoint implemented
-✅ Backend CI/CD runs tests before triggering Render deployment
-✅ Uploaded Surefire reports show 373 passing backend tests
+✅ Render production profile and health endpoint
 ```
 
 Not enabled yet:
 
 ```text
-⚠️ Real SMS provider integration is not enabled
-⚠️ Public Docker/demo values do not include real email/OAuth secrets
-⚠️ Viewer suggestion workflow is not implemented yet
-⚠️ Cost sharing is not implemented yet
+⚠️ Real SMS provider integration
+⚠️ Viewer suggestion workflow
+⚠️ Cost sharing/budget split
 ```
-
-Important OTP note: email OTP is the real working OTP flow when email secrets/config are provided. Phone/SMS OTP is prepared at service level and covered with mocked tests, but the current SMS service does not send real SMS.
 
 ---
 
@@ -85,14 +70,15 @@ Important OTP note: email OTP is the real working OTP flow when email secrets/co
 ```mermaid
 flowchart TD
     Client[Frontend / Swagger / Postman] --> Security[Spring Security Filter Chain]
-    Security --> TokenFilter[JWT / Session Token Filter]
+    Security --> TokenFilter[JWT + Session Token Filter]
     TokenFilter --> Controller[Controller Layer]
     Controller --> Service[Service Layer]
-    Service --> Access[Access Control Service]
+    Service --> Access[TripAccessService]
     Service --> Validator[Validator Layer]
     Service --> Mapper[Mapper Layer]
     Service --> Repository[Repository Layer]
     Repository --> DB[(MariaDB)]
+    Service --> Cloudinary[(Cloudinary)]
     Service --> Response[CompleteResponse / ResponseBody]
     Response --> Controller
     Controller --> Client
@@ -107,23 +93,24 @@ Controller → Service → Access Control / Validator / Mapper → Repository �
 Key design choices:
 
 ```text
-- Controllers stay thin and delegate business logic to services
-- Validators keep input/business rule validation separate from service orchestration
-- TripAccessService centralizes role-based collaboration permissions
-- Repositories isolate persistence logic
-- Response wrappers keep API responses consistent
-- Error codes provide stable frontend mapping
-- Collaboration requests prevent direct member insertion from the controller
+- Controllers stay thin
+- Services orchestrate business flows
+- Validators keep input/business validation separate
+- TripAccessService centralizes collaboration permission checks
+- Mappers prevent returning JPA entities directly
+- Standard response wrappers keep frontend handling consistent
 - Token/session data is stored and revocable server-side
+- Cloudinary stores media; MariaDB stores only URL/publicId metadata
 ```
 
 ---
 
-## Domain Model
+## Core Domain Model
 
 ```text
 User
 └── Trip
+    ├── Trip cover image
     ├── TripMember
     │   ├── OWNER
     │   ├── EDITOR
@@ -135,7 +122,7 @@ User
         └── JOIN_REQUEST
 ```
 
-Main entities:
+Important entities:
 
 ```text
 User
@@ -144,6 +131,7 @@ DestinationEntity
 ActivityEntity
 TripMemberEntity
 TripCollaborationRequestEntity
+TripShareCodeEntity
 OtpCheckEntity
 RefreshTokenEntity
 SessionTokenStoreEntity
@@ -151,119 +139,176 @@ ConfigurationEntity
 ErrorCodeEntity
 ```
 
-Business rules:
+---
+
+## Authentication Overview
+
+Login returns:
 
 ```text
-- Usernames, emails, and phone numbers are unique
-- Trip creator becomes OWNER automatically
-- OWNER can view, edit, delete, and manage trip members
-- EDITOR can view and modify trip plan content
-- VIEWER can view shared trip content only
-- OWNER can invite another user to a trip
-- Invited user must accept before becoming a member
-- User can request to join a trip
-- OWNER must accept before requester becomes a member
-- Direct member creation is not exposed at controller level
-- OWNER does not see other users' private overlapping trip details
-- Affected member can see their own overlap warning
-- Trips require valid start/end dates
-- Destinations must belong to a trip
-- Destinations must fit within the parent trip date range
-- Activities must belong to a trip and destination
-- Activities must fit within the parent destination/trip range
-- Trip overlaps can return a warning and continue with allowOverlap=true
-- Destination overlaps can return a warning and continue with allowOverlap=true
-- Activity overlaps are blocked as hard conflicts
+accessToken
+refreshToken
+sessionToken
 ```
+
+Protected requests require:
+
+```text
+Authorization: Bearer <accessToken>
+Session-Token: <sessionToken>
+```
+
+Refresh requests require:
+
+```text
+Refresh-Token: <refreshToken>
+Session-Token: <sessionToken>
+```
+
+Logout revokes the active session token and related refresh tokens.
+
+Refresh tokens are hashed in the DB. Session tokens are encoded in the DB. Access tokens include username and sessionId claims.
 
 ---
 
-## Collaboration Model
-
-### Roles
+## Collaboration Rules
 
 ```text
 OWNER
 - Created automatically when a trip is created
-- Can manage members and collaboration requests
-- Can delete the trip
-- Can edit trip content
+- Can manage members, invitations, join requests, trip content, and trip deletion
 
 EDITOR
-- Can view the trip
-- Can modify trip, destination, and activity content
-- Cannot delete the trip
-- Cannot manage members
+- Can view and modify trip, destination, and activity content
+- Cannot manage members or delete the trip
 
 VIEWER
-- Can view the trip
-- Cannot modify trip, destination, or activity content
-- Can be supported later with suggestion workflow
+- Can view shared trip content only
 ```
 
-### Invitation Flow
+Collaboration flow:
 
 ```text
-1. OWNER sends invitation to another user
-2. Invitation is stored as PENDING
-3. Target user can view received invitations
-4. Target user accepts or rejects
-5. User becomes TripMember only after accepting
-6. Accepting user receives private overlap warnings if relevant
-```
-
-### Join Request Flow
-
-```text
-1. User requests to join a trip
-2. Join request is stored as PENDING
-3. OWNER can view pending join requests
-4. OWNER accepts or rejects
-5. Requester becomes TripMember only after OWNER accepts
-6. OWNER does not receive requester private overlap details
-```
-
-### Private Overlap Warning
-
-```text
-GET /api/v1/trips/{tripId}/my-overlap-warnings
-```
-
-Rules:
-
-```text
-- OWNER receives an empty warning list
-- EDITOR/VIEWER receive warnings only for their own overlapping trips
-- Non-members receive access denied
-- Warning includes overlapping trip name and actual overlap start/end time
+Owner invitation → target accepts/rejects → member added only on accept
+Join request → owner accepts/rejects → member added only on accept
+Private overlap warning → visible only to affected member
 ```
 
 ---
 
-## Live Backend
+## Cloudinary Media Upload
 
-Production backend on Render:
+The backend exposes:
 
-```text
-https://wandermate-fullstack.onrender.com/The-Project
+```http
+POST /api/v1/uploads/images
 ```
 
-Health endpoint:
+Protected headers:
 
 ```text
-https://wandermate-fullstack.onrender.com/The-Project/api/v1/health
+Authorization: Bearer <accessToken>
+Session-Token: <sessionToken>
+Content-Type: multipart/form-data
 ```
 
-Expected response:
+Form data:
+
+```text
+file = image file
+imageType = profile-images | trip-covers
+```
+
+Response body:
 
 ```json
 {
-  "status": "UP",
-  "service": "WanderMate backend"
+  "imageUrl": "https://res.cloudinary.com/.../image/upload/...jpg",
+  "publicId": "wandermate/profile-images/users/1/profile-1-abc",
+  "fileName": "wandermate/profile-images/users/1/profile-1-abc",
+  "imageType": "profile-images"
 }
 ```
 
-Render free-tier services may sleep when inactive, so the first request can take around 40-60 seconds to wake up.
+Storage design:
+
+```text
+Cloudinary stores actual image files
+MariaDB stores only URL + publicId
+```
+
+DB fields:
+
+```text
+users.profile_image_url
+users.profile_image_public_id
+trips.cover_image_url
+trips.cover_image_public_id
+```
+
+Cleanup behavior:
+
+```text
+Replacing profile image → deletes old profile publicId
+Removing profile image → deletes old profile publicId
+Replacing trip cover → deletes old cover publicId
+Removing trip cover → deletes old cover publicId
+Deleting trip → deletes old cover publicId
+```
+
+Cloudinary folders:
+
+```text
+wandermate/profile-images/users/{userId}
+wandermate/trip-covers/users/{userId}
+```
+
+Using `userId` avoids exposing usernames in storage paths and remains stable if usernames change.
+
+---
+
+## Environment Variables
+
+Use `.env.example` as a safe template. Real `.env` files should not be committed.
+
+Common backend env values:
+
+```env
+DB_URL=jdbc:mariadb://localhost:3307/traveling_app
+DB_USERNAME=your_database_username
+DB_PASSWORD=your_database_password
+JWT_SECRET_KEY=your_jwt_secret
+SPRING_PROFILES_ACTIVE=dev
+```
+
+Email OTP values:
+
+```env
+EMAIL_OAUTH_REFRESH_ENABLED=true
+EMAIL_CLIENT_ID=replace_me
+EMAIL_CLIENT_SECRET=replace_me
+EMAIL_REFRESH_TOKEN=replace_me
+EMAIL_TOKEN_URL=https://oauth2.googleapis.com/token
+EMAIL_ADDRESS_CONFIG=demo@example.com
+```
+
+Cloudinary values:
+
+```env
+CLOUDINARY_CLOUD_NAME=replace_me
+CLOUDINARY_API_KEY=replace_me
+CLOUDINARY_API_SECRET=replace_me
+CLOUDINARY_BASE_FOLDER=wandermate
+```
+
+`application.properties` should only reference env placeholders:
+
+```properties
+cloudinary.cloud-name=${CLOUDINARY_CLOUD_NAME:}
+cloudinary.api-key=${CLOUDINARY_API_KEY:}
+cloudinary.api-secret=${CLOUDINARY_API_SECRET:}
+cloudinary.base-folder=${CLOUDINARY_BASE_FOLDER:wandermate}
+```
 
 ---
 
@@ -283,16 +328,10 @@ cd backend
 .\mvnw spring-boot:run
 ```
 
-Default local backend URL:
+Default local URL:
 
 ```text
 http://localhost:8080/The-Project
-```
-
-Health check:
-
-```text
-http://localhost:8080/The-Project/api/v1/health
 ```
 
 Swagger UI:
@@ -327,19 +366,7 @@ Docker backend URL:
 http://localhost:8082/The-Project
 ```
 
-Docker health endpoint:
-
-```text
-http://localhost:8082/The-Project/api/v1/health
-```
-
-Docker Swagger UI:
-
-```text
-http://localhost:8082/The-Project/swagger-ui/index.html
-```
-
-MariaDB host connection:
+Docker MariaDB host connection:
 
 ```text
 localhost:3307
@@ -351,166 +378,45 @@ Inside Docker, the backend connects to MariaDB by service name:
 DB_URL=jdbc:mariadb://db:3306/traveling_app
 ```
 
-From the host machine, database tools connect using:
-
-```text
-localhost:3307
-```
-
 ---
 
-## Environment Variables
+## Database Migration for Option B Images
 
-The backend uses `.env.example` as a safe template. Real `.env` values should not be committed.
+Run once if columns do not exist:
 
-Common local variables:
+```sql
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS profile_image_public_id varchar(500) NULL;
 
-```env
-DB_URL=jdbc:mariadb://localhost:3307/traveling_app
-DB_USERNAME=your_database_username
-DB_PASSWORD=your_database_password
-JWT_SECRET_KEY=your_local_jwt_secret
-SPRING_PROFILES_ACTIVE=dev
+ALTER TABLE trips
+    ADD COLUMN IF NOT EXISTS cover_image_url varchar(500) NULL,
+    ADD COLUMN IF NOT EXISTS cover_image_public_id varchar(500) NULL;
 ```
 
-Email OTP requires valid email/OAuth configuration. Public demo values should not include real secrets.
+Verify:
 
----
-
-## Production Profile
-
-Render uses:
-
-```text
-SPRING_PROFILES_ACTIVE=prod
+```sql
+SHOW COLUMNS FROM users LIKE 'profile_image_public_id';
+SHOW COLUMNS FROM trips LIKE 'cover_image_public_id';
 ```
-
-The production profile is used to reduce development-only behaviour:
-
-```text
-- Disable SQL debug output
-- Reduce noisy debug logging
-- Disable Swagger/OpenAPI UI in production
-```
-
-Production API documentation is handled through markdown docs instead of public Swagger:
-
-```text
-backend/docs/PRODUCTION_API_DOCS.md
-backend/docs/API_GUIDE.md
-backend/docs/AUTH_FLOW.md
-backend/docs/POSTMAN_GUIDE.md
-```
-
----
-
-## Authentication Overview
-
-Login returns:
-
-```text
-accessToken
-refreshToken
-sessionToken
-```
-
-Protected requests require:
-
-```text
-Authorization: Bearer <accessToken>
-Session-Token: <sessionToken>
-```
-
-Refresh token requests require:
-
-```text
-Refresh-Token: <refreshToken>
-Session-Token: <sessionToken>
-```
-
-Logout revokes the active session and related refresh tokens.
-
-Max active session behaviour:
-
-```text
-1. User logs in normally
-2. Backend checks active session count
-3. If max sessions reached and overrideMaxSession=false, backend returns max-session error
-4. Frontend asks the user to confirm removing the oldest session
-5. If user confirms, frontend retries with overrideMaxSession=true
-6. Backend revokes old session(s) and allows login
-```
-
-More details: [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md)
-
----
-
-## OTP and Password Reset Behaviour
-
-OTP behaviour:
-
-```text
-- OTP is generated for email or prepared phone/SMS flows
-- OTP destination is bound to the original email or phone number
-- OTP has expiry validation
-- Incorrect/expired OTP attempts increase retry count
-- OTP record can be blocked after max retry attempts
-- Successful OTP verification deletes the OTP record to prevent reuse
-```
-
-Password reset behaviour:
-
-```text
-1. Find user by username/email/phone
-2. Validate new password pattern
-3. Reject password if it matches the old password
-4. Verify OTP only after password checks pass
-5. Consume OTP on successful verification
-6. Save encoded new password
-```
-
-`forgotPassword()` is transaction-protected so OTP consumption and password update stay consistent if a later database operation fails.
 
 ---
 
 ## Main API Areas
 
-| Module                 | Purpose                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------ |
-| Users                  | Register, verify registration details, login, forgot password, logout, check user          |
-| OTP                    | Send and verify OTP through email flow or prepared SMS flow                                |
-| Auth                   | Refresh access token using refresh token + session token                                   |
-| Trips                  | Create, list, detail, update, delete trips; overlap warning support                        |
-| Destinations           | Create, list, detail, update, delete destinations under trips; overlap warning support     |
-| Activities             | Create, list, detail, update, delete activities under destinations; overlap blocking       |
-| Trip Members           | List members, update member role, remove members                                           |
-| Collaboration Requests | Send invitations, accept/reject invitations, request to join, approve/reject join requests |
-| Overlap Warnings       | Return private overlap warnings for the current member                                     |
-| Health                 | Public API health check for deployment monitoring                                          |
-
-More details: [`docs/API_GUIDE.md`](docs/API_GUIDE.md)
-
----
-
-## Collaboration Endpoints
-
-```text
-GET    /api/v1/trips/{tripId}/members
-PATCH  /api/v1/trips/{tripId}/members/{tripMemberId}/role
-DELETE /api/v1/trips/{tripId}/members/{tripMemberId}
-
-POST   /api/v1/trips/{tripId}/invitations
-GET    /api/v1/trips/invitations/received
-PATCH  /api/v1/trips/invitations/{requestId}/accept
-PATCH  /api/v1/trips/invitations/{requestId}/reject
-
-POST   /api/v1/trips/{tripId}/join-requests
-GET    /api/v1/trips/{tripId}/join-requests
-PATCH  /api/v1/trips/join-requests/{requestId}/accept
-PATCH  /api/v1/trips/join-requests/{requestId}/reject
-
-GET    /api/v1/trips/{tripId}/my-overlap-warnings
-```
+| Module | Purpose |
+|---|---|
+| Users | Register, verify registration details, login, forgot password, logout, profile/settings |
+| OTP | Send and verify email OTP; SMS branch prepared but not real provider-backed |
+| Auth | Refresh access token using refresh token + session token |
+| Uploads | Upload profile/trip images to Cloudinary |
+| Trips | Create/list/detail/update/delete trips; cover images and overlap warning support |
+| Destinations | CRUD destinations under trips; date validation and attribution |
+| Activities | CRUD activities under destinations; time validation and attribution |
+| Trip Members | List members, update role, remove members |
+| Collaboration | Invitations, join requests, share-code join flow |
+| Warnings | Private member overlap warnings |
+| Health | Public deployment health check |
 
 ---
 
@@ -530,172 +436,78 @@ cd backend
 .\mvnw test
 ```
 
-Focused backend suite status:
+Important test areas:
 
 ```text
-373 passed
-0 failures
-0 errors
-0 skipped
-```
-
-Coverage includes:
-
-```text
-- Auth login/logout/session behaviour
-- Refresh token rotation, revocation, and reuse detection
-- User registration validation
-- OTP send/verify retry, expiry, destination mismatch, and consume-on-success
-- Forgot-password password validation before OTP consumption
-- Trip/destination/activity CRUD business rules
-- Role-based trip access checks
-- Trip member management
-- Trip invitation and join request flows
-- Private current-user overlap warnings
-- Activity createdBy and modifiedBy mapping
-- Trip/destination overlap warnings
-- Activity overlap blocking
-- Controller/API status mapping and edge cases
-```
-
-Test areas:
-
-```text
-Service tests:
-- UserServiceImplTest
-- OtpServiceImplTest
-- TokenServiceImplTest
-- TripServiceImplTest
-- DestinationServiceImplTest
-- ActivityServiceImplTest
-- TripAccessServiceImplTest
-- TripMemberServiceImplTest
-- TripCollaborationRequestServiceImplTest
-- TripOverlapWarningServiceImplTest
-- EmailServiceImplTest
-- SmsServiceImplTest
-
-Validator tests:
-- TripCollaborationRequestValidatorTest
-
-Controller/API tests:
-- HealthControllerImplTest
-- UserControllerImplTest
-- OtpControllerImplTest
-- TokenControllerImplTest
-- TripControllerImplTest
-- DestinationControllerImplTest
-- ActivityControllerImplTest
-- TripMemberControllerImplTest
-- TripCollaborationControllerImplTest
-```
-
-Note: a generated full Spring `contextLoads` test, if reintroduced, may require real DB env variables or a dedicated test profile because it starts the full Spring application context. The main portfolio test proof is the focused service/controller test suite.
-
-More details: [`docs/TESTING.md`](docs/TESTING.md)
-
----
-
-## CI/CD
-
-Workflow file:
-
-```text
-.github/workflows/backend-ci-cd.yml
-```
-
-Flow:
-
-```text
-Pull request / push to main
-→ Set up Java 21
-→ Run ./mvnw -B test
-→ On push to main, trigger Render deploy hook
-```
-
-Render deploy hook secret:
-
-```text
-RENDER_DEPLOY_HOOK_URL
+- Auth login/logout/session behavior
+- Refresh token rotation/reuse detection
+- OTP retry/expiry/destination matching
+- Trip/destination/activity CRUD and validation
+- Collaboration role access checks
+- Invitation and join request flows
+- Share-code join flow
+- Creator/editor attribution
+- Profile/theme settings
+- Cloudinary image upload service/controller
+- Cloudinary old-image cleanup for profile/trip cover replacement/removal
 ```
 
 ---
 
-## Documentation Index
+## Production Deployment Notes
 
-| Document                                                       | Purpose                                                                |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| [`docs/API_GUIDE.md`](docs/API_GUIDE.md)                       | Endpoints, request bodies, headers, response format                    |
-| [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md)                       | Login, refresh, logout, OTP, session/token logic                       |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)                 | Layers, domain model, ownership/collaboration checks, validation rules |
-| [`docs/DATABASE_SEED.md`](docs/DATABASE_SEED.md)               | Seed file purpose and safe data rules                                  |
-| [`docs/DOCKER_SETUP.md`](docs/DOCKER_SETUP.md)                 | Docker setup and troubleshooting                                       |
-| [`docs/POSTMAN_GUIDE.md`](docs/POSTMAN_GUIDE.md)               | Manual API testing flow                                                |
-| [`docs/TESTING.md`](docs/TESTING.md)                           | Test coverage and test commands                                        |
-| [`docs/FRONTEND_INTEGRATION.md`](docs/FRONTEND_INTEGRATION.md) | Frontend URL, token, refresh, and warning handling                     |
-| [`docs/PRODUCTION_API_DOCS.md`](docs/PRODUCTION_API_DOCS.md)   | Production-safe API documentation strategy                             |
-| [`docs/OPERATIONS.md`](docs/OPERATIONS.md)                     | Health check, production profile, logging, deployment troubleshooting  |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md)                           | Suggested V1/V2/V2.5/V3/V4 improvement plan                            |
+Render should use:
+
+```text
+SPRING_PROFILES_ACTIVE=prod
+```
+
+Production profile goals:
+
+```text
+- Disable Swagger/OpenAPI
+- Reduce debug logging
+- Disable SQL logging
+- Keep secrets in environment variables only
+```
+
+Production media rule:
+
+```text
+Use Cloudinary for images. Do not rely on Render local filesystem for uploaded files.
+```
 
 ---
 
-## Security and Secret Handling
+## Security Notes
 
 Do not commit:
 
 ```text
-.env files
+backend/.env
+frontend/.env
 OAuth refresh tokens
+JWT secrets
 Access tokens
-Database dumps with private data
-Generated target/ files
+Refresh tokens
+Session tokens
+Database dumps with real user data
+Cloudinary API secret
+backend/target/
+frontend/node_modules/
+frontend/.expo/
+.idea/
 ```
 
-Use `.env.example` for safe templates and cloud provider environment settings for real deployment values.
-
----
-
-## Current Next Phase
-
-V3 collaboration is implemented across backend and frontend.
-
-Next project phase:
+Do not log:
 
 ```text
-V4 portfolio proof:
-1. Add frontend collaboration types and API functions
-2. Add member list and role management UI
-3. Add invitation send/receive UI
-4. Add join request UI
-5. Apply role-based UI permissions
-6. Show private overlap warning to affected member only
+passwords
+OTP codes
+access tokens
+refresh tokens
+session tokens
+email OAuth secrets
+Cloudinary API secret
+DB passwords
 ```
-
-V4 portfolio proof tasks:
-
-```text
-1. Take screenshots
-2. Record 60-90 second demo video
-3. Add screenshot/demo section to root README
-4. Add final project summary to CV/GitHub portfolio
-```
-
-## V3 API Additions
-
-```text
-GET    /api/v1/collaboration/summary
-
-GET    /api/v1/users/me
-PATCH  /api/v1/users/me/profile
-PATCH  /api/v1/users/me/settings
-
-GET    /api/v1/trips/join-requests/owned
-GET    /api/v1/trips/join-requests/sent
-
-POST   /api/v1/trips/{tripId}/share-codes/regenerate
-GET    /api/v1/trips/share-codes/{code}
-POST   /api/v1/trips/share-codes/{code}/join-requests
-GET    /api/v1/trips/{tripId}/share-codes/active
-```
-
-These endpoints support the V3 mobile collaboration tab, profile page, dynamic theme, share-code join flow, and pending collaboration badges.

@@ -20,4 +20,7 @@ public class UpdateUserProfileDTO {
 
     @Size(max = 500, message = "Profile image URL must be at most 500 characters")
     private String profileImageUrl;
+
+    @Size(max = 500, message = "Profile image public ID must be at most 500 characters")
+    private String profileImagePublicId;
 }
