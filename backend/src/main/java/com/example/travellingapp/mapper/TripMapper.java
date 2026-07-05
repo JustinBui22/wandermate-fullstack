@@ -18,6 +18,7 @@ public class TripMapper {
                 trip.getModifiedDate(),
                 trip.getUser().getUserId(),
                 trip.getUser().getUsername(),
+                trip.getCoverImageUrl(),
                 trip.getTripStatus()
         );
     }

@@ -119,6 +119,11 @@ public class TripServiceImpl implements TripService {
                     user
             );
 
+            // Set cover image URL if provided
+            if (tripDTO.getCoverImageUrl() != null) {
+                trip.setCoverImageUrl(tripDTO.getCoverImageUrl());
+            }
+
             // Allow user to set status manually
             if (tripDTO.getTripStatus() != null) {
                 trip.setTripStatus(tripDTO.getTripStatus());
@@ -305,6 +310,10 @@ public class TripServiceImpl implements TripService {
             trip.setStartDate(tripDTO.getStartDate());
             trip.setEndDate(tripDTO.getEndDate());
             trip.setModifiedDate(LocalDateTime.now());
+
+            // Update cover image URL if provided
+            trip.setCoverImageUrl(trimToNull(tripDTO.getCoverImageUrl()));
+
 
             // Allow user to set status manually
             if (tripDTO.getTripStatus() != null) {
@@ -607,7 +616,8 @@ public class TripServiceImpl implements TripService {
             TripEnum statusEnum;
 
             try {
-                statusEnum = TripEnum.valueOf(status.name());           } catch (IllegalArgumentException e) {
+                statusEnum = TripEnum.valueOf(status.name());
+            } catch (IllegalArgumentException e) {
                 throw new BusinessException(TRIP_STATUS_INVALID, TRIP.name());
             }
 
@@ -708,5 +718,12 @@ public class TripServiceImpl implements TripService {
                 .ifPresent(member -> dto.setCurrentUserRole(member.getRole()));
 
         return dto;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.trim().isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

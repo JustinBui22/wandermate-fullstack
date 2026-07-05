@@ -28,5 +28,8 @@ public class UpdateTripDTO {
     private Boolean allowOverlap;
 
     private TripEnum tripStatus;
+
+    @Size(max = 500, message = "Cover image URL must be at most 500 characters")
+    private String coverImageUrl;
 }
 

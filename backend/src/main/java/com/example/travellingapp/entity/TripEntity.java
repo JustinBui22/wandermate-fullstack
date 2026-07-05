@@ -48,6 +48,9 @@ public class TripEntity implements Serializable {
     @Column(name = "end_date", nullable = false)
     private LocalDateTime endDate;
 
+    @Column(name = "cover_image_url", length = 500)
+    private String coverImageUrl;
+
     // Many trips can belong to one user, but each trip belongs to one user
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

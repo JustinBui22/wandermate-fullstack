@@ -88,7 +88,6 @@ public class TokenFilter extends OncePerRequestFilter {
     private boolean isNonAuthenticatedRequest(HttpServletRequest request) {
         String requestURI = request.getRequestURI();
         String normalizedURI = requestURI.replaceFirst("^/The-Project", "").replaceAll("^/+", "").replaceAll("/+$", "");
-
         return Arrays.stream(getNonAuthenticatedUrls(configurationRepository))
                 .map(p -> p.trim().replaceAll("^/+", "").replaceAll("/+$", ""))
                 .anyMatch(pattern -> matchesUrlPattern(pattern, normalizedURI));

@@ -59,10 +59,8 @@ public class UserMapper {
         if (parsedDob != null) {
             user.setDob(parsedDob);
         }
-
-        String profileImageUrl = trimToNull(updateUserProfileDTO.getProfileImageUrl());
-        if (profileImageUrl != null) {
-            user.setProfileImageUrl(profileImageUrl);
+        if (updateUserProfileDTO.getProfileImageUrl() != null) {
+            user.setProfileImageUrl(trimToNull(updateUserProfileDTO.getProfileImageUrl()));
         }
     }
 
