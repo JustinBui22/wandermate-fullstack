@@ -48,15 +48,15 @@ Run one method:
 
 ---
 
-## Current Passing Test Suite
+## Current/Expected Passing Test Suite
 
 The uploaded project contains Surefire reports showing:
 
 ```text
-373 tests
-0 failures
-0 errors
-0 skipped
+392 tests expected after V3 + Cloudinary Option B updates
+0 failures expected
+0 errors expected
+0 skipped expected
 ```
 
 Main test areas:
@@ -80,6 +80,9 @@ TripControllerImplTest
 TripMemberControllerImplTest
 TripShareCodeControllerImplTest
 UserControllerImplTest
+
+ImageUploadServiceImplTest
+ImageUploadControllerImplTest
 
 ActivityServiceImplTest
 DestinationServiceImplTest
@@ -225,4 +228,47 @@ Do not load attribution-only data too early if it can hide the real business err
 2. Add Testcontainers for MariaDB integration testing
 3. Add frontend tests after frontend stabilizes
 4. Add end-to-end demo smoke checklist for V4 portfolio proof
+```
+
+---
+
+## Cloudinary Image Upload Test Coverage
+
+The Option B image-storage tests should cover:
+
+```text
+ImageUploadServiceImplTest:
+- valid profile image upload
+- valid trip cover image upload
+- imageType normalization
+- Cloudinary folder uses userId
+- response includes imageUrl, publicId, fileName, imageType
+- invalid file/content-type/size failures
+- missing current user failure
+- Cloudinary upload failure mapped to INTERNAL_SERVER_ERROR
+
+ImageUploadControllerImplTest:
+- multipart request delegates to service
+- success response includes publicId
+- bad request response maps correctly
+
+UserServiceImplTest:
+- replacing profile image deletes old publicId
+- removing profile image deletes old publicId
+- unchanged publicId does not delete
+- Cloudinary delete failure logs warning but update still succeeds
+
+TripServiceImplTest:
+- create trip saves coverImageUrl and coverImagePublicId
+- update trip saves coverImageUrl and coverImagePublicId
+- replacing/removing trip cover deletes old publicId
+- deleting trip deletes old cover publicId
+- Cloudinary delete failure logs warning but update still succeeds
+```
+
+Run the full suite after changing image upload or cleanup logic:
+
+```powershell
+cd backend
+.\mvnw clean test
 ```

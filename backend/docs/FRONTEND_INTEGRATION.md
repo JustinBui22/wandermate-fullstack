@@ -187,6 +187,7 @@ Activity overlap is not a warning. It is a hard error.
 | `src/api/tripApi.ts` | Trip CRUD and search/suggest API calls |
 | `src/api/destinationApi.ts` | Destination CRUD |
 | `src/api/activityApi.ts` | Activity CRUD |
+| `src/api/uploadApi.ts` | Multipart image uploads for profile pictures and trip covers |
 | `src/api/axiosClient.ts` | Shared Axios client and token refresh handling |
 | `src/refreshApi.ts` | Refresh token call without interceptor loop |
 
@@ -281,3 +282,71 @@ modifiedByProfileImageUrl
 ```
 
 The frontend uses these fields for avatar/initials display and quick user attribution cards.
+
+---
+
+## Image Upload Frontend Flow
+
+The frontend uses Expo Image Picker for selecting profile pictures and trip cover images from the device.
+
+Relevant files:
+
+```text
+frontend/src/api/uploadApi.ts
+frontend/src/components/media/ImageUploadPicker.tsx
+frontend/app/(tabs)/profile.tsx
+frontend/app/trips/create.tsx
+frontend/app/trips/[tripId]/edit.tsx
+```
+
+Flow:
+
+```text
+1. User selects image from phone.
+2. Frontend uploads multipart file to POST /api/v1/uploads/images.
+3. Backend uploads to Cloudinary.
+4. Backend returns imageUrl + publicId.
+5. Frontend stores both values in form state.
+6. Frontend saves profile/trip with imageUrl + publicId.
+```
+
+Upload response shape:
+
+```json
+{
+  "imageUrl": "https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/users/1/profile-1-abc.jpg",
+  "publicId": "wandermate/profile-images/users/1/profile-1-abc",
+  "fileName": "wandermate/profile-images/users/1/profile-1-abc",
+  "imageType": "profile-images"
+}
+```
+
+When removing an image, the frontend sends empty strings for the URL and public ID. The backend uses the old stored public ID to delete the old Cloudinary asset.
+
+---
+
+## Trip Cover and Avatar UI
+
+Current image usage:
+
+```text
+- Profile screen displays uploaded profile picture.
+- My Trips screen displays trip cover image.
+- Trip Detail screen displays trip cover image.
+- Destination/activity creator attribution uses avatar-only display on cards.
+- Tapping an avatar opens the quick user card.
+```
+
+Profile image fields:
+
+```text
+profileImageUrl
+profileImagePublicId
+```
+
+Trip cover fields:
+
+```text
+coverImageUrl
+coverImagePublicId
+```

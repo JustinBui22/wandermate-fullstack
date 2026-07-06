@@ -359,6 +359,7 @@ V3 adds user-facing profile fields and content attribution.
 users.display_name
 users.preferred_theme
 users.profile_image_url
+users.profile_image_public_id
 
 trip_destinations.created_by_user_id
 trip_destinations.modified_by_user_id
@@ -368,3 +369,58 @@ destination_activities.modified_by_user_id
 ```
 
 The frontend uses these fields to show creator/last-editor avatars and quick user cards on destination and activity screens.
+
+---
+
+## Cloudinary Image Storage Architecture
+
+WanderMate stores profile images and trip cover images in Cloudinary rather than in the backend filesystem.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Expo App
+    participant API as Spring Boot API
+    participant Cloudinary
+    participant DB as MariaDB
+
+    User->>App: Pick image from phone
+    App->>API: POST /api/v1/uploads/images multipart
+    API->>API: Validate auth, file type, file size, imageType
+    API->>Cloudinary: Upload image bytes
+    Cloudinary-->>API: secure_url + public_id
+    API-->>App: imageUrl + publicId
+    App->>API: Save profile/trip with URL + publicId
+    API->>DB: Store URL + publicId
+```
+
+Stored fields:
+
+```text
+users.profile_image_url
+users.profile_image_public_id
+
+trips.cover_image_url
+trips.cover_image_public_id
+```
+
+Folder strategy:
+
+```text
+wandermate/profile-images/users/{userId}
+wandermate/trip-covers/users/{userId}
+```
+
+The folder uses `userId` instead of username because user IDs are stable and usernames may change.
+
+Cleanup strategy:
+
+```text
+- Replace profile picture → delete old profile_image_public_id from Cloudinary.
+- Remove profile picture → delete old profile_image_public_id from Cloudinary.
+- Replace trip cover → delete old cover_image_public_id from Cloudinary.
+- Remove trip cover → delete old cover_image_public_id from Cloudinary.
+- Delete trip → delete old trip cover from Cloudinary.
+```
+
+The backend logs Cloudinary deletion failures as warnings so that profile/trip updates do not fail only because cleanup failed.

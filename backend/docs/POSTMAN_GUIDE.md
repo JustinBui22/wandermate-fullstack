@@ -42,6 +42,10 @@ sessionToken
 tripId
 destinationId
 activityId
+profileImageUrl
+profileImagePublicId
+coverImageUrl
+coverImagePublicId
 ```
 
 ---
@@ -270,7 +274,11 @@ Body:
 }
 ```
 
-Save `activityId` from response body.
+Save `activityId
+profileImageUrl
+profileImagePublicId
+coverImageUrl
+coverImagePublicId` from response body.
 
 ---
 
@@ -523,4 +531,132 @@ Owner gets active share code:
 
 ```http
 GET {{baseUrl}}/api/v1/trips/{{tripId}}/share-codes/active
+```
+
+---
+
+## Image Upload Manual Test
+
+Upload profile image or trip cover:
+
+```http
+POST {{baseUrl}}/api/v1/uploads/images
+```
+
+Headers:
+
+```text
+Authorization: Bearer {{accessToken}}
+Session-Token: {{sessionToken}}
+```
+
+Body type:
+
+```text
+form-data
+```
+
+Fields:
+
+```text
+file       = selected image file
+imageType  = profile-images
+```
+
+or:
+
+```text
+file       = selected image file
+imageType  = trip-covers
+```
+
+Expected response body:
+
+```json
+{
+  "imageUrl": "https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/users/1/profile-1-abc.jpg",
+  "publicId": "wandermate/profile-images/users/1/profile-1-abc",
+  "fileName": "wandermate/profile-images/users/1/profile-1-abc",
+  "imageType": "profile-images"
+}
+```
+
+Save these values into Postman variables:
+
+```text
+profileImageUrl
+profileImagePublicId
+coverImageUrl
+coverImagePublicId
+```
+
+---
+
+## Update Profile Image with Cloudinary Values
+
+After uploading a profile image, update the profile:
+
+```http
+PATCH {{baseUrl}}/api/v1/users/me/profile
+```
+
+```json
+{
+  "displayName": "Justin Bui",
+  "phoneNumber": "0412345678",
+  "dob": "01/01/2000",
+  "profileImageUrl": "{{profileImageUrl}}",
+  "profileImagePublicId": "{{profileImagePublicId}}"
+}
+```
+
+To remove the profile image:
+
+```json
+{
+  "profileImageUrl": "",
+  "profileImagePublicId": ""
+}
+```
+
+Expected behaviour:
+
+```text
+- New URL/publicId is saved.
+- Old Cloudinary image is deleted if the publicId changed.
+```
+
+---
+
+## Create or Update Trip Cover with Cloudinary Values
+
+Create or update trip requests can include:
+
+```json
+{
+  "tripName": "Japan Trip",
+  "destination": "Japan",
+  "startDate": "2026-07-01T09:00:00",
+  "endDate": "2026-07-10T18:00:00",
+  "allowOverlap": false,
+  "coverImageUrl": "{{coverImageUrl}}",
+  "coverImagePublicId": "{{coverImagePublicId}}"
+}
+```
+
+To remove a trip cover on update:
+
+```json
+{
+  "coverImageUrl": "",
+  "coverImagePublicId": ""
+}
+```
+
+Expected behaviour:
+
+```text
+- New cover URL/publicId is saved.
+- Old Cloudinary cover is deleted if publicId changed.
+- Deleting the trip deletes the stored cover image from Cloudinary.
 ```

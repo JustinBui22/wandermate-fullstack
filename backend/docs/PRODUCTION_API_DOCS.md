@@ -293,3 +293,51 @@ Production markdown docs now cover these V3 areas:
 ```
 
 Swagger remains disabled in production, so these markdown docs and Postman guide are the source of production API usage notes.
+
+---
+
+## Cloudinary Image Storage in Production
+
+Production image storage uses Cloudinary.
+
+Why:
+
+```text
+- Render filesystem is not reliable for persistent user uploads.
+- The database should not store binary images.
+- Cloudinary provides stable HTTPS image URLs and image CDN behaviour.
+```
+
+Production DB stores:
+
+```text
+users.profile_image_url
+users.profile_image_public_id
+
+trips.cover_image_url
+trips.cover_image_public_id
+```
+
+Production API upload endpoint:
+
+```text
+POST /api/v1/uploads/images
+```
+
+The endpoint is protected, but the returned Cloudinary image URLs are public HTTPS URLs used by the mobile app.
+
+Do not expose these values publicly:
+
+```text
+CLOUDINARY_API_KEY
+CLOUDINARY_API_SECRET
+```
+
+It is safe for API responses to include:
+
+```text
+imageUrl
+publicId
+```
+
+because the public ID is needed by the backend/client workflow, but API access is authenticated and normal app users do not interact with it directly.

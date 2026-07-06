@@ -353,3 +353,37 @@ Session-Token: <sessionToken>
 ```
 
 Profile/settings update non-sensitive user-facing fields such as display name, profile image URL, and preferred theme. Password reset still goes through the forgot-password OTP flow.
+
+---
+
+## Image Upload Authorization
+
+Image upload is protected by the normal token/session model.
+
+```text
+POST /api/v1/uploads/images
+```
+
+Required headers:
+
+```text
+Authorization: Bearer <accessToken>
+Session-Token: <sessionToken>
+```
+
+The uploaded file is sent as `multipart/form-data`. The request must include:
+
+```text
+file
+imageType
+```
+
+Image URLs returned by Cloudinary are public HTTPS URLs. The app displays those URLs directly in React Native `Image` components. The backend does not need to make `/uploads/**` public because Cloudinary serves the image files.
+
+Security notes:
+
+```text
+- Do not upload sensitive documents such as passports, driver licences, or visas.
+- Profile images and trip covers are treated as app-display media.
+- The database stores Cloudinary URL/publicId, not binary image data.
+```

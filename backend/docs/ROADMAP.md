@@ -22,6 +22,9 @@ Current strengths:
 ✅ Share-code join workflow
 ✅ Collaboration summary badge counts
 ✅ Profile/settings API
+✅ Cloudinary profile image upload
+✅ Cloudinary trip cover image upload
+✅ Cloudinary publicId cleanup for replaced/removed images
 ✅ Creator/editor attribution
 ✅ Private overlap warnings
 ✅ Docker Compose local backend + MariaDB
@@ -30,7 +33,7 @@ Current strengths:
 ✅ Collaboration screens in the mobile app
 ✅ GitHub Actions CI workflows
 ✅ Render deployment profile
-✅ Uploaded Surefire reports show 373 passing backend tests
+✅ V3 + image-upload backend test suite targets 392 passing tests after Option B cleanup
 ```
 
 Current limitations:
@@ -38,7 +41,6 @@ Current limitations:
 ```text
 ⚠️ Real SMS provider integration is not enabled
 ⚠️ Public Docker demo does not include real email/OAuth secrets
-⚠️ Real profile image upload/storage is not implemented
 ⚠️ Viewer suggestion workflow is not implemented yet
 ⚠️ Cost sharing is not implemented yet
 ⚠️ Final screenshots/demo video are still needed for portfolio proof
@@ -105,7 +107,7 @@ Included:
 ✅ Collaboration summary badge counts
 ✅ Permission checks for trip/destination/activity operations
 ✅ Private overlap warning for affected member only
-✅ Profile display name, theme, and avatar URL
+✅ Profile display name, theme, and Cloudinary avatar upload
 ✅ Creator/editor attribution for destinations and activities
 ✅ Frontend collaboration tab and per-trip collaboration screens
 ```
@@ -206,4 +208,33 @@ Recommended CV wording:
 
 ```text
 Built a production-style full-stack travel planning app using Spring Boot, MariaDB, JWT authentication, refresh/session token management, Docker, and Expo React Native. Implemented role-based trip collaboration with owner/editor/viewer permissions, invitation and join-request workflows, share-code joining, OTP registration, trip/destination/activity CRUD, overlap validation, creator/editor attribution, standardized API responses, and 370+ backend tests.
+```
+
+---
+
+## V3.5 — Image Storage Polish
+
+Status:
+
+```text
+✅ Implemented
+```
+
+Included:
+
+```text
+✅ Expo image picker for profile image and trip cover
+✅ Protected image upload endpoint
+✅ Cloudinary backend integration
+✅ Store image URL + Cloudinary publicId in MariaDB
+✅ Delete old Cloudinary asset when profile image is replaced/removed
+✅ Delete old Cloudinary asset when trip cover is replaced/removed
+✅ Delete trip cover asset when trip is deleted
+✅ Avatar-only attribution UI on cards
+```
+
+Known limitation:
+
+```text
+If a user uploads an image but cancels before saving the profile/trip form, the newly uploaded image can remain in Cloudinary. A future cleanup job can remove abandoned uploads.
 ```

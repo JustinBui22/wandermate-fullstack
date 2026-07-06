@@ -153,6 +153,8 @@ The V3 schema needs these columns for profile/theme/attribution features:
 users.display_name
 users.preferred_theme
 users.profile_image_url
+users.profile_image_public_id
+users.profile_image_public_id
 users.modified_date
 
 trip_destinations.created_by_user_id
@@ -160,6 +162,83 @@ trip_destinations.modified_by_user_id
 
 destination_activities.created_by_user_id
 destination_activities.modified_by_user_id
+
+trips.cover_image_url
+trips.cover_image_public_id
 ```
 
 If a local database was created before V3, verify these columns exist before testing profile and attribution screens.
+
+---
+
+## Current V3 + Cloudinary Option B Schema Checklist
+
+A fresh Docker schema must include these V3 and image-storage fields:
+
+```text
+users.display_name
+users.preferred_theme
+users.profile_image_url
+users.profile_image_public_id
+users.modified_date
+
+trips.cover_image_url
+trips.cover_image_public_id
+
+trip_destinations.created_by_user_id
+trip_destinations.modified_by_user_id
+
+destination_activities.created_by_user_id
+destination_activities.modified_by_user_id
+
+trip_members
+trip_collaboration_requests
+trip_share_codes
+trip_share_code_attempts
+```
+
+The uploaded current schema includes the `profile_image_public_id` and `cover_image_public_id` columns needed for Cloudinary cleanup, plus destination/activity attribution columns.
+
+Important: schema alone is not enough. `init.sql` also needs safe seed rows for:
+
+```text
+configuration
+error_codes
+email_contents
+sms_contents
+cities
+restaurants
+accommodations
+```
+
+Do not reset Docker with a schema-only `init.sql` unless the application can boot and all required config/error-code rows are present.
+
+---
+
+## Recommended Docker init.sql Structure
+
+Use this structure:
+
+```sql
+-- =========================================================
+-- WanderMate V3 schema
+-- =========================================================
+
+CREATE TABLE ...
+CREATE INDEX ...
+ALTER TABLE ...
+
+-- =========================================================
+-- Safe reference/config seed data
+-- =========================================================
+
+INSERT INTO configuration ...
+INSERT INTO error_codes ...
+INSERT INTO email_contents ...
+INSERT INTO sms_contents ...
+INSERT INTO cities ...
+INSERT INTO restaurants ...
+INSERT INTO accommodations ...
+```
+
+Do not include real users, OTPs, tokens, passwords, OAuth secrets, Cloudinary secrets, or production database credentials.

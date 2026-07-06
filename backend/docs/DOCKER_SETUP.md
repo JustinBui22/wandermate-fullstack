@@ -98,6 +98,11 @@ EMAIL_CLIENT_SECRET=replace_me
 EMAIL_REFRESH_TOKEN=replace_me
 EMAIL_TOKEN_URL=https://oauth2.googleapis.com/token
 EMAIL_ADDRESS_CONFIG=demo@example.com
+
+CLOUDINARY_CLOUD_NAME=replace_me
+CLOUDINARY_API_KEY=replace_me
+CLOUDINARY_API_SECRET=replace_me
+CLOUDINARY_BASE_FOLDER=wandermate
 ```
 
 Important:
@@ -361,3 +366,54 @@ After changing frontend `.env`, restart Expo:
 ```bash
 npx expo start --clear
 ```
+
+---
+
+## Cloudinary with Docker
+
+Docker runs the Spring Boot backend and MariaDB locally, but Cloudinary is still an external image service.
+
+Add these to `backend/.env` for local Docker image uploads:
+
+```env
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+CLOUDINARY_BASE_FOLDER=wandermate
+```
+
+Use placeholders in `.env.example`; put real values only in private `.env`, IntelliJ run configuration, or Render environment variables.
+
+If Cloudinary values are missing:
+
+```text
+- Login/trip CRUD can still work.
+- Profile/trip image upload will fail.
+```
+
+No local `/uploads/**` serving is required in the Cloudinary version because images are served from `https://res.cloudinary.com/...`.
+
+---
+
+## Fresh Docker Reset Checklist
+
+Use this when verifying that another developer can run the backend from scratch.
+
+```bash
+cd backend
+docker compose down -v
+docker compose up --build
+```
+
+Then check:
+
+```text
+1. DB container is healthy.
+2. Backend container is running.
+3. http://localhost:8082/The-Project/api/v1/health returns UP.
+4. http://localhost:8082/The-Project/swagger-ui/index.html opens locally.
+5. Register/login flow works if required config/email seed data exists.
+6. Cloudinary image upload works if Cloudinary env vars are provided.
+```
+
+Warning: `docker compose down -v` deletes the local Docker database volume and re-imports `docker/init/init.sql`.

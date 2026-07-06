@@ -337,7 +337,9 @@ Create/update request:
   "destination": "Japan",
   "startDate": "2026-07-01T09:00:00",
   "endDate": "2026-07-10T18:00:00",
-  "allowOverlap": false
+  "allowOverlap": false,
+  "coverImageUrl": "https://res.cloudinary.com/demo/image/upload/v123/cover.jpg",
+  "coverImagePublicId": "wandermate/trip-covers/users/1/trip-cover-1-abc"
 }
 ```
 
@@ -500,7 +502,8 @@ Update profile request:
   "displayName": "Justin Bui",
   "phoneNumber": "0412345678",
   "dob": "01/01/2000",
-  "profileImageUrl": "https://example.com/avatar.jpg"
+  "profileImageUrl": "https://res.cloudinary.com/demo/image/upload/v123/avatar.jpg",
+  "profileImagePublicId": "wandermate/profile-images/users/1/profile-1-abc"
 }
 ```
 
@@ -595,3 +598,92 @@ modifiedByUsername
 modifiedByDisplayName
 modifiedByProfileImageUrl
 ```
+
+---
+
+## Image Upload API
+
+Base path:
+
+```text
+/api/v1/uploads
+```
+
+The upload endpoint is protected and uses the same auth/session headers as other logged-in APIs:
+
+```text
+Authorization: Bearer <accessToken>
+Session-Token: <sessionToken>
+```
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `POST` | `/images` | Protected | Upload a profile image or trip cover image to Cloudinary |
+
+Request type:
+
+```text
+multipart/form-data
+```
+
+Form fields:
+
+| Field | Type | Required | Notes |
+|---|---|---:|---|
+| `file` | file | Yes | Image file, max 5MB |
+| `imageType` | string | Yes | `profile-images` or `trip-covers` |
+
+Example response body:
+
+```json
+{
+  "imageUrl": "https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/users/1/profile-1-abc.jpg",
+  "publicId": "wandermate/profile-images/users/1/profile-1-abc",
+  "fileName": "wandermate/profile-images/users/1/profile-1-abc",
+  "imageType": "profile-images"
+}
+```
+
+Important behaviour:
+
+```text
+- The backend uploads image bytes to Cloudinary.
+- The backend returns Cloudinary secure URL + publicId.
+- The frontend saves imageUrl + publicId in profile/trip update requests.
+- The database stores URLs/public IDs only, not binary image files.
+- Replacing/removing a profile image or trip cover deletes the old Cloudinary asset by publicId.
+```
+
+Allowed `imageType` values:
+
+```text
+profile-images
+trip-covers
+```
+
+---
+
+## Cloudinary Image Fields
+
+Profile responses/requests can include:
+
+```text
+profileImageUrl
+profileImagePublicId
+```
+
+Trip responses/create/update requests can include:
+
+```text
+coverImageUrl
+coverImagePublicId
+```
+
+Destination/activity attribution fields use the creator/editor profile image URL for avatar display:
+
+```text
+createdByProfileImageUrl
+modifiedByProfileImageUrl
+```
+
+The `publicId` fields are not displayed to users. They are stored so the backend can delete the old Cloudinary asset when a user replaces or removes an image.

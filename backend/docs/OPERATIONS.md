@@ -223,6 +223,10 @@ Check Render environment variables:
 DB_URL
 DB_USERNAME
 DB_PASSWORD
+CLOUDINARY_CLOUD_NAME
+CLOUDINARY_API_KEY
+CLOUDINARY_API_SECRET
+CLOUDINARY_BASE_FOLDER
 ```
 
 Also confirm that the database host allows connections from Render.
@@ -435,3 +439,52 @@ After deploying V3, verify:
 ```
 
 If profile or attribution fails, check that the production database has the V3 columns.
+
+---
+
+## Cloudinary Production Checks
+
+Render stores the backend process, but Cloudinary stores user-uploaded images.
+
+Required Render environment variables:
+
+```env
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+CLOUDINARY_BASE_FOLDER=wandermate
+```
+
+After deployment, verify:
+
+```text
+1. Upload profile image from mobile app.
+2. The returned imageUrl starts with https://res.cloudinary.com/.
+3. users.profile_image_public_id is saved in DB.
+4. Replace the profile image and confirm the old Cloudinary asset is deleted.
+5. Create a trip cover image and confirm trips.cover_image_public_id is saved.
+6. Replace/remove trip cover and confirm old Cloudinary asset is deleted.
+```
+
+Operational note:
+
+```text
+If a user uploads an image but cancels the form before saving, that uploaded image may remain as an orphan Cloudinary asset. A future cleanup job or temporary-upload table can handle abandoned uploads.
+```
+
+---
+
+## V4 Portfolio Operations Checklist
+
+Before recording screenshots/demo:
+
+```text
+1. Backend tests pass.
+2. Frontend typecheck passes.
+3. Docker fresh-start works locally.
+4. Render backend health check is UP.
+5. Cloudinary upload works in local/dev environment.
+6. Demo accounts are created.
+7. No real secrets are committed.
+8. GitHub Actions workflows are passing.
+```
