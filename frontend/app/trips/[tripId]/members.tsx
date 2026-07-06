@@ -29,6 +29,7 @@ import { AppScreen } from "@/src/components/ui/AppScreen";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type {
     TripCollaborationRequest,
     TripCollaborationRole,
@@ -97,6 +98,9 @@ function getRequestRole(request: TripCollaborationRequest): TripCollaborationRol
 export default function TripMembersScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
 
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const tripNumberId = Number(tripIdParam);
@@ -381,12 +385,12 @@ export default function TripMembersScreen() {
         return (
             <AppScreen scroll={false} centerContent contentContainerStyle={styles.centerContent}>
                 <View style={styles.errorIconBadge}>
-                    <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
+                    <Ionicons name="alert-circle-outline" size={34} color={themeColors.danger} />
                 </View>
 
                 <View style={styles.centerTextGroup}>
-                    <Text style={styles.centerTitle}>Unable to load members</Text>
-                    <Text style={styles.centerSubtitle}>{error}</Text>
+                    <Text style={[styles.centerTitle, { color: themeColors.text }]}>Unable to load members</Text>
+                    <Text style={[styles.centerSubtitle, { color: themeColors.textMuted }]}>{error}</Text>
                 </View>
 
                 <AppButton title="Try again" onPress={loadMembersScreen} />
@@ -404,15 +408,19 @@ export default function TripMembersScreen() {
                     onPress={() => router.back()}
                     style={({ pressed }) => [
                         styles.headerIconButton,
+                        {
+                            backgroundColor: themeColors.surface,
+                            borderColor: themeColors.border,
+                        },
                         pressed && styles.pressed,
                     ]}
                 >
-                    <Ionicons name="chevron-back" size={23} color={colors.text} />
+                    <Ionicons name="chevron-back" size={23} color={themeColors.text} />
                 </Pressable>
 
                 <View style={styles.headerTextGroup}>
-                    <Text style={styles.headerTitle}>Trip Members</Text>
-                    <Text style={styles.headerSubtitle}>
+                    <Text style={[styles.headerTitle, { color: themeColors.text }]}>Trip Members</Text>
+                    <Text style={[styles.headerSubtitle, { color: themeColors.textMuted }]}>
                         Invite people and manage trip access.
                     </Text>
                 </View>
@@ -430,7 +438,7 @@ export default function TripMembersScreen() {
                     placeholder="Enter username"
                     autoCapitalize="none"
                     autoCorrect={false}
-                    leftIcon={<Ionicons name="person-add-outline" size={20} color={colors.textMuted} />}
+                    leftIcon={<Ionicons name="person-add-outline" size={20} color={themeColors.textMuted} />}
                 />
 
                 <View style={styles.rolePicker}>
@@ -464,7 +472,7 @@ export default function TripMembersScreen() {
                     title="Send Invitation"
                     onPress={handleSendInvitation}
                     loading={isSendingInvite}
-                    leftIcon={!isSendingInvite ? <Ionicons name="send-outline" size={20} color={colors.textLight} /> : null}
+                    leftIcon={!isSendingInvite ? <Ionicons name="send-outline" size={20} color={themeColors.textLight} /> : null}
                     testID="send-trip-invitation-button"
                 />
             </AppCard>
@@ -505,7 +513,7 @@ export default function TripMembersScreen() {
                     title={generatedShareCode ? "Regenerate Invite Code" : "Generate Invite Code"}
                     onPress={handleGenerateShareCode}
                     loading={isGeneratingShareCode}
-                    leftIcon={!isGeneratingShareCode ? <Ionicons name="key-outline" size={20} color={colors.textLight} /> : null}
+                    leftIcon={!isGeneratingShareCode ? <Ionicons name="key-outline" size={20} color={themeColors.textLight} /> : null}
                     testID="generate-trip-share-code-button"
                 />
 
@@ -513,7 +521,7 @@ export default function TripMembersScreen() {
                     <View style={styles.shareCodeBox}>
                         <View style={styles.shareCodeHeaderRow}>
                             <View style={styles.shareCodeIconBadge}>
-                                <Ionicons name="link-outline" size={21} color={colors.primary} />
+                                <Ionicons name="link-outline" size={21} color={themeColors.primary} />
                             </View>
 
                             <View style={styles.shareCodeTextGroup}>
@@ -529,7 +537,7 @@ export default function TripMembersScreen() {
                         </Text>
 
                         <View style={styles.shareCodeNoticeBox}>
-                            <Ionicons name="time-outline" size={18} color={colors.warning} />
+                            <Ionicons name="time-outline" size={18} color={themeColors.warning} />
                             <Text style={styles.shareCodeNoticeText}>
                                 Expires {formatDateTime(generatedShareCode.expiresAt)}. Role: {generatedShareCode.defaultRole.toLowerCase()}.
                             </Text>
@@ -542,7 +550,7 @@ export default function TripMembersScreen() {
                                 variant="secondary"
                                 fullWidth={false}
                                 style={styles.shareActionButton}
-                                leftIcon={<Ionicons name="copy-outline" size={20} color={colors.primaryDark} />}
+                                leftIcon={<Ionicons name="copy-outline" size={20} color={themeColors.primary} />}
                             />
 
                             <AppButton
@@ -551,7 +559,7 @@ export default function TripMembersScreen() {
                                 variant="secondary"
                                 fullWidth={false}
                                 style={styles.shareActionButton}
-                                leftIcon={<Ionicons name="link-outline" size={20} color={colors.primaryDark} />}
+                                leftIcon={<Ionicons name="link-outline" size={20} color={themeColors.primary} />}
                             />
                         </View>
 
@@ -560,7 +568,7 @@ export default function TripMembersScreen() {
                             onPress={handleShareGeneratedCode}
                             loading={isSharingCode}
                             variant="secondary"
-                            leftIcon={!isSharingCode ? <Ionicons name="share-outline" size={20} color={colors.primaryDark} /> : null}
+                            leftIcon={!isSharingCode ? <Ionicons name="share-outline" size={20} color={themeColors.primary} /> : null}
                         />
                     </View>
                 ) : null}
@@ -568,8 +576,8 @@ export default function TripMembersScreen() {
 
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTextGroup}>
-                    <Text style={styles.sectionTitle}>Pending join requests</Text>
-                    <Text style={styles.sectionSubtitle}>
+                    <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Pending join requests</Text>
+                    <Text style={[styles.sectionSubtitle, { color: themeColors.textMuted }]}>
                         Accept or reject users asking to join this trip.
                     </Text>
                 </View>
@@ -579,7 +587,7 @@ export default function TripMembersScreen() {
                 <EmptyState
                     title="No pending requests"
                     message="Join requests will appear here when users ask to join this trip."
-                    icon={<Ionicons name="mail-open-outline" size={30} color={colors.primary} />}
+                    icon={<Ionicons name="mail-open-outline" size={30} color={themeColors.primary} />}
                 />
             ) : (
                 <View style={styles.list}>
@@ -597,8 +605,8 @@ export default function TripMembersScreen() {
 
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTextGroup}>
-                    <Text style={styles.sectionTitle}>Members</Text>
-                    <Text style={styles.sectionSubtitle}>
+                    <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Members</Text>
+                    <Text style={[styles.sectionSubtitle, { color: themeColors.textMuted }]}>
                         Owner can change editor/viewer roles or remove members.
                     </Text>
                 </View>
@@ -608,7 +616,7 @@ export default function TripMembersScreen() {
                 <EmptyState
                     title="No members found"
                     message="This trip has no member records yet."
-                    icon={<Ionicons name="people-outline" size={30} color={colors.primary} />}
+                    icon={<Ionicons name="people-outline" size={30} color={themeColors.primary} />}
                 />
             ) : (
                 <View style={styles.list}>
@@ -642,16 +650,18 @@ function JoinRequestCard({
                          }: JoinRequestCardProps) {
     const username = getRequestUsername(request);
     const requestedRole = getRequestRole(request);
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
 
     return (
         <AppCard contentStyle={styles.requestCardContent}>
-            <View style={styles.avatarBadge}>
-                <Ionicons name="person-outline" size={22} color={colors.primary} />
+            <View style={[styles.avatarBadge, { backgroundColor: themeColors.primarySoft }]}>
+                <Ionicons name="person-outline" size={22} color={themeColors.primary} />
             </View>
 
             <View style={styles.memberMainContent}>
-                <Text style={styles.memberName}>{username}</Text>
-                <Text style={styles.memberSubtitle}>
+                <Text style={[styles.memberName, { color: themeColors.text }]}>{username}</Text>
+                <Text style={[styles.memberSubtitle, { color: themeColors.textMuted }]}>
                     Wants to join as {requestedRole.toLowerCase()}.
                 </Text>
                 <RoleBadge role={requestedRole} />
@@ -669,7 +679,7 @@ function JoinRequestCard({
                         disabled && styles.disabledButton,
                     ]}
                 >
-                    <Ionicons name="close" size={20} color={colors.danger} />
+                    <Ionicons name="close" size={20} color={themeColors.danger} />
                 </Pressable>
 
                 <Pressable
@@ -683,7 +693,7 @@ function JoinRequestCard({
                         disabled && styles.disabledButton,
                     ]}
                 >
-                    <Ionicons name="checkmark" size={20} color={colors.success} />
+                    <Ionicons name="checkmark" size={20} color={themeColors.success} />
                 </Pressable>
             </View>
         </AppCard>
@@ -705,15 +715,17 @@ function MemberCard({
                     }: MemberCardProps) {
     const username = getMemberUsername(member);
     const isOwner = member.role === "OWNER";
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
 
     return (
         <AppCard contentStyle={styles.memberCardContent}>
-            <View style={styles.avatarBadge}>
-                <Ionicons name="person" size={22} color={colors.primary} />
+            <View style={[styles.avatarBadge, { backgroundColor: themeColors.primarySoft }]}>
+                <Ionicons name="person" size={22} color={themeColors.primary} />
             </View>
 
             <View style={styles.memberMainContent}>
-                <Text style={styles.memberName}>{username}</Text>
+                <Text style={[styles.memberName, { color: themeColors.text }]}>{username}</Text>
                 <RoleBadge role={member.role} />
 
                 {!isOwner ? (
@@ -746,7 +758,7 @@ function MemberCard({
                         })}
                     </View>
                 ) : (
-                    <Text style={styles.ownerHint}>
+                    <Text style={[styles.ownerHint, { color: themeColors.textMuted }]}>
                         Owner role cannot be changed.
                     </Text>
                 )}
@@ -763,7 +775,7 @@ function MemberCard({
                         disabled && styles.disabledButton,
                     ]}
                 >
-                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                    <Ionicons name="trash-outline" size={20} color={themeColors.danger} />
                 </Pressable>
             ) : null}
         </AppCard>

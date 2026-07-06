@@ -1,6 +1,7 @@
 import React, {useCallback, useState} from "react";
 import {
     Alert,
+    ImageBackground,
     Pressable,
     StyleSheet,
     Text,
@@ -12,6 +13,7 @@ import {useFocusEffect, useLocalSearchParams, useRouter} from "expo-router";
 import {getDestinationsByTrip} from "@/src/api/destinationApi";
 import {getCollaborationSummary} from "@/src/api/tripCollaborationApi";
 import {deleteTrip, getTripById} from "@/src/api/tripApi";
+import {UserAttribution} from "@/src/components/collaboration/UserAttribution";
 import {AppButton} from "@/src/components/ui/AppButton";
 import {AppCard} from "@/src/components/ui/AppCard";
 import {AppScreen} from "@/src/components/ui/AppScreen";
@@ -24,6 +26,7 @@ import type {Destination} from "@/src/types/destination";
 import type {Trip} from "@/src/types/trip";
 import {getApiErrorMessage} from "@/src/utils/apiWarningUtils";
 import {formatDateTime} from "@/src/utils/dateFormat";
+import {normalizeImageUrl} from "@/src/utils/imageUrlUtils";
 import {useAppTheme} from "@/src/hooks/useAppTheme";
 
 function getApiMessage(error: any) {
@@ -46,6 +49,7 @@ export default function TripDetailScreen() {
 
     const [trip, setTrip] = useState<Trip | null>(null);
     const [destinations, setDestinations] = useState<Destination[]>([]);
+    const [coverImageFailed, setCoverImageFailed] = useState(false);
     const [tripCollaborationBadgeCount, setTripCollaborationBadgeCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -71,6 +75,7 @@ export default function TripDetailScreen() {
             ]);
 
             setTrip(tripData);
+            setCoverImageFailed(false);
             setDestinations(Array.isArray(destinationData) ? destinationData : []);
         } catch (error: any) {
             setError(getApiMessage(error));
@@ -114,8 +119,7 @@ export default function TripDetailScreen() {
             return;
         }
 
-        router.push(`/trips/${tripNumberId}/destinations/
-    create` as any);
+        router.push(`/trips/${tripNumberId}/destinations/create` as any);
     }
 
     function handleOpenDestination(destinationId: number) {
@@ -210,6 +214,9 @@ export default function TripDetailScreen() {
         );
     }
 
+    const coverImageUrl = normalizeImageUrl(trip.coverImageUrl);
+    const shouldShowCoverImage = Boolean(coverImageUrl) && !coverImageFailed;
+
     return (
         <AppScreen contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
@@ -236,16 +243,20 @@ export default function TripDetailScreen() {
             </View>
 
             <AppCard style={styles.heroCard} contentStyle={styles.heroCardContent}>
-                <View style={styles.heroIconBadge}>
-                    <Ionicons name="map" size={28} color={colors.textLight}/>
-                </View>
-
-                <View style={styles.heroTextGroup}>
-                    <Text style={styles.destinationText} numberOfLines={1}>
-                        {trip.destination || "No destination"}
-                    </Text>
-                    <Text style={styles.tripNameText}>{trip.tripName || "Untitled trip"}</Text>
-                </View>
+                {shouldShowCoverImage ? (
+                    <ImageBackground
+                        source={{ uri: coverImageUrl as string }}
+                        style={styles.heroCoverImage}
+                        imageStyle={styles.heroCoverImageInner}
+                        onError={() => setCoverImageFailed(true)}
+                    >
+                        <View style={styles.heroImageOverlay}>
+                            <HeroContent trip={trip} />
+                        </View>
+                    </ImageBackground>
+                ) : (
+                    <HeroContent trip={trip} />
+                )}
             </AppCard>
 
             <View style={styles.infoGrid}>
@@ -311,6 +322,27 @@ export default function TripDetailScreen() {
     );
 
 
+}
+
+type HeroContentProps = Readonly<{
+    trip: Trip;
+}>;
+
+function HeroContent({trip}: HeroContentProps) {
+    return (
+        <>
+            <View style={styles.heroIconBadge}>
+                <Ionicons name="map" size={28} color={colors.textLight}/>
+            </View>
+
+            <View style={styles.heroTextGroup}>
+                <Text style={styles.destinationText} numberOfLines={1}>
+                    {trip.destination || "No destination"}
+                </Text>
+                <Text style={styles.tripNameText}>{trip.tripName || "Untitled trip"}</Text>
+            </View>
+        </>
+    );
 }
 
 type HeaderIconButtonProps = Readonly<{
@@ -385,27 +417,46 @@ type DestinationCardProps = Readonly<{
 }>;
 
 function DestinationCard({destination, onPress}: DestinationCardProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <AppCard onPress={onPress} contentStyle={styles.destinationCardContent}>
-            <View style={styles.destinationIconBadge}>
+            <View style={[styles.destinationIconBadge, { backgroundColor: colors.primarySoft }]}>
                 <Ionicons name="location" size={22} color={colors.primary}/>
             </View>
 
             <View style={styles.destinationContent}>
-                <Text style={styles.destinationTitle} numberOfLines={1}>
+                <Text style={[styles.destinationTitle, { color: colors.text }]} numberOfLines={1}>
                     {destination.destinationName || "Untitled destination"}
                 </Text>
 
-                <Text style={styles.destinationDate}>
+                <Text style={[styles.destinationDate, { color: colors.textMuted }]}>
                     {formatDateTime(destination.startDate)} → {formatDateTime(destination.endDate)}
                 </Text>
 
                 {destination.notes ? (
-                    <Text style={styles.destinationNotes} numberOfLines={2}>
+                    <Text style={[styles.destinationNotes, { color: colors.textMuted }]} numberOfLines={2}>
                         {destination.notes}
                     </Text>
                 ) : null}
             </View>
+
+            <UserAttribution
+                itemLabel="destination"
+                createdBy={{
+                    userId: destination.createdByUserId,
+                    username: destination.createdByUsername,
+                    displayName: destination.createdByDisplayName,
+                    profileImageUrl: destination.createdByProfileImageUrl,
+                }}
+                modifiedBy={{
+                    userId: destination.modifiedByUserId,
+                    username: destination.modifiedByUsername,
+                    displayName: destination.modifiedByDisplayName,
+                    profileImageUrl: destination.modifiedByProfileImageUrl,
+                }}
+            />
 
             <Ionicons name="chevron-forward" size={22} color={colors.textMuted}/>
         </AppCard>
@@ -482,6 +533,22 @@ const styles = StyleSheet.create({
     heroCardContent: {
         padding: spacing.xl,
         gap: spacing.lg,
+    },
+    heroCoverImage: {
+        minHeight: 210,
+        margin: -spacing.xl,
+        justifyContent: "flex-end",
+    },
+    heroCoverImageInner: {
+        borderRadius: radius.xl,
+    },
+    heroImageOverlay: {
+        minHeight: 210,
+        justifyContent: "flex-end",
+        gap: spacing.lg,
+        padding: spacing.xl,
+        backgroundColor: "rgba(15, 23, 42, 0.42)",
+        borderRadius: radius.xl,
     },
     heroIconBadge: {
         width: 58,

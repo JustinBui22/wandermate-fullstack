@@ -1,8 +1,6 @@
 # WanderMate Frontend
 
-Expo React Native frontend for the WanderMate travel planning application. The app connects to the Spring Boot backend, supports authentication, token refresh, OTP flows, trip/destination/activity CRUD, and polished mobile UI screens.
-
-The frontend V2.5 polish is complete: shared UI components, reusable date/time picker components, cleaner error messages, polished CRUD screens, and debug log cleanup are now in place.
+Expo React Native frontend for the WanderMate travel planning app. The app connects to the Spring Boot backend and supports authentication, OTP flows, trip/destination/activity planning, role-based collaboration, profile settings, Cloudinary image uploads, trip cover photos, avatar attribution, and light/dark/system theming.
 
 ---
 
@@ -15,10 +13,11 @@ The frontend V2.5 polish is complete: shared UI components, reusable date/time p
 | Routing | Expo Router |
 | HTTP client | Axios |
 | State | Zustand |
-| Secure token storage | Expo SecureStore |
+| Secure storage | Expo SecureStore |
+| Forms/validation | React Hook Form, Zod |
 | Date/time picker | `@react-native-community/datetimepicker` |
-| UI foundation | Shared custom components + theme constants |
-| Config | Expo public environment variables |
+| Image picker | `expo-image-picker` |
+| UI foundation | Shared custom components + dynamic theme |
 | CI | GitHub Actions TypeScript check |
 
 ---
@@ -26,46 +25,44 @@ The frontend V2.5 polish is complete: shared UI components, reusable date/time p
 ## Current Status
 
 ```text
-✅ Login screen polished
-✅ Register + email OTP flow implemented and polished
-✅ Forgot-password flow implemented and polished
-✅ Home tab polished
-✅ Trips tab polished
-✅ Trip create/detail/edit/delete screens implemented and polished
-✅ Destination create/detail/edit/delete screens implemented and polished
-✅ Activity create/detail/edit/delete screens implemented and polished
-✅ Shared UI component foundation implemented
-✅ Reusable date/time picker form components extracted
-✅ Frontend API error message helpers polished
-✅ Login stores accessToken, refreshToken, and sessionToken
-✅ Axios attaches auth/session headers for protected requests
-✅ Token refresh flow is integrated
-✅ Logout clears stored tokens/session state
-✅ Trip and destination overlap confirmation flow is handled
-✅ Activity overlap validation error is displayed
-✅ Frontend environment switching uses Expo public env variables
-✅ Frontend TypeScript check runs in CI
-✅ Collaboration tab implemented
-✅ Received invitations, owned-trip join requests, and sent join requests implemented
-✅ Per-trip collaboration screens implemented
-✅ Share-code join flow implemented
-✅ Profile page and dynamic theme implemented
-✅ Destination/activity attribution UI implemented
-✅ Frontend has been tested against the deployed Render backend
+✅ Login/register/forgot-password screens
+✅ Email OTP registration flow
+✅ Token storage with SecureStore
+✅ Axios auth/session headers
+✅ Automatic refresh-token flow
+✅ Logout clears local session
+✅ Home, trips, collaboration, profile tabs
+✅ Trip create/detail/edit/delete
+✅ Trip cover image upload/display/edit/remove
+✅ Destination create/detail/edit/delete
+✅ Activity create/detail/edit/delete
+✅ Trip/destination overlap confirmation flow
+✅ Activity overlap error display
+✅ Collaboration invitations and join requests
+✅ Share-code join flow
+✅ Members/roles UI
+✅ Pending collaboration badge/list UI
+✅ Profile display name/theme/avatar
+✅ Phone image picker upload for profile pictures
+✅ Phone image picker upload for trip cover photos
+✅ Avatar-only creator/editor attribution
+✅ Quick user card on attribution avatar press
+✅ Light/Dark/System theme support
+✅ Shared UI components and reusable date/time picker components
+✅ Frontend TypeScript check passing
 ```
 
 Not enabled yet:
 
 ```text
-⚠️ Real SMS delivery is not enabled
-⚠️ Screenshots/demo video are planned for V4
+⚠️ Cost sharing/budget split
+⚠️ Viewer suggestion workflow
+⚠️ Push notifications
 ```
 
 ---
 
 ## Run Locally
-
-From the frontend folder:
 
 ```bash
 cd frontend
@@ -91,19 +88,11 @@ After changing `.env`, restart Expo with cache clear:
 npx expo start --clear
 ```
 
-Windows PowerShell:
-
-```powershell
-npx expo start --clear
-```
-
 ---
 
 ## Environment Configuration
 
-The frontend API URL is configured with Expo public environment variables.
-
-Create a local env file from the template:
+Create a local env file from template:
 
 ```powershell
 copy .env.example .env
@@ -116,33 +105,25 @@ EXPO_PUBLIC_APP_ENV=production-render
 EXPO_PUBLIC_API_BASE_URL=https://wandermate-fullstack.onrender.com/The-Project
 ```
 
-Android emulator connecting to a local IntelliJ backend on port `8080`:
+Android emulator to local IntelliJ backend:
 
 ```env
 EXPO_PUBLIC_APP_ENV=local-intellij
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080/The-Project
 ```
 
-Android emulator connecting to the Docker backend on port `8082`:
+Android emulator to Docker backend:
 
 ```env
 EXPO_PUBLIC_APP_ENV=local-docker
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8082/The-Project
 ```
 
-The backend has this context path:
+The backend context path is:
 
 ```text
 /The-Project
 ```
-
-Example full API URL:
-
-```text
-https://wandermate-fullstack.onrender.com/The-Project/api/v1/health
-```
-
-Render free-tier services may sleep when inactive, so the first backend request can take around 40-60 seconds to wake up.
 
 ---
 
@@ -159,6 +140,8 @@ frontend/
 │   ├── (tabs)/
 │   │   ├── index.tsx
 │   │   ├── trips.tsx
+│   │   ├── collaboration.tsx
+│   │   ├── profile.tsx
 │   │   └── _layout.tsx
 │   └── trips/
 │       ├── create.tsx
@@ -166,9 +149,12 @@ frontend/
 ├── src/
 │   ├── api/
 │   ├── components/
+│   │   ├── collaboration/
 │   │   ├── forms/
+│   │   ├── media/
 │   │   └── ui/
 │   ├── constants/
+│   ├── hooks/
 │   ├── stores/
 │   ├── types/
 │   └── utils/
@@ -185,9 +171,14 @@ frontend/
 (auth)/forgot-password
 (tabs)/index
 (tabs)/trips
+(tabs)/collaboration
+(tabs)/profile
 trips/create
 trips/[tripId]/index
 trips/[tripId]/edit
+trips/[tripId]/members
+trips/[tripId]/collaboration/members
+trips/[tripId]/collaboration/requests
 trips/[tripId]/destinations/create
 trips/[tripId]/destinations/[destinationId]/index
 trips/[tripId]/destinations/[destinationId]/edit
@@ -198,9 +189,93 @@ trips/[tripId]/destinations/[destinationId]/activities/[activityId]/edit
 
 ---
 
-## UI Component Foundation
+## Auth Integration
 
-Reusable UI components:
+After login, the frontend stores:
+
+```text
+accessToken
+refreshToken
+sessionToken
+```
+
+in Expo SecureStore.
+
+Protected API requests attach:
+
+```text
+Authorization: Bearer <accessToken>
+Session-Token: <sessionToken>
+```
+
+Refresh requests use:
+
+```text
+Refresh-Token: <refreshToken>
+Session-Token: <sessionToken>
+```
+
+Logout calls the backend, then clears local tokens even if network logout fails.
+
+---
+
+## Image Upload Flow
+
+The frontend uses `expo-image-picker` through:
+
+```text
+src/components/media/ImageUploadPicker.tsx
+```
+
+Upload API:
+
+```text
+src/api/uploadApi.ts
+```
+
+Flow:
+
+```text
+User picks image from phone
+→ frontend sends multipart request to /api/v1/uploads/images
+→ backend uploads image to Cloudinary
+→ backend returns imageUrl + publicId
+→ frontend stores both in profile/trip payload
+→ backend saves both in MariaDB
+```
+
+Upload response shape:
+
+```ts
+type ImageUploadResponse = {
+  imageUrl: string;
+  publicId: string;
+  fileName: string;
+  imageType: "profile-images" | "trip-covers";
+};
+```
+
+Profile image fields:
+
+```text
+profileImageUrl
+profileImagePublicId
+```
+
+Trip cover fields:
+
+```text
+coverImageUrl
+coverImagePublicId
+```
+
+When the user removes an image, the frontend sends empty strings so the backend can clear the DB fields and delete the old Cloudinary asset.
+
+---
+
+## UI Foundation
+
+Shared UI components:
 
 ```text
 src/components/ui/AppScreen.tsx
@@ -212,137 +287,100 @@ src/components/ui/LoadingState.tsx
 src/components/ui/EmptyState.tsx
 ```
 
-Reusable form components:
+Shared form/media components:
 
 ```text
 src/components/forms/DateTimeSection.tsx
 src/components/forms/DateTimePickerCard.tsx
+src/components/media/ImageUploadPicker.tsx
 ```
 
-Theme constants:
+Theme:
 
 ```text
+src/theme/appTheme.ts
+src/stores/themeStore.ts
+src/hooks/useAppTheme.ts
 src/constants/theme.ts
 ```
 
-The V2.5 cleanup extracted repeated date/time picker UI from trip, destination, and activity create/edit screens. The screens now keep business logic while shared components handle date/time presentation.
-
----
-
-## Auth Integration
-
-The frontend stores these values in Expo SecureStore:
+The app supports:
 
 ```text
-accessToken
-refreshToken
-sessionToken
-```
-
-Protected API requests attach:
-
-```text
-Authorization: Bearer <accessToken>
-Session-Token: <sessionToken>
-```
-
-If the backend returns an access-token-expired response, the Axios interceptor calls:
-
-```text
-POST /api/v1/auth/refresh
-```
-
-with:
-
-```text
-Refresh-Token: <refreshToken>
-Session-Token: <sessionToken>
-```
-
-The refreshed access/refresh tokens are saved again in SecureStore.
-
-Logout attempts remote logout first, but local token cleanup still happens even if the network logout request fails.
-
----
-
-## OTP Status
-
-Email OTP is the real working OTP path when backend email configuration is provided.
-
-Phone/SMS OTP UI/backend types exist, but real SMS provider integration is not enabled yet. Treat SMS OTP as prepared logic only until a provider is added.
-
-Backend OTP behaviour includes:
-
-```text
-- OTP expiry validation
-- OTP retry/block handling
-- OTP destination matching by email/phone
-- OTP consume-on-success to prevent reuse
-```
-
-Forgot-password behaviour expects the backend to validate password rules before consuming OTP.
-
----
-
-## API Error Handling
-
-Frontend API error helpers live in:
-
-```text
-src/utils/apiWarningUtils.ts
-```
-
-They provide:
-
-```text
-- getApiErrorCode()
-- getApiErrorMessage()
-- getApiErrorTitle()
-- hasApiWarning()
-```
-
-Common backend error codes are mapped to user-friendly frontend messages, for example:
-
-```text
-E022 -> Too many active sessions
-E046 -> Invalid activity time
-E049 -> Trip date conflict
-E050 -> Destination date conflict
-E051 -> Activity time conflict
-```
-
-Overlap behaviour:
-
-```text
-- Trip overlap warning asks the user to continue or cancel
-- Destination overlap warning asks the user to continue or cancel
-- Activity overlap is displayed as a blocking error
+Light theme
+Dark theme
+System theme
 ```
 
 ---
 
-## Main User Flows
+## Collaboration UI
+
+Implemented collaboration areas:
 
 ```text
-1. Register user details
-2. Verify user details before sending OTP
-3. Send email OTP
-4. Submit OTP and complete registration
-5. Login
-6. Store tokens securely
-7. View/create/edit/delete trips
-8. Add destinations to trips
-9. Add activities to destinations
-10. Handle overlap warnings/errors
-11. Refresh tokens automatically when needed
-12. Logout and clear session
+- Pending invitations received by me
+- Join requests for my trips
+- My sent join requests
+- Trip member list
+- Role badge
+- Owner role controls
+- Accept/reject actions
+- Share-code join flow
+- Private overlap warning cards
+```
+
+Attribution UI:
+
+```text
+- Destination creator/editor avatar
+- Activity creator/editor avatar
+- Avatar-only display on cards
+- Quick user card on avatar press
+```
+
+---
+
+## API Modules
+
+| File | Purpose |
+|---|---|
+| `src/api/authApi.ts` | Login/register/logout/OTP/forgot password |
+| `src/api/tripApi.ts` | Trip CRUD, cover fields, search/suggest |
+| `src/api/destinationApi.ts` | Destination CRUD |
+| `src/api/activityApi.ts` | Activity CRUD |
+| `src/api/tripCollaborationApi.ts` | Invitations, join requests, members, share-code flow |
+| `src/api/uploadApi.ts` | Cloudinary-backed image upload endpoint |
+| `src/api/axiosClient.ts` | Shared Axios client and token refresh interceptor |
+| `src/refreshApi.ts` | Refresh call without interceptor loop |
+
+---
+
+## Date/Time Format
+
+Backend expects Java `LocalDateTime` format:
+
+```text
+YYYY-MM-DDTHH:mm:ss
+```
+
+Example:
+
+```text
+2026-07-01T09:00:00
+```
+
+Date/time helper:
+
+```text
+src/utils/dateTimePickerUtils.ts
 ```
 
 ---
 
 ## Manual Test Checklist
 
-After frontend changes, run:
+Run first:
 
 ```bash
 npm run typecheck
@@ -360,43 +398,62 @@ Auth:
 - Forgot password
 - Logout
 
-Trip:
-- Empty trips state
-- Create trip
-- Edit trip
+Profile:
+- Upload profile picture
+- Change profile picture
+- Remove profile picture
+- Change display name
+- Change Light/Dark/System theme
+
+Trips:
+- Create trip with cover image
+- Edit trip cover image
+- Remove trip cover image
 - Delete trip
+- My Trips cover image display
+- Trip Detail cover hero display
 - Trip overlap confirmation
 
-Destination:
-- Empty destinations state
+Destinations:
 - Create destination
 - Edit destination
 - Delete destination
 - Destination overlap confirmation
+- Creator avatar shows
 
-Activity:
-- Empty activities state
+Activities:
 - Create activity
 - Edit activity
 - Delete activity
 - Activity overlap error
+- Creator avatar shows
+
+Collaboration:
+- Send invitation
+- Accept/reject invitation
+- Send join request
+- Accept/reject join request
+- Role-based UI behavior
+- Pending badge/list behavior
+- Private overlap warning
 
 Session:
-- App reopen keeps logged-in user
-- Logout clears session and returns to login
+- App reopen keeps logged-in state
+- Token refresh works
+- Logout clears session
 ```
 
 ---
 
 ## Frontend CI
 
-Workflow file:
+Workflow:
 
 ```text
 .github/workflows/frontend-ci.yml
 ```
 
-The workflow runs when frontend files or the frontend workflow change:
+Command:
 
 ```text
 npm ci
@@ -405,101 +462,17 @@ npm run typecheck
 
 ---
 
-## V2.5 Completed Work
+## Next Phase
+
+V3 is feature-complete enough. Next should be V4 portfolio proof:
 
 ```text
-✅ Shared UI components added
-✅ Shared form components added
-✅ Login/register/forgot-password polished
-✅ Home/trips tabs polished
-✅ Trip CRUD screens polished
-✅ Destination CRUD screens polished
-✅ Activity CRUD screens polished
-✅ Date/time picker duplication removed
-✅ API error messages improved
-✅ Leftover debug/console logs removed from app/src code
-✅ TypeScript check passing
+1. Final bug pass
+2. Screenshots
+3. Demo video
+4. README media section
+5. CV/GitHub project bullets
+6. Interview explanation notes
 ```
 
----
-
-## Current Next Phase
-
-V3 frontend collaboration is complete. The next phase is V4 portfolio proof:
-
-```text
-1. Take screenshots of key screens
-2. Record a 60-90 second app demo video
-3. Update root README with screenshots/demo link
-4. Add project summary to CV/GitHub portfolio
-```
-
-Suggested screenshots:
-
-```text
-- Login
-- Register
-- Home
-- My Trips
-- Create Trip
-- Trip Detail
-- Destination Detail
-- Activity Detail
-```
-
-Suggested demo flow:
-
-```text
-Login → Create Trip → Add Destination → Add Activity → Invite User / Share Code → Accept Request → Show Role Access → Show Attribution → Profile Theme → Logout
-```
-
-## V3 Collaboration UI
-
-V3 collaboration screens:
-
-```text
-(tabs)/collaboration
-join-trip
-trips/[tripId]/collaboration/index
-trips/[tripId]/collaboration/invite
-trips/[tripId]/collaboration/members
-trips/[tripId]/collaboration/requests
-trips/[tripId]/collaboration/share-code
-```
-
-Supported behaviour:
-
-```text
-- Received invitations
-- Owned-trip join requests
-- Sent join requests
-- Invite member by username
-- Member list and role management
-- Share-code generation and preview
-- Join trip by share code
-- Collaboration badge counts
-- Private overlap warning display
-```
-
-## V3 Profile, Theme, and Attribution UI
-
-Profile screen supports:
-
-```text
-- Display name
-- Phone number
-- Date of birth
-- Profile image URL
-- Preferred theme: LIGHT / DARK / SYSTEM
-```
-
-Destination and activity screens support:
-
-```text
-- Created by user attribution
-- Last edited by user attribution
-- Avatar/profile-image display
-- Quick user attribution card
-```
-
-Real file upload/storage is not implemented yet. Profile image support is URL-based in V3.
+Cost sharing is a good future feature, but it is not required before portfolio proof.

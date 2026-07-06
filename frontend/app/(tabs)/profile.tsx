@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 
 import { getMyProfile, updateMyProfile, updateMySettings } from "@/src/api/userApi";
+import { ImageUploadPicker } from "@/src/components/media/ImageUploadPicker";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
@@ -23,6 +24,7 @@ import { useAuthStore } from "@/src/stores/authStore";
 import { useThemeStore } from "@/src/stores/themeStore";
 import type { UserProfile, UserThemePreference } from "@/src/types/user";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
+import { normalizeImageUrl } from "@/src/utils/imageUrlUtils";
 
 const THEME_OPTIONS: Array<{
     value: UserThemePreference;
@@ -64,6 +66,7 @@ export default function ProfileScreen() {
     const [phoneNumber, setPhoneNumber] = useState("");
     const [dob, setDob] = useState("");
     const [profileImageUrl, setProfileImageUrl] = useState("");
+    const [profileImagePublicId, setProfileImagePublicId] = useState("");
 
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -100,6 +103,7 @@ export default function ProfileScreen() {
         setPhoneNumber(nextProfile.phoneNumber ?? "");
         setDob(nextProfile.dob ?? "");
         setProfileImageUrl(nextProfile.profileImageUrl ?? "");
+        setProfileImagePublicId(nextProfile.profileImagePublicId ?? "");
     }
 
     async function handleSaveProfile() {
@@ -116,9 +120,8 @@ export default function ProfileScreen() {
                 displayName: displayName.trim(),
                 ...(phoneNumber.trim() ? { phoneNumber: phoneNumber.trim() } : {}),
                 ...(dob.trim() ? { dob: dob.trim() } : {}),
-                ...(profileImageUrl.trim()
-                    ? { profileImageUrl: profileImageUrl.trim() }
-                    : {}),
+                profileImageUrl: normalizeImageUrl(profileImageUrl) ?? "",
+                profileImagePublicId,
             });
 
             setProfile(updatedProfile);
@@ -316,19 +319,16 @@ export default function ProfileScreen() {
                             }
                         />
 
-                        <AppInput
-                            label="Profile image URL"
-                            value={profileImageUrl}
-                            onChangeText={setProfileImageUrl}
-                            placeholder="Optional avatar image link"
-                            autoCapitalize="none"
-                            leftIcon={
-                                <Ionicons
-                                    name="image-outline"
-                                    size={20}
-                                    color={themedColors.textMuted}
-                                />
-                            }
+                        <ImageUploadPicker
+                            label="Profile picture"
+                            helperText="Choose a photo from your phone or take a new one."
+                            imageUrl={profileImageUrl}
+                            imageType="profile-images"
+                            previewShape="circle"
+                            onChangeImage={(imageUrl, publicId) => {
+                                setProfileImageUrl(imageUrl);
+                                setProfileImagePublicId(publicId);
+                            }}
                         />
                     </View>
                 ) : (
@@ -485,7 +485,7 @@ function ProfileAvatar({ profile }: ProfileAvatarProps) {
     const themedColors = theme.colors;
     const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 
-    const imageUrl = profile?.profileImageUrl?.trim() || null;
+    const imageUrl = normalizeImageUrl(profile?.profileImageUrl);
     const shouldShowImage = Boolean(imageUrl) && failedImageUrl !== imageUrl;
     const fallbackInitial = (profile?.displayName || profile?.username || "W")
         .trim()

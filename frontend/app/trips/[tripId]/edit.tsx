@@ -12,18 +12,21 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { getTripById, updateTrip } from "@/src/api/tripApi";
 import { DateTimePickerCard } from "@/src/components/forms/DateTimePickerCard";
 import { DateTimeSection } from "@/src/components/forms/DateTimeSection";
+import { ImageUploadPicker } from "@/src/components/media/ImageUploadPicker";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import {
     getApiErrorMessage,
     getApiErrorTitle,
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
+import { normalizeImageUrl } from "@/src/utils/imageUrlUtils";
 import {
     formatForBackend,
     type PickerTarget,
@@ -45,6 +48,9 @@ function parseDateOrFallback(value: string | undefined, fallback: Date) {
 
 export default function EditTripScreen() {
     const router = useRouter();
+
+    const theme = useAppTheme();
+    const colors = theme.colors;
     const params = useLocalSearchParams();
 
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
@@ -53,6 +59,8 @@ export default function EditTripScreen() {
 
     const [tripName, setTripName] = useState("");
     const [destination, setDestination] = useState("");
+    const [coverImageUrl, setCoverImageUrl] = useState("");
+    const [coverImagePublicId, setCoverImagePublicId] = useState("");
     const [startDateTime, setStartDateTime] = useState(new Date());
     const [endDateTime, setEndDateTime] = useState(new Date());
     const [activePicker, setActivePicker] = useState<PickerTarget>(null);
@@ -78,6 +86,8 @@ export default function EditTripScreen() {
 
             setTripName(data.tripName ?? "");
             setDestination(data.destination ?? "");
+            setCoverImageUrl(data.coverImageUrl ?? "");
+            setCoverImagePublicId(data.coverImagePublicId ?? "");
             setStartDateTime(parseDateOrFallback(data.startDate, fallbackStart));
             setEndDateTime(parseDateOrFallback(data.endDate, fallbackEnd));
         } catch (error: any) {
@@ -131,6 +141,8 @@ export default function EditTripScreen() {
             startDate: formatForBackend(startDateTime),
             endDate: formatForBackend(endDateTime),
             allowOverlap,
+            coverImageUrl: normalizeImageUrl(coverImageUrl),
+            coverImagePublicId,
         });
     }
 
@@ -283,7 +295,19 @@ export default function EditTripScreen() {
                     leftIcon={<Ionicons name="location-outline" size={20} color={colors.textMuted} />}
                 />
 
-                <View style={styles.divider} />
+                <ImageUploadPicker
+                    label="Trip cover photo"
+                    helperText="Choose a photo from your phone or camera."
+                    imageUrl={coverImageUrl}
+                    imageType="trip-covers"
+                    previewShape="cover"
+                    onChangeImage={(imageUrl, publicId) => {
+                        setCoverImageUrl(imageUrl);
+                        setCoverImagePublicId(publicId);
+                    }}
+                />
+
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                 <DateTimeSection
                     title="Start"
@@ -336,13 +360,13 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     centerTitle: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
         textAlign: "center",
     },
     centerSubtitle: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 21,
         textAlign: "center",
@@ -351,7 +375,7 @@ const styles = StyleSheet.create({
         width: 72,
         height: 72,
         borderRadius: radius.xl,
-        backgroundColor: colors.dangerSoft,
+        backgroundColor: staticColors.dangerSoft,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -364,9 +388,9 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: radius.lg,
-        backgroundColor: colors.surface,
+        backgroundColor: staticColors.surface,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: staticColors.border,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -375,19 +399,19 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     eyebrow: {
-        color: colors.primary,
+        color: staticColors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.6,
     },
     title: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.heading,
         fontWeight: fontWeight.bold,
     },
     subtitle: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
@@ -396,6 +420,6 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: colors.border,
+        backgroundColor: staticColors.border,
     },
 });

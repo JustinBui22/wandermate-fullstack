@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { createTrip } from "@/src/api/tripApi";
 import { DateTimePickerCard } from "@/src/components/forms/DateTimePickerCard";
 import { DateTimeSection } from "@/src/components/forms/DateTimeSection";
+import { ImageUploadPicker } from "@/src/components/media/ImageUploadPicker";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
@@ -19,6 +20,7 @@ import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { normalizeImageUrl } from "@/src/utils/imageUrlUtils";
 import {
     getApiErrorMessage,
     getApiErrorTitle,
@@ -52,6 +54,8 @@ export default function CreateTripScreen() {
 
     const [tripName, setTripName] = useState("");
     const [destination, setDestination] = useState("");
+    const [coverImageUrl, setCoverImageUrl] = useState("");
+    const [coverImagePublicId, setCoverImagePublicId] = useState("");
     const [startDateTime, setStartDateTime] = useState(getDefaultStartDateTime);
     const [endDateTime, setEndDateTime] = useState(getDefaultEndDateTime);
     const [activePicker, setActivePicker] = useState<PickerTarget>(null);
@@ -98,6 +102,8 @@ export default function CreateTripScreen() {
             startDate: formatForBackend(startDateTime),
             endDate: formatForBackend(endDateTime),
             allowOverlap,
+            coverImageUrl: normalizeImageUrl(coverImageUrl),
+            coverImagePublicId,
         });
     }
 
@@ -257,6 +263,18 @@ export default function CreateTripScreen() {
                             color={colors.textMuted}
                         />
                     }
+                />
+
+                <ImageUploadPicker
+                    label="Trip cover photo"
+                    helperText="Optional, but useful for making your trip cards look like a real travel app."
+                    imageUrl={coverImageUrl}
+                    imageType="trip-covers"
+                    previewShape="cover"
+                    onChangeImage={(imageUrl, publicId) => {
+                        setCoverImageUrl(imageUrl);
+                        setCoverImagePublicId(publicId);
+                    }}
                 />
 
                 <View

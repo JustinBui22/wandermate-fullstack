@@ -19,6 +19,8 @@ export type Trip = {
     startDate: string;
     endDate: string;
     username?: string;
+    coverImageUrl?: string | null;
+    coverImagePublicId?: string | null;
 
     // V3 collaboration and filter fields returned by backend
     createdDate?: string;
@@ -40,6 +42,8 @@ export type CreateTripRequest = {
     endDate: string;
     allowOverlap?: boolean;
     tripStatus?: TripStatus;
+    coverImageUrl?: string | null;
+    coverImagePublicId?: string | null;
 };
 
 export type UpdateTripRequest = {
@@ -49,6 +53,8 @@ export type UpdateTripRequest = {
     endDate: string;
     allowOverlap?: boolean;
     tripStatus?: TripStatus;
+    coverImageUrl?: string | null;
+    coverImagePublicId?: string | null;
 };
 
 export type ApiResponse<T> = {

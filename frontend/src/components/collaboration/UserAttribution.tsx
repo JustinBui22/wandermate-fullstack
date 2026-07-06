@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { normalizeImageUrl } from "@/src/utils/imageUrlUtils";
 
 export type AttributionUser = Readonly<{
     userId?: number | null;
@@ -97,69 +98,37 @@ export function UserAttribution({
 
     return (
         <>
-            <View style={styles.container}>
+            <View
+                style={styles.avatarRow}
+                accessibilityLabel={`${itemLabel} attribution`}
+            >
                 {hasUser(createdBy) ? (
-                    <View
-                        style={[
-                            styles.pill,
-                            {
-                                backgroundColor: colors.surfaceSoft,
-                                borderColor: colors.border,
-                            },
-                        ]}
-                    >
-                        <Text style={[styles.label, { color: colors.textMuted }]}>Created</Text>
-
-                        <UserAvatarButton
-                            user={createdBy}
-                            onPress={(event) =>
-                                openUserCard(
-                                    event,
-                                    createdBy as AttributionUser,
-                                    `Created this ${itemLabel}`
-                                )
-                            }
-                        />
-
-                        <Text
-                            style={[styles.username, { color: colors.text }]}
-                            numberOfLines={1}
-                        >
-                            @{getUsername(createdBy)}
-                        </Text>
-                    </View>
+                    <UserAvatarButton
+                        user={createdBy}
+                        action="Created by"
+                        onPress={(event) =>
+                            openUserCard(
+                                event,
+                                createdBy as AttributionUser,
+                                `Created this ${itemLabel}`
+                            )
+                        }
+                    />
                 ) : null}
 
                 {shouldShowModifiedBy ? (
-                    <View
-                        style={[
-                            styles.pill,
-                            {
-                                backgroundColor: colors.surfaceSoft,
-                                borderColor: colors.border,
-                            },
-                        ]}
-                    >
-                        <Text style={[styles.label, { color: colors.textMuted }]}>Edited</Text>
-
-                        <UserAvatarButton
-                            user={modifiedBy}
-                            onPress={(event) =>
-                                openUserCard(
-                                    event,
-                                    modifiedBy as AttributionUser,
-                                    `Last edited this ${itemLabel}`
-                                )
-                            }
-                        />
-
-                        <Text
-                            style={[styles.username, { color: colors.text }]}
-                            numberOfLines={1}
-                        >
-                            @{getUsername(modifiedBy)}
-                        </Text>
-                    </View>
+                    <UserAvatarButton
+                        user={modifiedBy}
+                        action="Last edited by"
+                        isEdited
+                        onPress={(event) =>
+                            openUserCard(
+                                event,
+                                modifiedBy as AttributionUser,
+                                `Last edited this ${itemLabel}`
+                            )
+                        }
+                    />
                 ) : null}
             </View>
 
@@ -180,16 +149,14 @@ export function UserAttribution({
                         ]}
                     >
                         <View style={styles.modalHeader}>
-                            <UserAvatar user={selectedUser} size={56} />
+                            <UserAvatar user={selectedUser} size={58} />
 
                             <View style={styles.modalTextGroup}>
                                 <Text style={[styles.modalTitle, { color: colors.text }]}>
                                     {getDisplayName(selectedUser)}
                                 </Text>
 
-                                <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
-                                    @{getUsername(selectedUser)}
-                                </Text>
+                                <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>@{getUsername(selectedUser)}</Text>
                             </View>
 
                             <Pressable
@@ -221,7 +188,9 @@ export function UserAttribution({
                                 color={colors.primary}
                             />
 
-                            <Text style={[styles.actionText, { color: colors.text }]}>{selectedUser?.actionLabel}</Text>
+                            <Text style={[styles.actionText, { color: colors.text }]}>
+                                {selectedUser?.actionLabel}
+                            </Text>
                         </View>
                     </View>
                 </View>
@@ -232,25 +201,36 @@ export function UserAttribution({
 
 type UserAvatarButtonProps = Readonly<{
     user?: AttributionUser | null;
+    action: string;
+    isEdited?: boolean;
     onPress: (event: GestureResponderEvent) => void;
 }>;
 
-function UserAvatarButton({ user, onPress }: UserAvatarButtonProps) {
+function UserAvatarButton({ user, action, isEdited = false, onPress }: UserAvatarButtonProps) {
     const theme = useAppTheme();
     const colors = theme.colors;
 
     return (
         <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Open user card for ${getDisplayName(user)}`}
+            accessibilityLabel={`${action} ${getDisplayName(user)}`}
             onPress={onPress}
             style={({ pressed }) => [
                 styles.avatarButton,
-                { backgroundColor: colors.primary },
+                {
+                    backgroundColor: colors.surface,
+                    borderColor: isEdited ? colors.primary : colors.border,
+                },
                 pressed && styles.pressed,
             ]}
         >
-            <UserAvatar user={user} size={26} />
+            <UserAvatar user={user} size={28} />
+
+            {isEdited ? (
+                <View style={[styles.editDot, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="pencil" size={8} color={colors.textLight} />
+                </View>
+            ) : null}
         </Pressable>
     );
 }
@@ -265,7 +245,7 @@ function UserAvatar({ user, size }: UserAvatarProps) {
     const colors = theme.colors;
     const [imageFailed, setImageFailed] = useState(false);
 
-    const imageUrl = user?.profileImageUrl?.trim();
+    const imageUrl = normalizeImageUrl(user?.profileImageUrl);
     const shouldShowImage = Boolean(imageUrl) && !imageFailed;
 
     const avatarStyle = {
@@ -308,36 +288,29 @@ function UserAvatar({ user, size }: UserAvatarProps) {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: spacing.sm,
-        marginTop: spacing.xs,
-    },
-    pill: {
+    avatarRow: {
         flexDirection: "row",
         alignItems: "center",
-        alignSelf: "flex-start",
-        gap: spacing.xs,
-        borderRadius: radius.pill,
-        borderWidth: 1,
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
-        maxWidth: "100%",
-    },
-    label: {
-        fontSize: typography.caption,
-        fontWeight: fontWeight.bold,
-        textTransform: "uppercase",
-        letterSpacing: 0.3,
-    },
-    username: {
-        flexShrink: 1,
-        fontSize: typography.caption,
-        fontWeight: fontWeight.semibold,
+        gap: -spacing.xs,
     },
     avatarButton: {
-        borderRadius: radius.pill,
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        borderWidth: 2,
+        alignItems: "center",
+        justifyContent: "center",
+        marginLeft: -spacing.xs,
+    },
+    editDot: {
+        position: "absolute",
+        right: -2,
+        bottom: -2,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        alignItems: "center",
+        justifyContent: "center",
     },
     avatarImage: {
         resizeMode: "cover",

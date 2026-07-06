@@ -15,6 +15,7 @@ import {
     getDestinationById,
 } from "@/src/api/destinationApi";
 import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
+import { UserAttribution } from "@/src/components/collaboration/UserAttribution";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
@@ -22,6 +23,7 @@ import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { Activity } from "@/src/types/activity";
 import type { Destination } from "@/src/types/destination";
 import type { TripCollaborationRole } from "@/src/types/tripCollaboration";
@@ -42,6 +44,9 @@ function getApiMessage(error: any) {
 export default function DestinationDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
 
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const destinationIdParam = Array.isArray(params.destinationId)
@@ -175,12 +180,12 @@ export default function DestinationDetailScreen() {
         return (
             <AppScreen scroll={false} centerContent contentContainerStyle={styles.centerContent}>
                 <View style={styles.errorIconBadge}>
-                    <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
+                    <Ionicons name="alert-circle-outline" size={34} color={themeColors.danger} />
                 </View>
 
                 <View style={styles.centerTextGroup}>
-                    <Text style={styles.centerTitle}>Unable to load destination</Text>
-                    <Text style={styles.centerSubtitle}>{error ?? "Destination not found."}</Text>
+                    <Text style={[styles.centerTitle, { color: themeColors.text }]}>Unable to load destination</Text>
+                    <Text style={[styles.centerSubtitle, { color: themeColors.textMuted }]}>{error ?? "Destination not found."}</Text>
                 </View>
 
                 <AppButton title="Try again" onPress={loadDestinationDetail} />
@@ -224,6 +229,22 @@ export default function DestinationDetailScreen() {
                     ) : (
                         <Text style={styles.notesMuted}>No notes added yet.</Text>
                     )}
+
+                    <UserAttribution
+                        itemLabel="destination"
+                        createdBy={{
+                            userId: destination.createdByUserId,
+                            username: destination.createdByUsername,
+                            displayName: destination.createdByDisplayName,
+                            profileImageUrl: destination.createdByProfileImageUrl,
+                        }}
+                        modifiedBy={{
+                            userId: destination.modifiedByUserId,
+                            username: destination.modifiedByUsername,
+                            displayName: destination.modifiedByDisplayName,
+                            profileImageUrl: destination.modifiedByProfileImageUrl,
+                        }}
+                    />
                 </View>
             </AppCard>
 
@@ -249,17 +270,17 @@ export default function DestinationDetailScreen() {
 
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTextGroup}>
-                    <Text style={styles.sectionTitle}>Activities</Text>
-                    <Text style={styles.sectionSubtitle}>Add plans inside this destination.</Text>
+                    <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Activities</Text>
+                    <Text style={[styles.sectionSubtitle, { color: themeColors.textMuted }]}>Add plans inside this destination.</Text>
                 </View>
 
                 {canEditPlan ? (
                     <AppButton
-                        title=""
+                        title="Add"
                         onPress={handleAddActivity}
                         fullWidth={false}
                         style={styles.addButton}
-                        leftIcon={<Ionicons name="add" size={23} color={colors.textLight} />}
+                        leftIcon={<Ionicons name="add" size={20} color={themeColors.textLight} />}
                         testID="add-activity-button"
                     />
                 ) : null}
@@ -269,7 +290,7 @@ export default function DestinationDetailScreen() {
                 <EmptyState
                     title="No activities yet"
                     message="Add sightseeing, meals, transport, check-ins, or other plans for this destination."
-                    icon={<Ionicons name="walk-outline" size={30} color={colors.primary} />}
+                    icon={<Ionicons name="walk-outline" size={30} color={themeColors.primary} />}
                     actionLabel={canEditPlan ? "Add first activity" : undefined}
                     onActionPress={canEditPlan ? handleAddActivity : undefined}
                 />
@@ -291,7 +312,7 @@ export default function DestinationDetailScreen() {
                     onPress={handleDeleteDestination}
                     loading={isDeleting}
                     variant="danger"
-                    leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
+                    leftIcon={<Ionicons name="trash-outline" size={20} color={themeColors.textLight} />}
                     style={styles.deleteButton}
                 />
             ) : null}
@@ -306,14 +327,24 @@ type HeaderIconButtonProps = Readonly<{
 }>;
 
 function HeaderIconButton({ icon, accessibilityLabel, onPress }: HeaderIconButtonProps) {
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
+
     return (
         <Pressable
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
             onPress={onPress}
-            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
+            style={({ pressed }) => [
+                styles.headerIconButton,
+                {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                },
+                pressed && styles.pressed,
+            ]}
         >
-            <Ionicons name={icon} size={23} color={colors.text} />
+            <Ionicons name={icon} size={23} color={themeColors.text} />
         </Pressable>
     );
 }
@@ -325,14 +356,22 @@ type InfoCardProps = Readonly<{
 }>;
 
 function InfoCard({ icon, label, value }: InfoCardProps) {
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
+
     return (
         <AppCard variant="soft" contentStyle={styles.infoCardContent}>
-            <View style={styles.infoIconBadge}>
-                <Ionicons name={icon} size={20} color={colors.primary} />
+            <View
+                style={[
+                    styles.infoIconBadge,
+                    { backgroundColor: themeColors.primarySoft },
+                ]}
+            >
+                <Ionicons name={icon} size={20} color={themeColors.primary} />
             </View>
             <View style={styles.infoTextGroup}>
-                <Text style={styles.infoLabel}>{label}</Text>
-                <Text style={styles.infoValue}>{value}</Text>
+                <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>{label}</Text>
+                <Text style={[styles.infoValue, { color: themeColors.text }]}>{value}</Text>
             </View>
         </AppCard>
     );
@@ -344,35 +383,63 @@ type ActivityCardProps = Readonly<{
 }>;
 
 function ActivityCard({ activity, onPress }: ActivityCardProps) {
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
+
+    const createdBy = {
+        userId: activity.createdByUserId,
+        username: activity.createdByUsername,
+        displayName: activity.createdByDisplayName,
+        profileImageUrl: activity.createdByProfileImageUrl,
+    };
+
+    const modifiedBy = {
+        userId: activity.modifiedByUserId,
+        username: activity.modifiedByUsername,
+        displayName: activity.modifiedByDisplayName,
+        profileImageUrl: activity.modifiedByProfileImageUrl,
+    };
+
     return (
         <AppCard onPress={onPress} contentStyle={styles.activityCardContent}>
-            <View style={styles.activityIconBadge}>
-                <Ionicons name="walk" size={22} color={colors.primary} />
+            <View
+                style={[
+                    styles.activityIconBadge,
+                    { backgroundColor: themeColors.primarySoft },
+                ]}
+            >
+                <Ionicons name="walk" size={22} color={themeColors.primary} />
             </View>
 
             <View style={styles.activityContent}>
-                <Text style={styles.activityTitle} numberOfLines={1}>
+                <Text style={[styles.activityTitle, { color: themeColors.text }]} numberOfLines={1}>
                     {activity.activityName || "Untitled activity"}
                 </Text>
 
                 {activity.location ? (
-                    <Text style={styles.activityLocation} numberOfLines={1}>
+                    <Text style={[styles.activityLocation, { color: themeColors.textMuted }]} numberOfLines={1}>
                         {activity.location}
                     </Text>
                 ) : null}
 
-                <Text style={styles.activityTime} numberOfLines={2}>
+                <Text style={[styles.activityTime, { color: themeColors.textMuted }]} numberOfLines={2}>
                     {formatDateTime(activity.startDateTime)} → {formatDateTime(activity.endDateTime)}
                 </Text>
 
                 {activity.description ? (
-                    <Text style={styles.activityDescription} numberOfLines={2}>
+                    <Text style={[styles.activityDescription, { color: themeColors.textMuted }]} numberOfLines={2}>
                         {activity.description}
                     </Text>
                 ) : null}
+
+                <UserAttribution
+                    itemLabel="activity"
+                    createdBy={createdBy}
+                    modifiedBy={modifiedBy}
+                />
             </View>
 
-            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={22} color={themeColors.textMuted} />
         </AppCard>
     );
 }
@@ -525,11 +592,9 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     addButton: {
-        width: 48,
-        height: 48,
         minHeight: 48,
         borderRadius: radius.lg,
-        paddingHorizontal: 0,
+        paddingHorizontal: spacing.md,
     },
     activityList: {
         gap: spacing.md,

@@ -13,6 +13,7 @@ export type UserProfile = {
     dob?: string | null;
     preferredTheme: UserThemePreference;
     profileImageUrl?: string | null;
+    profileImagePublicId?: string | null;
     createdDate?: string | null;
     modifiedDate?: string | null;
 };
@@ -22,6 +23,7 @@ export type UpdateUserProfileRequest = {
     phoneNumber?: string;
     dob?: string;
     profileImageUrl?: string;
+    profileImagePublicId?: string;
 };
 
 export type UpdateUserSettingsRequest = {

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { AppButton } from "./AppButton";
 
 type EmptyStateProps = {
@@ -23,13 +24,41 @@ export function EmptyState({
     style,
     testID,
 }: EmptyStateProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
-        <View style={[styles.container, style]} testID={testID}>
-            {icon ? <View style={styles.iconContainer}>{icon}</View> : null}
+        <View
+            style={[
+                styles.container,
+                {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                },
+                style,
+            ]}
+            testID={testID}
+        >
+            {icon ? (
+                <View
+                    style={[
+                        styles.iconContainer,
+                        { backgroundColor: colors.primarySoft },
+                    ]}
+                >
+                    {icon}
+                </View>
+            ) : null}
+
             <View style={styles.textContainer}>
-                <Text style={styles.title}>{title}</Text>
-                {message ? <Text style={styles.message}>{message}</Text> : null}
+                <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+                {message ? (
+                    <Text style={[styles.message, { color: colors.textMuted }]}>
+                        {message}
+                    </Text>
+                ) : null}
             </View>
+
             {actionLabel && onActionPress ? (
                 <AppButton title={actionLabel} onPress={onActionPress} fullWidth={false} />
             ) : null}
@@ -43,16 +72,13 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         gap: spacing.lg,
         padding: spacing.xl,
-        backgroundColor: colors.surface,
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
     },
     iconContainer: {
         width: 56,
         height: 56,
         borderRadius: radius.pill,
-        backgroundColor: colors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -61,13 +87,11 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     title: {
-        color: colors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
         textAlign: "center",
     },
     message: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         textAlign: "center",
         lineHeight: 21,

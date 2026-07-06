@@ -126,3 +126,5 @@ frontend/*.p12
 frontend/*.key
 frontend/*.mobileprovision
 frontend/*.pem
+# Uploaded local media files
+uploads/

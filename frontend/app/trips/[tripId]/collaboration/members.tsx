@@ -12,6 +12,7 @@ import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { TripCollaborationRole, TripMember } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 
@@ -26,6 +27,9 @@ function getMemberUsername(member: TripMember) {
 export default function TripMembersListScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const tripId = Number(tripIdParam);
     const hasValidTripId = Boolean(tripIdParam) && !Number.isNaN(tripId);
@@ -122,15 +126,15 @@ export default function TripMembersListScreen() {
         <AppScreen scroll={false} contentContainerStyle={styles.screenContent}>
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
+                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={themeColors.primary} />}
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.header}>
                     <HeaderButton onPress={() => router.back()} />
                     <View style={styles.headerTextGroup}>
-                        <Text style={styles.eyebrow}>Members</Text>
-                        <Text style={styles.title}>Trip members</Text>
-                        <Text style={styles.subtitle}>Update roles or remove members from this trip.</Text>
+                        <Text style={[styles.eyebrow, { color: themeColors.primary }]}>Members</Text>
+                        <Text style={[styles.title, { color: themeColors.text }]}>Trip members</Text>
+                        <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>Update roles or remove members from this trip.</Text>
                     </View>
                 </View>
 
@@ -140,7 +144,7 @@ export default function TripMembersListScreen() {
                     <EmptyState
                         title="No members found"
                         message="Members will appear here after invitations or join requests are accepted."
-                        icon={<Ionicons name="people-outline" size={30} color={colors.primary} />}
+                        icon={<Ionicons name="people-outline" size={30} color={themeColors.primary} />}
                     />
                 ) : (
                     <View style={styles.memberList}>
@@ -161,9 +165,12 @@ export default function TripMembersListScreen() {
 }
 
 function HeaderButton({ onPress }: { onPress: () => void }) {
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
+
     return (
         <AppCard onPress={onPress} style={styles.backButton} contentStyle={styles.backButtonContent}>
-            <Ionicons name="chevron-back" size={22} color={colors.text} />
+            <Ionicons name="chevron-back" size={22} color={themeColors.text} />
         </AppCard>
     );
 }
@@ -177,17 +184,25 @@ type MemberCardProps = Readonly<{
 
 function MemberCard({ member, loading, onChangeRole, onRemove }: MemberCardProps) {
     const username = getMemberUsername(member);
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
 
     return (
         <AppCard contentStyle={styles.memberCardContent}>
             <View style={styles.memberTopRow}>
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{username.charAt(0).toUpperCase()}</Text>
+                <View style={[styles.avatar, { backgroundColor: themeColors.primarySoft }]}>
+                    <Text style={[styles.avatarText, { color: themeColors.primary }]}>
+                        {username.charAt(0).toUpperCase()}
+                    </Text>
                 </View>
 
                 <View style={styles.memberTextGroup}>
-                    <Text style={styles.memberName}>{username}</Text>
-                    {member.email ? <Text style={styles.memberEmail}>{member.email}</Text> : null}
+                    <Text style={[styles.memberName, { color: themeColors.text }]}>{username}</Text>
+                    {member.email ? (
+                        <Text style={[styles.memberEmail, { color: themeColors.textMuted }]}>
+                            {member.email}
+                        </Text>
+                    ) : null}
                 </View>
 
                 <RoleBadge role={member.role} />
@@ -196,24 +211,36 @@ function MemberCard({ member, loading, onChangeRole, onRemove }: MemberCardProps
             {member.role !== "OWNER" ? (
                 <>
                     <View style={styles.roleButtonRow}>
-                        {EDITABLE_ROLES.map((role) => (
-                            <Pressable
-                                key={role}
-                                accessibilityRole="button"
-                                onPress={() => onChangeRole(role)}
-                                disabled={loading}
-                                style={({ pressed }) => [
-                                    styles.smallRoleButton,
-                                    member.role === role && styles.smallRoleButtonSelected,
-                                    pressed && styles.pressed,
-                                    loading && styles.disabled,
-                                ]}
-                            >
-                                <Text style={[styles.smallRoleButtonText, member.role === role && styles.smallRoleButtonTextSelected]}>
-                                    {role === "VIEWER" ? "Viewer" : "Editor"}
-                                </Text>
-                            </Pressable>
-                        ))}
+                        {EDITABLE_ROLES.map((role) => {
+                            const selected = member.role === role;
+
+                            return (
+                                <Pressable
+                                    key={role}
+                                    accessibilityRole="button"
+                                    onPress={() => onChangeRole(role)}
+                                    disabled={loading}
+                                    style={({ pressed }) => [
+                                        styles.smallRoleButton,
+                                        {
+                                            backgroundColor: selected ? themeColors.primarySoft : themeColors.surface,
+                                            borderColor: selected ? themeColors.primary : themeColors.border,
+                                        },
+                                        pressed && styles.pressed,
+                                        loading && styles.disabled,
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.smallRoleButtonText,
+                                            { color: selected ? themeColors.primary : themeColors.textMuted },
+                                        ]}
+                                    >
+                                        {role === "VIEWER" ? "Viewer" : "Editor"}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
                     </View>
 
                     <AppButton
@@ -221,7 +248,7 @@ function MemberCard({ member, loading, onChangeRole, onRemove }: MemberCardProps
                         onPress={onRemove}
                         loading={loading}
                         variant="danger"
-                        leftIcon={<Ionicons name="trash-outline" size={18} color={colors.textLight} />}
+                        leftIcon={<Ionicons name="trash-outline" size={18} color={themeColors.textLight} />}
                     />
                 </>
             ) : null}

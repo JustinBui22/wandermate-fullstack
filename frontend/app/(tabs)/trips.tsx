@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
     Alert,
+    Image,
     Modal,
     Pressable,
     RefreshControl,
@@ -22,6 +23,7 @@ import { LoadingState } from "@/src/components/ui/LoadingState";
 import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { Trip, TripSortOption, TripStatus } from "@/src/types/trip";
+import { normalizeImageUrl } from "@/src/utils/imageUrlUtils";
 
 type TripStatusFilter = "ALL" | TripStatus;
 
@@ -765,6 +767,9 @@ function TripCard({ trip, onPress }: TripCardProps) {
     const colors = theme.colors;
 
     const status = getTripStatus(trip);
+    const [coverImageFailed, setCoverImageFailed] = useState(false);
+    const coverImageUrl = normalizeImageUrl(trip.coverImageUrl);
+    const shouldShowCoverImage = Boolean(coverImageUrl) && !coverImageFailed;
 
     return (
         <AppCard
@@ -772,6 +777,14 @@ function TripCard({ trip, onPress }: TripCardProps) {
             style={styles.tripCard}
             contentStyle={styles.tripCardContent}
         >
+            {shouldShowCoverImage ? (
+                <Image
+                    source={{ uri: coverImageUrl as string }}
+                    style={styles.tripCoverImage}
+                    onError={() => setCoverImageFailed(true)}
+                />
+            ) : null}
+
             <View style={styles.tripMainRow}>
                 <View
                     style={[
@@ -1211,6 +1224,13 @@ const styles = StyleSheet.create({
     },
     tripCardContent: {
         gap: spacing.md,
+    },
+    tripCoverImage: {
+        width: "100%",
+        height: 132,
+        borderRadius: radius.lg,
+        resizeMode: "cover",
+        marginBottom: spacing.xs,
     },
     tripMainRow: {
         flexDirection: "row",

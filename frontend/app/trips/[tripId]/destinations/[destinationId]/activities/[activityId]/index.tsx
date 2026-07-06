@@ -14,12 +14,14 @@ import {
     getActivityById,
 } from "@/src/api/activityApi";
 import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
+import { UserAttribution } from "@/src/components/collaboration/UserAttribution";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { Activity } from "@/src/types/activity";
 import type { TripCollaborationRole } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
@@ -39,6 +41,9 @@ function getApiMessage(error: any) {
 export default function ActivityDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
 
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const destinationIdParam = Array.isArray(params.destinationId)
@@ -167,12 +172,12 @@ export default function ActivityDetailScreen() {
         return (
             <AppScreen scroll={false} centerContent contentContainerStyle={styles.centerContent}>
                 <View style={styles.errorIconBadge}>
-                    <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
+                    <Ionicons name="alert-circle-outline" size={34} color={themeColors.danger} />
                 </View>
 
                 <View style={styles.centerTextGroup}>
-                    <Text style={styles.centerTitle}>Unable to load activity</Text>
-                    <Text style={styles.centerSubtitle}>{error ?? "Activity not found."}</Text>
+                    <Text style={[styles.centerTitle, { color: themeColors.text }]}>Unable to load activity</Text>
+                    <Text style={[styles.centerSubtitle, { color: themeColors.textMuted }]}>{error ?? "Activity not found."}</Text>
                 </View>
 
                 <AppButton title="Try again" onPress={loadActivityDetail} />
@@ -219,6 +224,22 @@ export default function ActivityDetailScreen() {
                     ) : (
                         <Text style={styles.locationMuted}>No location added.</Text>
                     )}
+
+                    <UserAttribution
+                        itemLabel="activity"
+                        createdBy={{
+                            userId: activity.createdByUserId,
+                            username: activity.createdByUsername,
+                            displayName: activity.createdByDisplayName,
+                            profileImageUrl: activity.createdByProfileImageUrl,
+                        }}
+                        modifiedBy={{
+                            userId: activity.modifiedByUserId,
+                            username: activity.modifiedByUsername,
+                            displayName: activity.modifiedByDisplayName,
+                            profileImageUrl: activity.modifiedByProfileImageUrl,
+                        }}
+                    />
                 </View>
             </AppCard>
 
@@ -237,9 +258,9 @@ export default function ActivityDetailScreen() {
 
             <AppCard title="Description" contentStyle={styles.descriptionCardContent}>
                 {activity.description ? (
-                    <Text style={styles.descriptionText}>{activity.description}</Text>
+                    <Text style={[styles.descriptionText, { color: themeColors.text }]}>{activity.description}</Text>
                 ) : (
-                    <Text style={styles.descriptionMuted}>No description added yet.</Text>
+                    <Text style={[styles.descriptionMuted, { color: themeColors.textMuted }]}>No description added yet.</Text>
                 )}
             </AppCard>
 
@@ -251,7 +272,7 @@ export default function ActivityDetailScreen() {
                     onPress={handleDeleteActivity}
                     loading={isDeleting}
                     variant="danger"
-                    leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
+                    leftIcon={<Ionicons name="trash-outline" size={20} color={themeColors.textLight} />}
                     style={styles.deleteButton}
                 />
             ) : null}
@@ -266,14 +287,24 @@ type HeaderIconButtonProps = Readonly<{
 }>;
 
 function HeaderIconButton({ icon, accessibilityLabel, onPress }: HeaderIconButtonProps) {
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
+
     return (
         <Pressable
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
             onPress={onPress}
-            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
+            style={({ pressed }) => [
+                styles.headerIconButton,
+                {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                },
+                pressed && styles.pressed,
+            ]}
         >
-            <Ionicons name={icon} size={23} color={colors.text} />
+            <Ionicons name={icon} size={23} color={themeColors.text} />
         </Pressable>
     );
 }
@@ -285,14 +316,22 @@ type InfoCardProps = Readonly<{
 }>;
 
 function InfoCard({ icon, label, value }: InfoCardProps) {
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
+
     return (
         <AppCard variant="soft" contentStyle={styles.infoCardContent}>
-            <View style={styles.infoIconBadge}>
-                <Ionicons name={icon} size={20} color={colors.primary} />
+            <View
+                style={[
+                    styles.infoIconBadge,
+                    { backgroundColor: themeColors.primarySoft },
+                ]}
+            >
+                <Ionicons name={icon} size={20} color={themeColors.primary} />
             </View>
             <View style={styles.infoTextGroup}>
-                <Text style={styles.infoLabel}>{label}</Text>
-                <Text style={styles.infoValue}>{value}</Text>
+                <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>{label}</Text>
+                <Text style={[styles.infoValue, { color: themeColors.text }]}>{value}</Text>
             </View>
         </AppCard>
     );
