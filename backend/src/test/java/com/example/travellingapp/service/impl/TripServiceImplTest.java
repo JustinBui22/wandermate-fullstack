@@ -490,7 +490,35 @@ class TripServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void updateTrip_shouldUpdateTrip_whenUserCanEditTripAndNoConflictsExist() throws IOException {
+    void updateTrip_shouldChangeFinishedTripToOngoing_whenEndDateIsExtendedIntoFuture() {
+        LocalDateTime now = LocalDateTime.now();
+
+        UpdateTripDTO request = validUpdateRequest();
+        request.setStartDate(now.minusDays(10));
+        request.setEndDate(now.plusMonths(1));
+
+        TripEntity existingTrip = trip("Old Finished Trip");
+        existingTrip.setStartDate(now.minusDays(10));
+        existingTrip.setEndDate(now.minusDays(1));
+        existingTrip.setTripStatus(TripEnum.FINISHED);
+
+        TripResponseDTO responseDTO = mock(TripResponseDTO.class);
+
+        mockSuccessfulUpdateDependencies(request, existingTrip, responseDTO);
+
+        CompleteResponse<Object> response = tripService.updateTrip(TRIP_ID, request);
+
+        assertThat(response.getResponseBody().getCode())
+                .isEqualTo(TRIP_UPDATED_SUCCESS.getCode());
+
+        assertThat(existingTrip.getTripStatus())
+                .isEqualTo(TripEnum.ONGOING);
+
+        verify(tripRepository).save(existingTrip);
+    }
+
+    @Test
+    void updateTrip_shouldUpdateTrip_whenUserCanEditTripAndNoConflictsExist() {
         UpdateTripDTO request = validUpdateRequest();
         TripEntity existingTrip = trip("Old Trip");
         TripResponseDTO responseDTO = mock(TripResponseDTO.class);
@@ -550,7 +578,7 @@ class TripServiceImplTest {
 
 
     @Test
-    void updateTrip_shouldDeleteOldCloudinaryCover_whenCoverImageIsRemoved() throws IOException {
+    void updateTrip_shouldDeleteOldCloudinaryCover_whenCoverImageIsRemoved() {
         UpdateTripDTO request = validUpdateRequest();
         request.setCoverImageUrl("");
         request.setCoverImagePublicId("");
@@ -576,7 +604,7 @@ class TripServiceImplTest {
     }
 
     @Test
-    void updateTrip_shouldNotDeleteCloudinaryCover_whenPublicIdIsUnchanged() throws IOException {
+    void updateTrip_shouldNotDeleteCloudinaryCover_whenPublicIdIsUnchanged() {
         UpdateTripDTO request = validUpdateRequest();
         request.setCoverImageUrl("https://res.cloudinary.com/demo/image/upload/same-cover.png");
         request.setCoverImagePublicId("wandermate/trip-covers/users/1/trip-cover-1-same");
@@ -600,7 +628,7 @@ class TripServiceImplTest {
     }
 
     @Test
-    void updateTrip_shouldAskCloudinaryClientToCleanUpOldCover_whenCoverImageIsReplaced() throws IOException {
+    void updateTrip_shouldAskCloudinaryClientToCleanUpOldCover_whenCoverImageIsReplaced() {
         UpdateTripDTO request = validUpdateRequest();
         TripEntity existingTrip = trip("Old Trip");
         TripResponseDTO responseDTO = mock(TripResponseDTO.class);
@@ -876,7 +904,7 @@ class TripServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void deleteTrip_shouldDeleteTrip_whenUserIsOwner() throws IOException {
+    void deleteTrip_shouldDeleteTrip_whenUserIsOwner() {
         TripEntity trip = trip("Adelaide Trip");
 
         mockErrorCode(TRIP_DELETED_SUCCESS, TRIP.name());

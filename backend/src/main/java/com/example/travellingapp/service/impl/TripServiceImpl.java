@@ -573,11 +573,6 @@ public class TripServiceImpl implements TripService {
     private TripEnum resolveTripStatus(TripEntity trip) {
         LocalDateTime now = LocalDateTime.now();
 
-        // Keep manually finished trips as finished
-        if (trip.getTripStatus() == TripEnum.FINISHED) {
-            return TripEnum.FINISHED;
-        }
-
         // If trip end date has passed, mark as finished
         if (trip.getEndDate() != null && trip.getEndDate().isBefore(now)) {
             return TripEnum.FINISHED;

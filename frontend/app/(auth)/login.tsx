@@ -15,18 +15,27 @@ import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useAuthStore } from "@/src/stores/authStore";
-import { colors, fontWeight, radius, shadows, spacing, typography } from "@/src/constants/theme";
+import { fontWeight, radius, shadows, spacing, typography } from "@/src/constants/theme";
 
 const MAX_SESSIONS_REACHED_CODE = "E022";
 
 export default function LoginScreen() {
     const router = useRouter();
+    const theme = useAppTheme();
+    const themeColors = theme.colors;
+    const isDarkMode = theme.name === "DARK";
+
     const { loginUser, isLoading, error, errorCode, clearError } = useAuthStore();
 
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+    const heroTitleColor = isDarkMode ? "#FFFFFF" : themeColors.text;
+    const heroSubtitleColor = isDarkMode ? "#CBD5E1" : themeColors.textMuted;
+    const footerTextColor = isDarkMode ? "#CBD5E1" : themeColors.textMuted;
 
     async function handleLogin(overrideMaxSession = false) {
         clearError();
@@ -58,7 +67,9 @@ export default function LoginScreen() {
                     {
                         text: "Continue",
                         style: "destructive",
-                        onPress: () => handleLogin(true),
+                        onPress: () => {
+                            void handleLogin(true);
+                        },
                     },
                 ]
             );
@@ -67,7 +78,11 @@ export default function LoginScreen() {
 
     return (
         <LinearGradient
-            colors={[colors.primarySoft, colors.background, colors.surface]}
+            colors={[
+                isDarkMode ? themeColors.background : themeColors.primarySoft,
+                themeColors.background,
+                themeColors.surface,
+            ]}
             style={styles.gradient}
         >
             <AppScreen
@@ -78,13 +93,31 @@ export default function LoginScreen() {
                 contentContainerStyle={styles.content}
             >
                 <View style={styles.heroSection}>
-                    <View style={styles.logoBadge}>
-                        <Ionicons name="airplane" size={28} color={colors.primary} />
+                    <View
+                        style={[
+                            styles.logoBadge,
+                            {
+                                backgroundColor: themeColors.surface,
+                                borderColor: themeColors.border,
+                            },
+                        ]}
+                    >
+                        <Ionicons name="airplane" size={28} color={themeColors.primary} />
                     </View>
 
-                    <Text style={styles.appName}>WanderMate</Text>
-                    <Text style={styles.heroTitle}>Plan smarter trips</Text>
-                    <Text style={styles.heroSubtitle}>
+                    <Text style={[styles.appName, { color: themeColors.primary }]}>WanderMate</Text>
+                    <Text
+                        style={[
+                            styles.heroTitle,
+                            {
+                                color: heroTitleColor,
+                                textShadowColor: isDarkMode ? "rgba(0, 0, 0, 0.5)" : "transparent",
+                            },
+                        ]}
+                    >
+                        Plan smarter trips
+                    </Text>
+                    <Text style={[styles.heroSubtitle, { color: heroSubtitleColor }]}>
                         Sign in to manage your travel plans, activities and itineraries in one place.
                     </Text>
                 </View>
@@ -103,7 +136,7 @@ export default function LoginScreen() {
                         autoCapitalize="none"
                         autoCorrect={false}
                         textContentType="username"
-                        leftIcon={<Ionicons name="person-outline" size={20} color={colors.textMuted} />}
+                        leftIcon={<Ionicons name="person-outline" size={20} color={themeColors.textMuted} />}
                     />
 
                     <AppInput
@@ -113,7 +146,7 @@ export default function LoginScreen() {
                         placeholder="Enter password"
                         secureTextEntry={!isPasswordVisible}
                         textContentType="password"
-                        leftIcon={<Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />}
+                        leftIcon={<Ionicons name="lock-closed-outline" size={20} color={themeColors.textMuted} />}
                         rightIcon={
                             <Pressable
                                 accessibilityRole="button"
@@ -124,14 +157,14 @@ export default function LoginScreen() {
                                 <Ionicons
                                     name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
                                     size={20}
-                                    color={colors.textMuted}
+                                    color={themeColors.textMuted}
                                 />
                             </Pressable>
                         }
                     />
 
                     <ErrorMessage
-                        message={errorCode !== MAX_SESSIONS_REACHED_CODE ? error : null}
+                        message={errorCode === MAX_SESSIONS_REACHED_CODE ? null : error}
                         title="Login failed"
                     />
 
@@ -139,24 +172,25 @@ export default function LoginScreen() {
                         title="Sign in"
                         loading={isLoading}
                         onPress={() => handleLogin(false)}
-                        rightIcon={!isLoading ? <Ionicons name="arrow-forward" size={19} color={colors.textLight} /> : null}
+                        rightIcon={isLoading ? null :
+                            <Ionicons name="arrow-forward" size={19} color={themeColors.textLight}/>}
                         size="lg"
                     />
 
                     <View style={styles.linkRow}>
                         <Pressable onPress={() => router.push("/(auth)/forgot-password" as any)}>
-                            <Text style={styles.linkText}>Forgot password?</Text>
+                            <Text style={[styles.linkText, { color: themeColors.primary }]}>Forgot password?</Text>
                         </Pressable>
 
-                        <Text style={styles.linkDivider}>•</Text>
+                        <Text style={[styles.linkDivider, { color: themeColors.textMuted }]}>•</Text>
 
                         <Pressable onPress={() => router.push("/(auth)/register" as any)}>
-                            <Text style={styles.linkText}>Create account</Text>
+                            <Text style={[styles.linkText, { color: themeColors.primary }]}>Create account</Text>
                         </Pressable>
                     </View>
                 </AppCard>
 
-                <Text style={styles.footerText}>
+                <Text style={[styles.footerText, { color: footerTextColor }]}>
                     Your trips, plans and activities are securely connected to your account.
                 </Text>
             </AppScreen>
@@ -183,30 +217,29 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: radius.xl,
-        backgroundColor: colors.surface,
+        borderWidth: 1,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: spacing.sm,
         ...shadows.card,
     },
     appName: {
-        color: colors.primary,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
         letterSpacing: 0.8,
         textTransform: "uppercase",
     },
     heroTitle: {
-        color: colors.text,
         fontSize: typography.hero,
-        fontWeight: "800",
-        lineHeight: 40,
+        fontWeight: fontWeight.extraBold,
+        lineHeight: 42,
         textAlign: "center",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 8,
     },
     heroSubtitle: {
-        color: colors.textMuted,
         fontSize: typography.body,
-        lineHeight: 23,
+        lineHeight: 24,
         maxWidth: 330,
         textAlign: "center",
     },
@@ -224,17 +257,14 @@ const styles = StyleSheet.create({
         paddingTop: spacing.xs,
     },
     linkText: {
-        color: colors.primary,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
     linkDivider: {
-        color: colors.textMuted,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
     footerText: {
-        color: colors.textMuted,
         fontSize: typography.caption,
         lineHeight: 20,
         paddingHorizontal: spacing.md,
