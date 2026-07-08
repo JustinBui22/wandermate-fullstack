@@ -3,6 +3,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } 
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
+import { getTripById } from "@/src/api/tripApi";
 import { getTripMembers, removeTripMember, updateTripMemberRole } from "@/src/api/tripCollaborationApi";
 import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
 import { AppButton } from "@/src/components/ui/AppButton";
@@ -16,6 +17,7 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { TripCollaborationRole, TripMember } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 
+// Only OWNER can assign/remove members. OWNER itself cannot be assigned from this screen.
 type EditableRole = Exclude<TripCollaborationRole, "OWNER">;
 const EDITABLE_ROLES: EditableRole[] = ["VIEWER", "EDITOR"];
 
@@ -35,12 +37,15 @@ export default function TripMembersListScreen() {
     const hasValidTripId = Boolean(tripIdParam) && !Number.isNaN(tripId);
 
     const [members, setMembers] = useState<TripMember[]>([]);
+    const [currentUserRole, setCurrentUserRole] = useState<TripCollaborationRole | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [updatingMemberId, setUpdatingMemberId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    async function loadMembers() {
+    const canManageMembers = currentUserRole === "OWNER";
+
+    const loadMembers = useCallback(async () => {
         if (!hasValidTripId) {
             setError("Trip ID is missing or invalid.");
             setIsLoading(false);
@@ -50,21 +55,28 @@ export default function TripMembersListScreen() {
 
         try {
             setError(null);
-            const data = await getTripMembers(tripId);
+
+            const [trip, data] = await Promise.all([
+                getTripById(tripId),
+                getTripMembers(tripId),
+            ]);
+
+            setCurrentUserRole(trip.currentUserRole ?? null);
             setMembers(Array.isArray(data) ? data : []);
         } catch (error: any) {
             setError(getApiErrorMessage(error, "Failed to load trip members."));
+            setCurrentUserRole(null);
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }
+    }, [hasValidTripId, tripId]);
 
     useFocusEffect(
         useCallback(() => {
             setIsLoading(true);
             void loadMembers();
-        }, [tripIdParam])
+        }, [loadMembers])
     );
 
     async function performRefresh() {
@@ -77,7 +89,9 @@ export default function TripMembersListScreen() {
     }
 
     async function handleRoleChange(member: TripMember, role: EditableRole) {
-        if (!hasValidTripId || member.role === role || member.role === "OWNER") return;
+        if (!canManageMembers || !hasValidTripId || member.role === role || member.role === "OWNER") {
+            return;
+        }
 
         try {
             setUpdatingMemberId(member.tripMemberId);
@@ -91,7 +105,9 @@ export default function TripMembersListScreen() {
     }
 
     function handleRemoveMember(member: TripMember) {
-        if (!hasValidTripId || member.role === "OWNER") return;
+        if (!canManageMembers || !hasValidTripId || member.role === "OWNER") {
+            return;
+        }
 
         const username = getMemberUsername(member);
         Alert.alert("Remove member", `Remove ${username} from this trip?`, [
@@ -134,11 +150,24 @@ export default function TripMembersListScreen() {
                     <View style={styles.headerTextGroup}>
                         <Text style={[styles.eyebrow, { color: themeColors.primary }]}>Members</Text>
                         <Text style={[styles.title, { color: themeColors.text }]}>Trip members</Text>
-                        <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>Update roles or remove members from this trip.</Text>
+                        <Text style={[styles.subtitle, { color: themeColors.textMuted }]}> 
+                            {canManageMembers
+                                ? "Update roles or remove members from this trip."
+                                : "View who currently has access to this trip."}
+                        </Text>
                     </View>
                 </View>
 
                 <ErrorMessage message={error} title="Could not load members" />
+
+                {!canManageMembers ? (
+                    <AppCard variant="soft" contentStyle={styles.noticeContent}>
+                        <Ionicons name="lock-closed-outline" size={21} color={themeColors.primary} />
+                        <Text style={[styles.noticeText, { color: themeColors.textMuted }]}> 
+                            Only the trip owner can change roles or remove members.
+                        </Text>
+                    </AppCard>
+                ) : null}
 
                 {members.length === 0 ? (
                     <EmptyState
@@ -153,6 +182,7 @@ export default function TripMembersListScreen() {
                                 key={member.tripMemberId}
                                 member={member}
                                 loading={updatingMemberId === member.tripMemberId}
+                                canManageMembers={canManageMembers}
                                 onChangeRole={(role) => handleRoleChange(member, role)}
                                 onRemove={() => handleRemoveMember(member)}
                             />
@@ -178,11 +208,12 @@ function HeaderButton({ onPress }: { onPress: () => void }) {
 type MemberCardProps = Readonly<{
     member: TripMember;
     loading: boolean;
+    canManageMembers: boolean;
     onChangeRole: (role: EditableRole) => void;
     onRemove: () => void;
 }>;
 
-function MemberCard({ member, loading, onChangeRole, onRemove }: MemberCardProps) {
+function MemberCard({ member, loading, canManageMembers, onChangeRole, onRemove }: MemberCardProps) {
     const username = getMemberUsername(member);
     const theme = useAppTheme();
     const themeColors = theme.colors;
@@ -190,8 +221,8 @@ function MemberCard({ member, loading, onChangeRole, onRemove }: MemberCardProps
     return (
         <AppCard contentStyle={styles.memberCardContent}>
             <View style={styles.memberTopRow}>
-                <View style={[styles.avatar, { backgroundColor: themeColors.primarySoft }]}>
-                    <Text style={[styles.avatarText, { color: themeColors.primary }]}>
+                <View style={[styles.avatar, { backgroundColor: themeColors.primarySoft }]}> 
+                    <Text style={[styles.avatarText, { color: themeColors.primary }]}> 
                         {username.charAt(0).toUpperCase()}
                     </Text>
                 </View>
@@ -199,7 +230,7 @@ function MemberCard({ member, loading, onChangeRole, onRemove }: MemberCardProps
                 <View style={styles.memberTextGroup}>
                     <Text style={[styles.memberName, { color: themeColors.text }]}>{username}</Text>
                     {member.email ? (
-                        <Text style={[styles.memberEmail, { color: themeColors.textMuted }]}>
+                        <Text style={[styles.memberEmail, { color: themeColors.textMuted }]}> 
                             {member.email}
                         </Text>
                     ) : null}
@@ -208,7 +239,7 @@ function MemberCard({ member, loading, onChangeRole, onRemove }: MemberCardProps
                 <RoleBadge role={member.role} />
             </View>
 
-            {member.role !== "OWNER" ? (
+            {canManageMembers && member.role !== "OWNER" ? (
                 <>
                     <View style={styles.roleButtonRow}>
                         {EDITABLE_ROLES.map((role) => {
@@ -266,6 +297,8 @@ const styles = StyleSheet.create({
     eyebrow: { color: colors.primary, fontSize: typography.caption, fontWeight: fontWeight.bold, textTransform: "uppercase", letterSpacing: 0.7 },
     title: { color: colors.text, fontSize: typography.heading, fontWeight: fontWeight.bold },
     subtitle: { color: colors.textMuted, fontSize: typography.bodySmall, lineHeight: 21 },
+    noticeContent: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+    noticeText: { flex: 1, color: colors.textMuted, fontSize: typography.bodySmall, lineHeight: 20, fontWeight: fontWeight.semibold },
     memberList: { gap: spacing.md },
     memberCardContent: { gap: spacing.lg },
     memberTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
@@ -276,9 +309,7 @@ const styles = StyleSheet.create({
     memberEmail: { color: colors.textMuted, fontSize: typography.caption, lineHeight: 18 },
     roleButtonRow: { flexDirection: "row", gap: spacing.sm },
     smallRoleButton: { flex: 1, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.sm, alignItems: "center", backgroundColor: colors.surface },
-    smallRoleButtonSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
     smallRoleButtonText: { color: colors.textMuted, fontSize: typography.bodySmall, fontWeight: fontWeight.bold },
-    smallRoleButtonTextSelected: { color: colors.primary },
     pressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
     disabled: { opacity: 0.6 },
 });

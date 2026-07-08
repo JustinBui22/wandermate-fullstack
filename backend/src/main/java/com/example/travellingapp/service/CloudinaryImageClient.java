@@ -12,5 +12,7 @@ public interface CloudinaryImageClient {
             String imageType
     ) throws IOException;
 
-    void deleteImage(String publicId) throws IOException;
+    void deleteImage(String publicId);
+
+    void deleteOldCloudinaryImageIfChanged(String oldPublicId, String newPublicId, String imagePurpose);
 }

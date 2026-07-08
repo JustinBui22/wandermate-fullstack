@@ -304,7 +304,7 @@ public class UserServiceImpl implements UserService {
             User savedUser = userRepository.save(user);
 
             // Delete the old profile image from Cloudinary if it has changed
-            deleteOldCloudinaryImageIfChanged(
+            cloudinaryImageClient.deleteOldCloudinaryImageIfChanged(
                     oldProfileImagePublicId,
                     savedUser.getProfileImagePublicId(),
                     "profile image"
@@ -355,19 +355,5 @@ public class UserServiceImpl implements UserService {
         String username = authenticatedUserProvider.getUsername();
         return userRepository.findByUsernameAndActive(username)
                 .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
-    }
-
-    private void deleteOldCloudinaryImageIfChanged(String oldPublicId, String newPublicId, String imagePurpose) {
-        if (oldPublicId == null || oldPublicId.isBlank()) {
-            return;
-        }
-        if (oldPublicId.equals(newPublicId)) {
-            return;
-        }
-        try {
-            cloudinaryImageClient.deleteImage(oldPublicId);
-        } catch (IOException e) {
-            log.error("Failed to delete old Cloudinary {}: {}", imagePurpose, oldPublicId, e);
-        }
     }
 }

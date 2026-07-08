@@ -1,20 +1,73 @@
+import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
+import { getTripById } from "@/src/api/tripApi";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import type { TripRole } from "@/src/types/trip";
+import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 
 export default function TripCollaborationMenuScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const tripId = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
+    const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
+    const tripId = Number(tripIdParam);
+    const hasValidTripId = Boolean(tripIdParam) && !Number.isNaN(tripId);
+
+    const [currentUserRole, setCurrentUserRole] = useState<TripRole | null>(null);
+    const [isLoadingRole, setIsLoadingRole] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            async function loadRole() {
+                if (!hasValidTripId) {
+                    setError("Trip ID is missing or invalid.");
+                    setIsLoadingRole(false);
+                    return;
+                }
+
+                try {
+                    setIsLoadingRole(true);
+                    setError(null);
+
+                    const trip = await getTripById(tripId);
+                    setCurrentUserRole(trip.currentUserRole ?? null);
+                } catch (error: any) {
+                    setError(getApiErrorMessage(error, "Could not load your role for this trip."));
+                    setCurrentUserRole(null);
+                } finally {
+                    setIsLoadingRole(false);
+                }
+            }
+
+            void loadRole();
+        }, [hasValidTripId, tripId])
+    );
 
     function push(path: string) {
-        if (!tripId) return;
+        if (!hasValidTripId) return;
         router.push(`/trips/${tripId}/collaboration/${path}` as any);
     }
+
+    if (isLoadingRole) {
+        return (
+            <AppScreen scroll={false} centerContent>
+                <LoadingState
+                    title="Loading collaboration..."
+                    subtitle="Checking your access for this trip."
+                    fullScreen
+                />
+            </AppScreen>
+        );
+    }
+
+    const isOwner = currentUserRole === "OWNER";
 
     return (
         <AppScreen contentContainerStyle={styles.screenContent}>
@@ -25,39 +78,61 @@ export default function TripCollaborationMenuScreen() {
                     <Text style={styles.eyebrow}>Trip collaboration</Text>
                     <Text style={styles.title}>Manage sharing</Text>
                     <Text style={styles.subtitle}>
-                        Invite people, manage requests, and control who can access this trip.
+                        {isOwner
+                            ? "Invite people, manage requests, and control who can access this trip."
+                            : "View who has access to this trip. Only the owner can manage sharing settings."}
                     </Text>
                 </View>
             </View>
 
+            <ErrorMessage message={error} title="Could not load collaboration" />
+
+            {!isOwner ? (
+                <AppCard variant="soft" contentStyle={styles.noticeContent}>
+                    <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
+                    <Text style={styles.noticeText}>
+                        You can view the member list, but invitation tools are hidden because you are not the trip owner.
+                    </Text>
+                </AppCard>
+            ) : null}
+
             <View style={styles.optionList}>
-                <CollaborationOption
-                    icon="person-add-outline"
-                    title="Invite member"
-                    subtitle="Invite a user directly by username."
-                    badge="Owner"
-                    onPress={() => push("invite")}
-                />
+                {isOwner ? (
+                    <>
+                        <CollaborationOption
+                            icon="person-add-outline"
+                            title="Invite member"
+                            subtitle="Invite a user directly by username."
+                            badge="Owner"
+                            onPress={() => push("invite")}
+                        />
 
-                <CollaborationOption
-                    icon="link-outline"
-                    title="Invite code / link"
-                    subtitle="Generate a single-use code or deep link."
-                    badge="New"
-                    onPress={() => push("share-code")}
-                />
+                        <CollaborationOption
+                            icon="link-outline"
+                            title="Invite code / link"
+                            subtitle="Generate a single-use code or deep link."
+                            badge="Owner"
+                            onPress={() => push("share-code")}
+                        />
 
-                <CollaborationOption
-                    icon="mail-unread-outline"
-                    title="Pending join requests"
-                    subtitle="Accept or reject users who requested access."
-                    onPress={() => push("requests")}
-                />
+                        <CollaborationOption
+                            icon="mail-unread-outline"
+                            title="Pending join requests"
+                            subtitle="Accept or reject users who requested access."
+                            badge="Owner"
+                            onPress={() => push("requests")}
+                        />
+                    </>
+                ) : null}
 
                 <CollaborationOption
                     icon="people-outline"
                     title="Members"
-                    subtitle="View members, update roles, or remove access."
+                    subtitle={
+                        isOwner
+                            ? "View members, update roles, or remove access."
+                            : "View people who currently have access to this trip."
+                    }
                     onPress={() => push("members")}
                 />
             </View>
@@ -151,6 +226,18 @@ const styles = StyleSheet.create({
         color: colors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 21,
+    },
+    noticeContent: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+    },
+    noticeText: {
+        flex: 1,
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+        fontWeight: fontWeight.semibold,
     },
     optionList: {
         gap: spacing.md,

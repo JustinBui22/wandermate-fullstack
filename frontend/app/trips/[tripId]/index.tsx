@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from "react";
+import React, { useCallback, useState } from "react";
 import {
     Alert,
     ImageBackground,
@@ -7,39 +7,36 @@ import {
     Text,
     View,
 } from "react-native";
-import {Ionicons} from "@expo/vector-icons";
-import {useFocusEffect, useLocalSearchParams, useRouter} from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
-import {getDestinationsByTrip} from "@/src/api/destinationApi";
-import {getCollaborationSummary} from "@/src/api/tripCollaborationApi";
-import {deleteTrip, getTripById} from "@/src/api/tripApi";
-import {UserAttribution} from "@/src/components/collaboration/UserAttribution";
-import {AppButton} from "@/src/components/ui/AppButton";
-import {AppCard} from "@/src/components/ui/AppCard";
-import {AppScreen} from "@/src/components/ui/AppScreen";
-import {EmptyState} from "@/src/components/ui/EmptyState";
-import {ErrorMessage} from "@/src/components/ui/ErrorMessage";
-import {LoadingState} from "@/src/components/ui/LoadingState";
-import {NotificationBadge} from "@/src/components/ui/NotificationBadge";
-import {colors, fontWeight, radius, spacing, typography} from "@/src/constants/theme";
-import type {Destination} from "@/src/types/destination";
-import type {Trip} from "@/src/types/trip";
-import {getApiErrorMessage} from "@/src/utils/apiWarningUtils";
-import {formatDateTime} from "@/src/utils/dateFormat";
-import {normalizeImageUrl} from "@/src/utils/imageUrlUtils";
-import {useAppTheme} from "@/src/hooks/useAppTheme";
+import { getDestinationsByTrip } from "@/src/api/destinationApi";
+import { getCollaborationSummary } from "@/src/api/tripCollaborationApi";
+import { deleteTrip, getTripById } from "@/src/api/tripApi";
+import { UserAttribution } from "@/src/components/collaboration/UserAttribution";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { EmptyState } from "@/src/components/ui/EmptyState";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
+import { NotificationBadge } from "@/src/components/ui/NotificationBadge";
+import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
+import type { Destination } from "@/src/types/destination";
+import type { Trip } from "@/src/types/trip";
+import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
+import { formatDateTime } from "@/src/utils/dateFormat";
+import { normalizeImageUrl } from "@/src/utils/imageUrlUtils";
 
 function getApiMessage(error: any) {
     const data = error.response?.data;
-
 
     if (typeof data?.body === "string" && data.body.trim()) {
         return data.body;
     }
 
     return data?.message || error.message || "Failed to load trip detail.";
-
-
 }
 
 export default function TripDetailScreen() {
@@ -159,7 +156,7 @@ export default function TripDetailScreen() {
             "Delete trip",
             "This will delete this trip, all destinations, and all activities inside it. Are you sure?",
             [
-                {text: "Cancel", style: "cancel"},
+                { text: "Cancel", style: "cancel" },
                 {
                     text: "Delete",
                     style: "destructive",
@@ -200,7 +197,7 @@ export default function TripDetailScreen() {
         return (
             <AppScreen scroll={false} centerContent contentContainerStyle={styles.centerContent}>
                 <View style={styles.errorIconBadge}>
-                    <Ionicons name="alert-circle-outline" size={34} color={colors.danger}/>
+                    <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
                 </View>
 
                 <View style={styles.centerTextGroup}>
@@ -208,11 +205,20 @@ export default function TripDetailScreen() {
                     <Text style={styles.centerSubtitle}>{error ?? "Trip not found."}</Text>
                 </View>
 
-                <AppButton title="Try again" onPress={handleRetry}/>
-                <AppButton title="Go back" onPress={() => router.back()} variant="ghost"/>
+                <AppButton title="Try again" onPress={handleRetry} />
+                <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
             </AppScreen>
         );
     }
+
+    const currentUserRole = trip.currentUserRole ?? null;
+    const isOwner = currentUserRole === "OWNER";
+    const isEditor = currentUserRole === "EDITOR";
+    const isViewer = currentUserRole === "VIEWER";
+
+    const canEditTrip = isOwner || isEditor;
+    const canEditContent = isOwner || isEditor;
+    const canDeleteTrip = isOwner;
 
     const coverImageUrl = normalizeImageUrl(trip.coverImageUrl);
     const shouldShowCoverImage = Boolean(coverImageUrl) && !coverImageFailed;
@@ -231,14 +237,16 @@ export default function TripDetailScreen() {
                         icon="people-outline"
                         accessibilityLabel="Open collaboration"
                         onPress={handleOpenCollaboration}
-                        badgeCount={tripCollaborationBadgeCount}
+                        badgeCount={isOwner ? tripCollaborationBadgeCount : 0}
                     />
 
-                    <HeaderIconButton
-                        icon="create-outline"
-                        accessibilityLabel="Edit trip"
-                        onPress={handleEditTrip}
-                    />
+                    {canEditTrip ? (
+                        <HeaderIconButton
+                            icon="create-outline"
+                            accessibilityLabel="Edit trip"
+                            onPress={handleEditTrip}
+                        />
+                    ) : null}
                 </View>
             </View>
 
@@ -259,6 +267,15 @@ export default function TripDetailScreen() {
                 )}
             </AppCard>
 
+            {isViewer ? (
+                <AppCard variant="soft" contentStyle={styles.readOnlyCardContent}>
+                    <Ionicons name="lock-closed-outline" size={20} color={colors.primary} />
+                    <Text style={styles.readOnlyText}>
+                        You are viewing this trip in read-only mode. You can open destinations and activities, but you cannot edit this trip.
+                    </Text>
+                </AppCard>
+            ) : null}
+
             <View style={styles.infoGrid}>
                 <InfoCard
                     icon="calendar-outline"
@@ -272,31 +289,41 @@ export default function TripDetailScreen() {
                 />
             </View>
 
-            <ErrorMessage message={error} title="Trip detail error"/>
+            <ErrorMessage message={error} title="Trip detail error" />
 
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTextGroup}>
                     <Text style={styles.sectionTitle}>Destinations</Text>
-                    <Text style={styles.sectionSubtitle}>Add each city or place for this trip.</Text>
+                    <Text style={styles.sectionSubtitle}>
+                        {canEditContent
+                            ? "Add each city or place for this trip."
+                            : "View each city or place planned for this trip."}
+                    </Text>
                 </View>
 
-                <AppButton
-                    title=""
-                    onPress={handleAddDestination}
-                    fullWidth={false}
-                    style={styles.addButton}
-                    leftIcon={<Ionicons name="add" size={23} color={colors.textLight}/>}
-                    testID="add-destination-button"
-                />
+                {canEditContent ? (
+                    <AppButton
+                        title=""
+                        onPress={handleAddDestination}
+                        fullWidth={false}
+                        style={styles.addButton}
+                        leftIcon={<Ionicons name="add" size={23} color={colors.textLight} />}
+                        testID="add-destination-button"
+                    />
+                ) : null}
             </View>
 
             {destinations.length === 0 ? (
                 <EmptyState
                     title="No destinations yet"
-                    message="Add cities or places first. Activities will be added inside each destination."
-                    icon={<Ionicons name="location-outline" size={30} color={colors.primary}/>}
-                    actionLabel="Add first destination"
-                    onActionPress={handleAddDestination}
+                    message={
+                        canEditContent
+                            ? "Add cities or places first. Activities will be added inside each destination."
+                            : "This trip does not have destinations yet."
+                    }
+                    icon={<Ionicons name="location-outline" size={30} color={colors.primary} />}
+                    actionLabel={canEditContent ? "Add first destination" : undefined}
+                    onActionPress={canEditContent ? handleAddDestination : undefined}
                 />
             ) : (
                 <View style={styles.destinationList}>
@@ -310,29 +337,29 @@ export default function TripDetailScreen() {
                 </View>
             )}
 
-            <AppButton
-                title="Delete Trip"
-                onPress={handleDeleteTrip}
-                loading={isDeleting}
-                variant="danger"
-                leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight}/>}
-                style={styles.deleteButton}
-            />
+            {canDeleteTrip ? (
+                <AppButton
+                    title="Delete Trip"
+                    onPress={handleDeleteTrip}
+                    loading={isDeleting}
+                    variant="danger"
+                    leftIcon={<Ionicons name="trash-outline" size={20} color={colors.textLight} />}
+                    style={styles.deleteButton}
+                />
+            ) : null}
         </AppScreen>
     );
-
-
 }
 
 type HeroContentProps = Readonly<{
     trip: Trip;
 }>;
 
-function HeroContent({trip}: HeroContentProps) {
+function HeroContent({ trip }: HeroContentProps) {
     return (
         <>
             <View style={styles.heroIconBadge}>
-                <Ionicons name="map" size={28} color={colors.textLight}/>
+                <Ionicons name="map" size={28} color={colors.textLight} />
             </View>
 
             <View style={styles.heroTextGroup}>
@@ -353,17 +380,17 @@ type HeaderIconButtonProps = Readonly<{
 }>;
 
 function HeaderIconButton({
-                              icon,
-                              accessibilityLabel,
-                              onPress,
-                              badgeCount = 0,
-                          }: HeaderIconButtonProps) {
+    icon,
+    accessibilityLabel,
+    onPress,
+    badgeCount = 0,
+}: HeaderIconButtonProps) {
     return (
         <Pressable
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
             onPress={onPress}
-            style={({pressed}) => [styles.headerIconButton, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
         >
             <View style={styles.headerIconContent}>
                 <Ionicons name={icon} size={23} color={colors.text} />
@@ -379,31 +406,31 @@ type InfoCardProps = Readonly<{
     value: string;
 }>;
 
-function InfoCard({icon, label, value}: InfoCardProps) {
+function InfoCard({ icon, label, value }: InfoCardProps) {
     const theme = useAppTheme();
-    const colors = theme.colors;
+    const themeColors = theme.colors;
 
     return (
         <AppCard variant="soft" contentStyle={styles.infoCardContent}>
             <View
                 style={[
                     styles.infoIconBadge,
-                    {backgroundColor: colors.primarySoft},
+                    { backgroundColor: themeColors.primarySoft },
                 ]}
             >
                 <Ionicons
                     name={icon}
                     size={20}
-                    color={colors.primary}
+                    color={themeColors.primary}
                 />
             </View>
 
             <View style={styles.infoTextGroup}>
-                <Text style={[styles.infoLabel, {color: colors.textMuted}]}>
+                <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>
                     {label}
                 </Text>
 
-                <Text style={[styles.infoValue, {color: colors.text}]}>
+                <Text style={[styles.infoValue, { color: themeColors.text }]}>
                     {value}
                 </Text>
             </View>
@@ -416,27 +443,27 @@ type DestinationCardProps = Readonly<{
     onPress: () => void;
 }>;
 
-function DestinationCard({destination, onPress}: DestinationCardProps) {
+function DestinationCard({ destination, onPress }: DestinationCardProps) {
     const theme = useAppTheme();
-    const colors = theme.colors;
+    const themeColors = theme.colors;
 
     return (
         <AppCard onPress={onPress} contentStyle={styles.destinationCardContent}>
-            <View style={[styles.destinationIconBadge, { backgroundColor: colors.primarySoft }]}>
-                <Ionicons name="location" size={22} color={colors.primary}/>
+            <View style={[styles.destinationIconBadge, { backgroundColor: themeColors.primarySoft }]}>
+                <Ionicons name="location" size={22} color={themeColors.primary} />
             </View>
 
             <View style={styles.destinationContent}>
-                <Text style={[styles.destinationTitle, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[styles.destinationTitle, { color: themeColors.text }]} numberOfLines={1}>
                     {destination.destinationName || "Untitled destination"}
                 </Text>
 
-                <Text style={[styles.destinationDate, { color: colors.textMuted }]}>
+                <Text style={[styles.destinationDate, { color: themeColors.textMuted }]}>
                     {formatDateTime(destination.startDate)} → {formatDateTime(destination.endDate)}
                 </Text>
 
                 {destination.notes ? (
-                    <Text style={[styles.destinationNotes, { color: colors.textMuted }]} numberOfLines={2}>
+                    <Text style={[styles.destinationNotes, { color: themeColors.textMuted }]} numberOfLines={2}>
                         {destination.notes}
                     </Text>
                 ) : null}
@@ -458,7 +485,7 @@ function DestinationCard({destination, onPress}: DestinationCardProps) {
                 }}
             />
 
-            <Ionicons name="chevron-forward" size={22} color={colors.textMuted}/>
+            <Ionicons name="chevron-forward" size={22} color={themeColors.textMuted} />
         </AppCard>
     );
 }
@@ -525,7 +552,7 @@ const styles = StyleSheet.create({
     },
     pressed: {
         opacity: 0.86,
-        transform: [{scale: 0.99}],
+        transform: [{ scale: 0.99 }],
     },
     heroCard: {
         backgroundColor: colors.primary,
@@ -571,6 +598,18 @@ const styles = StyleSheet.create({
         fontSize: typography.heading,
         lineHeight: 32,
         fontWeight: fontWeight.bold,
+    },
+    readOnlyCardContent: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+    },
+    readOnlyText: {
+        flex: 1,
+        color: colors.textMuted,
+        fontSize: typography.bodySmall,
+        lineHeight: 20,
+        fontWeight: fontWeight.semibold,
     },
     infoGrid: {
         gap: spacing.md,

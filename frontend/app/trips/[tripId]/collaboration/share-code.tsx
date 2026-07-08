@@ -1,21 +1,25 @@
-import {useCallback, useState} from "react";
-import {Alert, Pressable, Share, StyleSheet, Text, View} from "react-native";
-import {Ionicons} from "@expo/vector-icons";
+import { useCallback, useState } from "react";
+import { Alert, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import {useFocusEffect, useLocalSearchParams, useRouter} from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
+import { getTripById } from "@/src/api/tripApi";
 import {
     getActiveTripShareCode,
     regenerateTripShareCode,
 } from "@/src/api/tripCollaborationApi";
-import {RoleBadge} from "@/src/components/collaboration/RoleBadge";
-import {AppButton} from "@/src/components/ui/AppButton";
-import {AppCard} from "@/src/components/ui/AppCard";
-import {AppScreen} from "@/src/components/ui/AppScreen";
-import {colors, fontWeight, radius, spacing, typography} from "@/src/constants/theme";
-import type {TripShareCode} from "@/src/types/tripCollaboration";
-import {getApiErrorMessage} from "@/src/utils/apiWarningUtils";
-import {formatDateTime} from "@/src/utils/dateFormat";
+import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppCard } from "@/src/components/ui/AppCard";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { EmptyState } from "@/src/components/ui/EmptyState";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
+import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import type { TripShareCode } from "@/src/types/tripCollaboration";
+import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
+import { formatDateTime } from "@/src/utils/dateFormat";
 
 type InvitableRole = "EDITOR" | "VIEWER";
 
@@ -29,19 +33,37 @@ export default function TripShareCodeScreen() {
     const tripId = Number(tripIdParam);
     const hasValidTripId = Boolean(tripIdParam) && !Number.isNaN(tripId);
 
+    const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+    const [isOwner, setIsOwner] = useState(false);
+    const [accessError, setAccessError] = useState<string | null>(null);
     const [isLoadingActiveCode, setIsLoadingActiveCode] = useState(false);
     const [role, setRole] = useState<InvitableRole>("VIEWER");
     const [shareCode, setShareCode] = useState<TripShareCode | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
 
-    const loadActiveShareCode = useCallback(async () => {
+    const loadScreenData = useCallback(async () => {
         if (!hasValidTripId) {
+            setAccessError("Trip ID is missing or invalid.");
+            setIsOwner(false);
+            setIsCheckingAccess(false);
             return;
         }
 
         try {
+            setIsCheckingAccess(true);
             setIsLoadingActiveCode(true);
+            setAccessError(null);
+
+            const trip = await getTripById(tripId);
+            const owner = trip.currentUserRole === "OWNER";
+            setIsOwner(owner);
+
+            if (!owner) {
+                setShareCode(null);
+                setAccessError("Only the trip owner can generate invite codes.");
+                return;
+            }
 
             const activeCode = await getActiveTripShareCode(tripId);
             setShareCode(activeCode);
@@ -53,24 +75,29 @@ export default function TripShareCodeScreen() {
                 setRole(activeCode.defaultRole);
             }
         } catch (error: any) {
-            Alert.alert(
-                "Could not load invite code",
-                getApiErrorMessage(error, "Please reopen this screen and try again.")
-            );
+            setIsOwner(false);
+            setAccessError(getApiErrorMessage(error, "Could not load invite code settings."));
+            setShareCode(null);
         } finally {
+            setIsCheckingAccess(false);
             setIsLoadingActiveCode(false);
         }
     }, [hasValidTripId, tripId]);
 
     useFocusEffect(
         useCallback(() => {
-            void loadActiveShareCode();
-        }, [loadActiveShareCode])
+            void loadScreenData();
+        }, [loadScreenData])
     );
 
     async function handleGenerateCode() {
         if (!hasValidTripId) {
             Alert.alert("Missing trip", "Trip ID is missing or invalid.");
+            return;
+        }
+
+        if (!isOwner) {
+            Alert.alert("Owner only", "Only the trip owner can generate invite codes.");
             return;
         }
 
@@ -128,16 +155,56 @@ export default function TripShareCodeScreen() {
 
         try {
             setIsSharing(true);
-            await Share.share({message});
+            await Share.share({ message });
         } finally {
             setIsSharing(false);
         }
     }
 
+    if (isCheckingAccess) {
+        return (
+            <AppScreen scroll={false} centerContent>
+                <LoadingState
+                    title="Checking access..."
+                    subtitle="Confirming whether you can generate invite codes."
+                    fullScreen
+                />
+            </AppScreen>
+        );
+    }
+
+    if (!isOwner) {
+        return (
+            <AppScreen contentContainerStyle={styles.screenContent}>
+                <View style={styles.header}>
+                    <HeaderButton onPress={() => router.back()} />
+
+                    <View style={styles.headerTextGroup}>
+                        <Text style={styles.eyebrow}>Invite code</Text>
+                        <Text style={styles.title}>Owner only</Text>
+                        <Text style={styles.subtitle}>
+                            This page is only available to the trip owner.
+                        </Text>
+                    </View>
+                </View>
+
+                <ErrorMessage message={accessError} title="Access denied" />
+
+                <EmptyState
+                    title="You cannot generate invite codes"
+                    message="Ask the trip owner to share an invite code or update collaboration settings."
+                    icon={<Ionicons name="lock-closed-outline" size={30} color={colors.primary} />}
+                    actionLabel="Go back"
+                    onActionPress={() => router.back()}
+                />
+            </AppScreen>
+        );
+    }
+
     return (
         <AppScreen contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
-                <HeaderButton onPress={() => router.back()}/>
+                <HeaderButton onPress={() => router.back()} />
 
                 <View style={styles.headerTextGroup}>
                     <Text style={styles.eyebrow}>Invite code</Text>
@@ -151,6 +218,8 @@ export default function TripShareCodeScreen() {
                 </View>
             </View>
 
+            <ErrorMessage message={accessError} title="Invite code warning" />
+
             <AppCard contentStyle={styles.formContent}>
                 <View style={styles.roleSection}>
                     <Text style={styles.roleLabel}>Default role for this code</Text>
@@ -161,13 +230,13 @@ export default function TripShareCodeScreen() {
                                 key={item}
                                 accessibilityRole="button"
                                 onPress={() => setRole(item)}
-                                style={({pressed}) => [
+                                style={({ pressed }) => [
                                     styles.roleChip,
                                     role === item && styles.roleChipSelected,
                                     pressed && styles.pressed,
                                 ]}
                             >
-                                <RoleBadge role={item}/>
+                                <RoleBadge role={item} />
 
                                 <Text style={styles.roleHelpText}>
                                     {item === "VIEWER"
@@ -195,7 +264,7 @@ export default function TripShareCodeScreen() {
 
             {isLoadingActiveCode ? (
                 <AppCard contentStyle={styles.infoCardContent}>
-                    <Ionicons name="sync-outline" size={22} color={colors.primary}/>
+                    <Ionicons name="sync-outline" size={22} color={colors.primary} />
 
                     <Text style={styles.infoText}>
                         Checking for active invite code...
@@ -216,7 +285,7 @@ export default function TripShareCodeScreen() {
                     </View>
 
                     <View style={styles.expiryBox}>
-                        <Ionicons name="time-outline" size={22} color={colors.warning}/>
+                        <Ionicons name="time-outline" size={22} color={colors.warning} />
 
                         <View style={styles.expiryTextGroup}>
                             <Text style={styles.expiryTitle}>
@@ -461,6 +530,6 @@ const styles = StyleSheet.create({
     },
     pressed: {
         opacity: 0.86,
-        transform: [{scale: 0.99}],
+        transform: [{ scale: 0.99 }],
     },
 });

@@ -1125,7 +1125,11 @@ class UserServiceImplTest {
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
-        verify(cloudinaryImageClient).deleteImage("wandermate/profile-images/users/1/profile-1-old");
+        verify(cloudinaryImageClient).deleteOldCloudinaryImageIfChanged(
+                "wandermate/profile-images/users/1/profile-1-old",
+                "wandermate/profile-images/users/1/profile-1-new",
+                "profile image"
+        );
     }
 
     @Test
@@ -1159,7 +1163,11 @@ class UserServiceImplTest {
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
-        verify(cloudinaryImageClient).deleteImage("wandermate/profile-images/users/1/profile-1-old");
+        verify(cloudinaryImageClient).deleteOldCloudinaryImageIfChanged(
+                "wandermate/profile-images/users/1/profile-1-old",
+                null,
+                "profile image"
+        );
     }
 
     @Test
@@ -1190,11 +1198,15 @@ class UserServiceImplTest {
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
-        verify(cloudinaryImageClient, never()).deleteImage(anyString());
+        verify(cloudinaryImageClient).deleteOldCloudinaryImageIfChanged(
+                "wandermate/profile-images/users/1/profile-1-same",
+                "wandermate/profile-images/users/1/profile-1-same",
+                "profile image"
+        );
     }
 
     @Test
-    void updateMyProfile_shouldStillReturnSuccess_whenOldCloudinaryImageDeleteFails() throws IOException {
+    void updateMyProfile_shouldAskCloudinaryClientToCleanUpOldImage_whenProfileImageIsReplaced() throws IOException {
         User user = profileUser();
         user.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-old");
 
@@ -1219,15 +1231,15 @@ class UserServiceImplTest {
         }).when(userMapper).updateProfileEntity(user, request, user.getDob());
         when(userRepository.save(user)).thenReturn(user);
         when(userMapper.toProfileResponseDTO(user)).thenReturn(responseDTO);
-        doThrow(new IOException("Cloudinary delete failed"))
-                .when(cloudinaryImageClient)
-                .deleteImage("wandermate/profile-images/users/1/profile-1-old");
-
         CompleteResponse<Object> response = userService.updateMyProfile(request);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
-        verify(cloudinaryImageClient).deleteImage("wandermate/profile-images/users/1/profile-1-old");
+        verify(cloudinaryImageClient).deleteOldCloudinaryImageIfChanged(
+                "wandermate/profile-images/users/1/profile-1-old",
+                "wandermate/profile-images/users/1/profile-1-new",
+                "profile image"
+        );
     }
 
     @Test

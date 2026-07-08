@@ -363,10 +363,10 @@ class TripServiceImplTest {
                 .thenReturn(response2);
 
         CompleteResponse<Object> response = tripService.getTrips(
-        TripEnum.ALL,
-        "ALL",
-        TripEnum.MODIFIED_DATE_DESC
-);
+                TripEnum.ALL,
+                "ALL",
+                TripEnum.MODIFIED_DATE_DESC
+        );
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TRIPS_RETRIEVED_SUCCESS.getCode());
@@ -388,10 +388,10 @@ class TripServiceImplTest {
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> tripService.getTrips(
-        TripEnum.ALL,
-        "ALL",
-        TripEnum.MODIFIED_DATE_DESC
-)
+                        TripEnum.ALL,
+                        "ALL",
+                        TripEnum.MODIFIED_DATE_DESC
+                )
         );
 
         assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
@@ -407,10 +407,10 @@ class TripServiceImplTest {
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> tripService.getTrips(
-        TripEnum.ALL,
-        "ALL",
-        TripEnum.MODIFIED_DATE_DESC
-)
+                        TripEnum.ALL,
+                        "ALL",
+                        TripEnum.MODIFIED_DATE_DESC
+                )
         );
 
         assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());
@@ -541,7 +541,11 @@ class TripServiceImplTest {
         assertThat(existingTrip.getCoverImagePublicId()).isEqualTo(request.getCoverImagePublicId());
 
         verify(tripRepository).save(existingTrip);
-        verify(cloudinaryImageClient).deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
+        verify(cloudinaryImageClient).deleteOldCloudinaryImageIfChanged(
+                "wandermate/trip-covers/users/1/trip-cover-1-old",
+                "wandermate/trip-covers/users/1/trip-cover-1-new",
+                "trip cover"
+        );
     }
 
 
@@ -564,7 +568,11 @@ class TripServiceImplTest {
                 .isEqualTo(TRIP_UPDATED_SUCCESS.getCode());
         assertThat(existingTrip.getCoverImageUrl()).isNull();
         assertThat(existingTrip.getCoverImagePublicId()).isNull();
-        verify(cloudinaryImageClient).deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
+        verify(cloudinaryImageClient).deleteOldCloudinaryImageIfChanged(
+                "wandermate/trip-covers/users/1/trip-cover-1-old",
+                null,
+                "trip cover"
+        );
     }
 
     @Test
@@ -584,25 +592,30 @@ class TripServiceImplTest {
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TRIP_UPDATED_SUCCESS.getCode());
-        verify(cloudinaryImageClient, never()).deleteImage(anyString());
+        verify(cloudinaryImageClient).deleteOldCloudinaryImageIfChanged(
+                "wandermate/trip-covers/users/1/trip-cover-1-same",
+                "wandermate/trip-covers/users/1/trip-cover-1-same",
+                "trip cover"
+        );
     }
 
     @Test
-    void updateTrip_shouldStillReturnSuccess_whenOldCloudinaryCoverDeleteFails() throws IOException {
+    void updateTrip_shouldAskCloudinaryClientToCleanUpOldCover_whenCoverImageIsReplaced() throws IOException {
         UpdateTripDTO request = validUpdateRequest();
         TripEntity existingTrip = trip("Old Trip");
         TripResponseDTO responseDTO = mock(TripResponseDTO.class);
 
         mockSuccessfulUpdateDependencies(request, existingTrip, responseDTO);
-        doThrow(new IOException("Cloudinary delete failed"))
-                .when(cloudinaryImageClient)
-                .deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
 
         CompleteResponse<Object> response = tripService.updateTrip(TRIP_ID, request);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TRIP_UPDATED_SUCCESS.getCode());
-        verify(cloudinaryImageClient).deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
+        verify(cloudinaryImageClient).deleteOldCloudinaryImageIfChanged(
+                "wandermate/trip-covers/users/1/trip-cover-1-old",
+                "wandermate/trip-covers/users/1/trip-cover-1-new",
+                "trip cover"
+        );
     }
 
     @Test
@@ -880,7 +893,11 @@ class TripServiceImplTest {
         assertThat(response.getResponseBody().getBody()).isNull();
 
         verify(tripRepository).delete(trip);
-        verify(cloudinaryImageClient).deleteImage("wandermate/trip-covers/users/1/trip-cover-1-old");
+        verify(cloudinaryImageClient).deleteOldCloudinaryImageIfChanged(
+                "wandermate/trip-covers/users/1/trip-cover-1-old",
+                null,
+                "trip cover"
+        );
     }
 
     @Test

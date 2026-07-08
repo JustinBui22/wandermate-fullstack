@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
+import { getTripById } from "@/src/api/tripApi";
 import { sendTripInvitation } from "@/src/api/tripCollaborationApi";
 import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
+import { EmptyState } from "@/src/components/ui/EmptyState";
+import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import type { TripCollaborationRole } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
@@ -26,12 +30,53 @@ export default function InviteMemberScreen() {
     const [username, setUsername] = useState("");
     const [role, setRole] = useState<InvitableRole>("VIEWER");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+    const [isOwner, setIsOwner] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            async function checkAccess() {
+                if (!hasValidTripId) {
+                    setError("Trip ID is missing or invalid.");
+                    setIsOwner(false);
+                    setIsCheckingAccess(false);
+                    return;
+                }
+
+                try {
+                    setError(null);
+                    setIsCheckingAccess(true);
+
+                    const trip = await getTripById(tripId);
+                    const owner = trip.currentUserRole === "OWNER";
+                    setIsOwner(owner);
+
+                    if (!owner) {
+                        setError("Only the trip owner can invite members.");
+                    }
+                } catch (error: any) {
+                    setIsOwner(false);
+                    setError(getApiErrorMessage(error, "Could not verify your access for this trip."));
+                } finally {
+                    setIsCheckingAccess(false);
+                }
+            }
+
+            void checkAccess();
+        }, [hasValidTripId, tripId])
+    );
 
     async function handleSendInvitation() {
         const targetUsername = username.trim();
 
         if (!hasValidTripId) {
             Alert.alert("Missing trip", "Trip ID is missing or invalid.");
+            return;
+        }
+
+        if (!isOwner) {
+            Alert.alert("Owner only", "Only the trip owner can invite members.");
             return;
         }
 
@@ -58,6 +103,45 @@ export default function InviteMemberScreen() {
         } finally {
             setIsSubmitting(false);
         }
+    }
+
+    if (isCheckingAccess) {
+        return (
+            <AppScreen scroll={false} centerContent>
+                <LoadingState
+                    title="Checking access..."
+                    subtitle="Confirming whether you can invite members."
+                    fullScreen
+                />
+            </AppScreen>
+        );
+    }
+
+    if (!isOwner) {
+        return (
+            <AppScreen contentContainerStyle={styles.screenContent}>
+                <View style={styles.header}>
+                    <HeaderButton onPress={() => router.back()} />
+                    <View style={styles.headerTextGroup}>
+                        <Text style={styles.eyebrow}>Invite member</Text>
+                        <Text style={styles.title}>Owner only</Text>
+                        <Text style={styles.subtitle}>
+                            This page is only available to the trip owner.
+                        </Text>
+                    </View>
+                </View>
+
+                <ErrorMessage message={error} title="Access denied" />
+
+                <EmptyState
+                    title="You cannot invite members"
+                    message="Ask the trip owner to invite members or change sharing settings."
+                    icon={<Ionicons name="lock-closed-outline" size={30} color={colors.primary} />}
+                    actionLabel="Go back"
+                    onActionPress={() => router.back()}
+                />
+            </AppScreen>
+        );
     }
 
     return (

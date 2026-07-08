@@ -332,7 +332,7 @@ public class TripServiceImpl implements TripService {
             tripRepository.save(trip);
 
             // Delete old cover image from Cloudinary if it has changed
-            deleteOldCloudinaryImageIfChanged(
+            cloudinaryImageClient.deleteOldCloudinaryImageIfChanged(
                     oldCoverImagePublicId,
                     trip.getCoverImagePublicId(),
                     "trip cover"
@@ -374,7 +374,7 @@ public class TripServiceImpl implements TripService {
             tripRepository.delete(trip);
 
             // Delete old cover image from Cloudinary if it exists
-            deleteOldCloudinaryImageIfChanged(oldCoverImagePublicId, null, "trip cover");
+            cloudinaryImageClient.deleteOldCloudinaryImageIfChanged(oldCoverImagePublicId, null, "trip cover");;
 
             return getCompleteResponse(
                     errorCodeRepository,
@@ -743,19 +743,5 @@ public class TripServiceImpl implements TripService {
             return null;
         }
         return value.trim();
-    }
-
-    private void deleteOldCloudinaryImageIfChanged(String oldPublicId, String newPublicId, String imagePurpose) {
-        if (oldPublicId == null || oldPublicId.isBlank()) {
-            return;
-        }
-        if (oldPublicId.equals(newPublicId)) {
-            return;
-        }
-        try {
-            cloudinaryImageClient.deleteImage(oldPublicId);
-        } catch (IOException e) {
-            log.error("Failed to delete old Cloudinary {}: {}", imagePurpose, oldPublicId, e);
-        }
     }
 }

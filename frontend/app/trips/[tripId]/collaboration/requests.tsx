@@ -3,6 +3,7 @@ import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from "react
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
+import { getTripById } from "@/src/api/tripApi";
 import { acceptJoinRequest, getPendingJoinRequests, rejectJoinRequest } from "@/src/api/tripCollaborationApi";
 import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
 import { AppButton } from "@/src/components/ui/AppButton";
@@ -65,6 +66,7 @@ export default function TripJoinRequestsScreen() {
     const hasValidTripId = Boolean(tripIdParam) && !Number.isNaN(tripId);
 
     const [requests, setRequests] = useState<TripCollaborationRequest[]>([]);
+    const [isOwner, setIsOwner] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
@@ -73,6 +75,7 @@ export default function TripJoinRequestsScreen() {
     const loadRequests = useCallback(async () => {
         if (!hasValidTripId) {
             setError("Trip ID is missing or invalid.");
+            setIsOwner(false);
             setIsLoading(false);
             setIsRefreshing(false);
             return;
@@ -80,9 +83,22 @@ export default function TripJoinRequestsScreen() {
 
         try {
             setError(null);
+
+            const trip = await getTripById(tripId);
+            const owner = trip.currentUserRole === "OWNER";
+            setIsOwner(owner);
+
+            if (!owner) {
+                setRequests([]);
+                setError("Only the trip owner can review join requests.");
+                return;
+            }
+
             const data = await getPendingJoinRequests(tripId);
             setRequests(Array.isArray(data) ? data : []);
         } catch (error: any) {
+            setIsOwner(false);
+            setRequests([]);
             setError(getApiErrorMessage(error, "Failed to load join requests."));
         } finally {
             setIsLoading(false);
@@ -107,6 +123,11 @@ export default function TripJoinRequestsScreen() {
     }
 
     async function performAccept(request: TripCollaborationRequest) {
+        if (!isOwner) {
+            Alert.alert("Owner only", "Only the trip owner can accept join requests.");
+            return;
+        }
+
         if (!isRequestPending(request)) {
             showAlreadyHandledAlert(() => {
                 void loadRequests();
@@ -138,6 +159,11 @@ export default function TripJoinRequestsScreen() {
     }
 
     async function performReject(request: TripCollaborationRequest) {
+        if (!isOwner) {
+            Alert.alert("Owner only", "Only the trip owner can reject join requests.");
+            return;
+        }
+
         if (!isRequestPending(request)) {
             showAlreadyHandledAlert(() => {
                 void loadRequests();
@@ -172,6 +198,33 @@ export default function TripJoinRequestsScreen() {
         return (
             <AppScreen scroll={false} centerContent>
                 <LoadingState title="Loading join requests..." subtitle="Checking pending requests." fullScreen />
+            </AppScreen>
+        );
+    }
+
+    if (!isOwner) {
+        return (
+            <AppScreen scroll={false} contentContainerStyle={styles.screenContent}>
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    <View style={styles.header}>
+                        <HeaderButton onPress={() => router.back()} />
+                        <View style={styles.headerTextGroup}>
+                            <Text style={styles.eyebrow}>Requests</Text>
+                            <Text style={styles.title}>Owner only</Text>
+                            <Text style={styles.subtitle}>Only the trip owner can review pending join requests.</Text>
+                        </View>
+                    </View>
+
+                    <ErrorMessage message={error} title="Access denied" />
+
+                    <EmptyState
+                        title="You cannot manage requests"
+                        message="Ask the trip owner to accept or reject pending join requests."
+                        icon={<Ionicons name="lock-closed-outline" size={30} color={colors.primary} />}
+                        actionLabel="Go back"
+                        onActionPress={() => router.back()}
+                    />
+                </ScrollView>
             </AppScreen>
         );
     }
