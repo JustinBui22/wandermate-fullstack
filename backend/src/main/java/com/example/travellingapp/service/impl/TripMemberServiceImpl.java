@@ -19,6 +19,7 @@ import com.example.travellingapp.service.TripMemberService;
 import com.example.travellingapp.validator.TripMemberValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -91,6 +92,7 @@ public class TripMemberServiceImpl implements TripMemberService {
         }
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> addTripMember(Long tripId, AddTripMemberDTO addTripMemberDTO) {
         try {
@@ -138,6 +140,7 @@ public class TripMemberServiceImpl implements TripMemberService {
         }
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> updateTripMemberRole(Long tripId, Long tripMemberId, UpdateTripMemberRoleDTO updateTripMemberRoleDTO) {
         try {
@@ -182,6 +185,7 @@ public class TripMemberServiceImpl implements TripMemberService {
         }
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> removeTripMember(Long tripId, Long tripMemberId) {
         try {

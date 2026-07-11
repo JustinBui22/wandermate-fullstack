@@ -1,389 +1,184 @@
 # Authentication and OTP Flow
 
-This document explains authentication, sessions, refresh tokens, logout, and OTP behaviour in the WanderMate / Travelling App backend.
+This document explains the authentication design in WanderMate.
 
----
+## Token Model
 
-## Core Token Model
+The backend uses three values after login:
 
-The backend uses three token values after login:
-
-```text
-accessToken
-refreshToken
-sessionToken
-```
-
-| Token | Purpose | Storage |
+| Token | Purpose | Database Storage |
 |---|---|---|
-| `accessToken` | JWT used for protected API authorization | Returned to client; not stored as raw value in DB |
-| `refreshToken` | Used to rotate access tokens | Raw token returned to client; hashed token stored in DB |
-| `sessionToken` | Validates the active login session | Raw token returned to client; encoded token stored in DB |
+| `accessToken` | JWT for protected APIs | Not stored as raw token |
+| `refreshToken` | Used to rotate tokens | Hashed in `refresh_token` |
+| `sessionToken` | Validates active login session/device | Encoded/hashed in `session_token` |
 
-Protected requests require:
+Protected calls require:
 
-```text
+```http
 Authorization: Bearer <accessToken>
 Session-Token: <sessionToken>
 ```
 
-Refresh requests require:
+Refresh calls require:
 
-```text
+```http
 Refresh-Token: <refreshToken>
 Session-Token: <sessionToken>
 ```
-
----
 
 ## Login Flow
 
 ```mermaid
 sequenceDiagram
-    actor Client
-    participant UserAPI as User API
+    actor User
+    participant App as Expo App
+    participant API as User API
     participant UserService
     participant TokenService
     participant DB as MariaDB
 
-    Client->>UserAPI: POST /api/v1/users/login
-    UserAPI->>UserService: login(request)
-    UserService->>DB: Find active user by username/email/phone
-    DB-->>UserService: User entity
-    UserService->>UserService: Validate password
-    UserService->>TokenService: checkMaxActiveSessions(username, overrideMaxSession)
-    TokenService->>DB: Query active sessions
-    alt Max sessions reached and override=false
-        TokenService-->>UserService: MAX_SESSIONS_REACHED
-        UserService-->>Client: 429 response
-    else Max sessions not reached or override=true
-        TokenService->>TokenService: Generate sessionId
-        UserService->>TokenService: Generate access token with sessionId claim
-        UserService->>TokenService: Generate session token
-        TokenService->>DB: Save encoded session token
-        UserService->>TokenService: Generate refresh token
-        TokenService->>DB: Save hashed refresh token
-        UserService-->>Client: accessToken + refreshToken + sessionToken
-    end
+    User->>App: Enter username/password
+    App->>API: POST /api/v1/users/login
+    API->>UserService: loginUser(...)
+    UserService->>DB: Find user
+    UserService->>UserService: Verify password hash
+    UserService->>TokenService: Generate access/refresh/session tokens
+    TokenService->>DB: Store refresh token hash + session token
+    TokenService-->>UserService: Token response
+    UserService-->>API: CompleteResponse
+    API-->>App: accessToken, refreshToken, sessionToken
 ```
 
-Login request:
+The frontend stores tokens using Expo SecureStore.
+
+## Max Session Flow
+
+`MAX_ALLOWED_SESSIONS` is configured in the `configuration` table.
+
+If a user reaches the max session count:
+
+```text
+1. Backend returns MAX_SESSIONS_REACHED.
+2. Frontend shows confirmation.
+3. If user continues, frontend retries login with overrideMaxSession=true.
+4. Backend revokes the oldest session and creates a new one.
+```
+
+Example retry request:
 
 ```json
 {
-  "username": "JustinBo123",
-  "password": "Password123",
-  "overrideMaxSession": false
+  "username": "owner_user",
+  "password": "Password123!",
+  "overrideMaxSession": true
 }
 ```
 
-Response body:
+## Access Token Validation
 
-```json
-{
-  "accessToken": "...",
-  "refreshToken": "...",
-  "sessionToken": "..."
-}
-```
-
----
-
-## Max Active Session Flow
-
-The max active sessions value is read from configuration:
+For protected APIs:
 
 ```text
-MAX_ALLOWED_SESSIONS
+1. TokenFilter checks whether the route is public.
+2. It reads Authorization Bearer access token.
+3. It validates JWT signature and expiry.
+4. It validates Session-Token against active session data.
+5. It loads user identity into Spring SecurityContext.
+6. Controller/service layer continues as authenticated user.
 ```
 
-Default behaviour:
-
-```text
-If active sessions < max → login allowed
-If active sessions >= max and overrideMaxSession=false → MAX_SESSIONS_REACHED
-If active sessions >= max and overrideMaxSession=true → revoke oldest session(s), then login allowed
-```
-
-Frontend expected behaviour:
-
-```text
-1. Login returns MAX_SESSIONS_REACHED
-2. Frontend shows confirmation popup
-3. User agrees to terminate oldest session
-4. Frontend retries login with overrideMaxSession=true
-```
-
----
-
-## Access Token Validation Flow
-
-```mermaid
-flowchart TD
-    A[Protected request] --> B{URL public?}
-    B -- Yes --> C[Skip token validation]
-    B -- No --> D{Authorization header Bearer token?}
-    D -- No --> E[401 Unauthorized]
-    D -- Yes --> F[Validate JWT signature and expiry]
-    F --> G{Token valid?}
-    G -- No --> H[Return token error]
-    G -- Yes --> I[Extract username and sessionId]
-    I --> J{Session-Token valid for username + sessionId?}
-    J -- No --> K[SESSION_TOKEN_INVALID]
-    J -- Yes --> L[Populate SecurityContext]
-    L --> M[Allow controller]
-```
-
-The access token contains:
-
-```text
-subject = username
-sessionId = active session id
-roles = user authorities
-```
-
----
-
-## Refresh Token Rotation Flow
+## Refresh Flow
 
 ```mermaid
 sequenceDiagram
-    actor Client
-    participant AuthAPI as Auth API
+    participant App
+    participant API as Token API
     participant TokenService
     participant DB as MariaDB
 
-    Client->>AuthAPI: POST /api/v1/auth/refresh
-    Note over Client,AuthAPI: Refresh-Token + Session-Token headers
-    AuthAPI->>TokenService: refreshAccessToken(refreshToken, sessionToken)
-    TokenService->>TokenService: Hash incoming refresh token
-    TokenService->>DB: Find refresh token by hash
-    alt Token not found
-        TokenService-->>Client: REFRESH_TOKEN_INVALID
-    else Token revoked/reused
-        TokenService->>DB: Mark reuseDetected=true
-        TokenService->>DB: Revoke active refresh tokens for session
-        TokenService->>DB: Delete session token
-        TokenService-->>Client: REFRESH_TOKEN_INVALID
-    else Token expired
-        TokenService->>DB: Revoke refresh token
-        TokenService->>DB: Delete session token
-        TokenService-->>Client: REFRESH_TOKEN_EXPIRED
-    else Valid token and valid session token
-        TokenService->>DB: Revoke old refresh token
-        TokenService->>TokenService: Generate new access token
-        TokenService->>TokenService: Generate new refresh token
-        TokenService->>DB: Save new refresh token hash
-        TokenService->>DB: Save replacedByTokenId on old token
-        TokenService-->>Client: new accessToken + new refreshToken
-    end
+    App->>API: POST /api/v1/auth/refresh
+    API->>TokenService: refresh(refreshToken, sessionToken)
+    TokenService->>DB: Find refresh token hash
+    TokenService->>DB: Validate session token
+    TokenService->>TokenService: Detect expired/revoked/reused token
+    TokenService->>DB: Revoke old refresh token
+    TokenService->>DB: Save new refresh token hash
+    TokenService-->>App: new accessToken + refreshToken + sessionToken
 ```
 
-Refresh request:
-
-```http
-POST /api/v1/auth/refresh
-Refresh-Token: <refreshToken>
-Session-Token: <sessionToken>
-```
-
-The refresh token is rotated on every successful refresh.
-
----
+Refresh-token reuse is treated as suspicious. Reused or invalid refresh tokens are rejected.
 
 ## Logout Flow
 
-Logout is protected and needs:
+```text
+1. Frontend calls POST /api/v1/users/logout.
+2. Backend reads current session token and username.
+3. Backend revokes the current session/refresh token chain.
+4. Frontend clears SecureStore tokens.
+5. Frontend resets auth state and theme preference to SYSTEM.
+```
+
+## OTP Flow
+
+OTP is used for registration and forgot-password flows.
+
+High-level send flow:
 
 ```text
-Authorization: Bearer <accessToken>
-Session-Token: <sessionToken>
+1. User submits username/email/phone depending on flow.
+2. Backend validates the user details.
+3. Backend checks retry/restriction limits.
+4. Backend generates OTP.
+5. Backend sends email/SMS depending on verification method.
+6. Backend stores newest OTP and expiry metadata.
 ```
 
-Flow:
+High-level verify flow:
 
 ```text
-1. TokenFilter validates access token and session token
-2. UserService gets authenticated username + sessionId
-3. Backend deletes the matching session token
-4. Backend revokes active refresh tokens for that sessionId
-5. Client clears local tokens
+1. User enters OTP.
+2. Backend checks OTP record.
+3. Backend checks block/retry/expiry state.
+4. Backend checks OTP value.
+5. On success, OTP is consumed/accepted for the target flow.
 ```
 
----
-
-## Register with Email OTP
-
-Recommended current real flow:
+Important OTP configuration keys:
 
 ```text
-1. User enters username, password, email, optional phone, dob
-2. Frontend calls /api/v1/users/register/verify
-3. Backend validates duplicate username/email/phone and request format
-4. Frontend calls /api/v1/otp/send with EMAIL_OTP
-5. Backend sends email OTP when email config is correctly set
-6. User enters OTP
-7. Frontend calls /api/v1/users/register with OTP
-8. Backend verifies OTP and creates user
-```
-
-Send OTP request:
-
-```json
-{
-  "userName": "JustinBo123",
-  "otpVerificationMethod": "EMAIL_OTP",
-  "email": "justin@example.com",
-  "emailEnum": "EMAIL_OTP_REGISTER"
-}
-```
-
-Register request:
-
-```json
-{
-  "username": "JustinBo123",
-  "password": "Password123",
-  "email": "justin@example.com",
-  "phoneNumber": "0412345678",
-  "dob": "01/01/2000",
-  "otp": "123456"
-}
-```
-
----
-
-## Forgot Password with OTP
-
-Flow:
-
-```text
-1. User requests OTP using registered email or phone
-2. Backend validates the OTP destination belongs to the existing user
-3. User submits new password + OTP
-4. Backend verifies OTP
-5. Backend updates encoded password
-```
-
-Request:
-
-```json
-{
-  "username": "JustinBo123",
-  "newPassword": "NewPassword123",
-  "email": "justin@example.com",
-  "otp": "123456"
-}
-```
-
----
-
-## OTP Retry and Blocking Rules
-
-The backend tracks separate retry counters:
-
-```text
-retrySendOtpCount
-retryVerifyOtpCount
-```
-
-Configuration keys:
-
-```text
+OTP_EXPIRATION_TIME
+OTP_RESTRICTED_TIME
 MAX_RETRY_SEND_OTP
 MAX_RETRY_VERIFY_OTP
-OTP_RESTRICTED_TIME
-OTP_EXPIRATION_TIME
+EMAIL_OAUTH_REFRESH_ENABLED
 ```
 
-Behaviour:
+## Frontend Theme Hydration
+
+User theme preference is stored in the backend profile.
+
+The frontend should apply saved theme after:
 
 ```text
-Too many send attempts → OTP record blocked temporarily
-Too many wrong/expired verification attempts → OTP record blocked temporarily
-Restriction expired → counters reset and OTP can be requested again
-New OTP send → verification retry count resets
+- login success
+- session restore/app boot
+- profile/settings update
 ```
 
----
-
-## Email vs SMS OTP Status
-
-Email OTP:
-
-```text
-Implemented end-to-end when Gmail/OAuth/email configuration is correctly set.
-```
-
-SMS OTP:
-
-```text
-Prepared at service level and unit-tested with mocks.
-Real SMS provider integration is not enabled yet.
-```
-
-The current `SmsServiceImpl` returns `SMS_SENT_SUCCESS` without calling an external SMS provider. Do not describe phone OTP as real delivery until a provider is integrated.
-
----
+This avoids requiring the user to open the Profile screen before dark/light mode is applied.
 
 ## Security Notes
 
-- Passwords are encoded before storage.
-- Refresh tokens are hashed before storage.
-- Session tokens are encoded before storage.
-- Access token includes session id, so a stolen access token alone is not enough if the session token is missing/invalid.
-- Refresh token reuse triggers session revocation.
-- Public/private routes are configured from the database-backed configuration table.
-
-## Protected Profile and Settings Flow
-
-The current profile/settings endpoints are protected and use the same auth headers as trip APIs.
+Do not commit:
 
 ```text
-GET   /api/v1/users/me
-PATCH /api/v1/users/me/profile
-PATCH /api/v1/users/me/settings
+JWT secret
+Google OAuth client secret
+Google OAuth refresh token
+raw database dumps
+refresh token rows
+session token rows
+backend/.env
 ```
 
-Required headers:
-
-```text
-Authorization: Bearer <accessToken>
-Session-Token: <sessionToken>
-```
-
-Profile/settings update non-sensitive user-facing fields such as display name, profile image URL, and preferred theme. Password reset still goes through the forgot-password OTP flow.
-
----
-
-## Image Upload Authorization
-
-Image upload is protected by the normal token/session model.
-
-```text
-POST /api/v1/uploads/images
-```
-
-Required headers:
-
-```text
-Authorization: Bearer <accessToken>
-Session-Token: <sessionToken>
-```
-
-The uploaded file is sent as `multipart/form-data`. The request must include:
-
-```text
-file
-imageType
-```
-
-Image URLs returned by Cloudinary are public HTTPS URLs. The app displays those URLs directly in React Native `Image` components. The backend does not need to make `/uploads/**` public because Cloudinary serves the image files.
-
-Security notes:
-
-```text
-- Do not upload sensitive documents such as passports, driver licences, or visas.
-- Profile images and trip covers are treated as app-display media.
-- The database stores Cloudinary URL/publicId, not binary image data.
-```
+For public GitHub, use `.env.example` and safe placeholder seed data only.

@@ -115,6 +115,28 @@ export default function ActivityDetailScreen() {
         );
     }
 
+    async function handleConfirmDeleteActivity() {
+        try {
+            setIsDeleting(true);
+
+            await deleteActivity(
+                tripNumberId,
+                destinationNumberId,
+                activityNumberId
+            );
+
+            Alert.alert("Activity deleted", "Activity has been deleted.");
+            router.back();
+        } catch (error: any) {
+            Alert.alert(
+                "Delete activity failed",
+                getApiErrorMessage(error, "Please try again.")
+            );
+        } finally {
+            setIsDeleting(false);
+        }
+    }
+
     function handleDeleteActivity() {
         if (!hasValidRouteIds) {
             Alert.alert("Missing activity", "Trip ID, destination ID, or activity ID is missing or invalid.");
@@ -129,27 +151,8 @@ export default function ActivityDetailScreen() {
                 {
                     text: "Delete",
                     style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setIsDeleting(true);
-
-                            await deleteActivity(
-                                tripNumberId,
-                                destinationNumberId,
-                                activityNumberId
-                            );
-
-                            Alert.alert("Activity deleted", "Activity has been deleted.");
-                            router.back();
-                        } catch (error: any) {
-
-                            Alert.alert(
-                                "Delete activity failed",
-                                getApiErrorMessage(error, "Please try again.")
-                            );
-                        } finally {
-                            setIsDeleting(false);
-                        }
+                    onPress: () => {
+                        void handleConfirmDeleteActivity();
                     },
                 },
             ]
@@ -180,7 +183,12 @@ export default function ActivityDetailScreen() {
                     <Text style={[styles.centerSubtitle, { color: themeColors.textMuted }]}>{error ?? "Activity not found."}</Text>
                 </View>
 
-                <AppButton title="Try again" onPress={loadActivityDetail} />
+                <AppButton
+                    title="Try again"
+                    onPress={() => {
+                        void loadActivityDetail();
+                    }}
+                />
                 <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
             </AppScreen>
         );

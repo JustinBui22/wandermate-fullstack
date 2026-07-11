@@ -163,6 +163,16 @@ export default function ProfileScreen() {
         setIsEditingProfile(false);
     }
 
+    async function handleConfirmLogout() {
+        try {
+            setIsLoggingOut(true);
+            await logoutUser();
+            router.replace("/login" as any);
+        } finally {
+            setIsLoggingOut(false);
+        }
+    }
+
     function handleLogout() {
         Alert.alert(
             "Log out",
@@ -172,14 +182,8 @@ export default function ProfileScreen() {
                 {
                     text: "Log out",
                     style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setIsLoggingOut(true);
-                            await logoutUser();
-                            router.replace("/login" as any);
-                        } finally {
-                            setIsLoggingOut(false);
-                        }
+                    onPress: () => {
+                        void handleConfirmLogout();
                     },
                 },
             ]
@@ -252,7 +256,9 @@ export default function ProfileScreen() {
                             <AppButton
                                 title="Save"
                                 fullWidth={false}
-                                onPress={handleSaveProfile}
+                                onPress={() => {
+                                    void handleSaveProfile();
+                                }}
                                 loading={isSavingProfile}
                                 style={styles.footerButton}
                             />
@@ -375,7 +381,9 @@ export default function ProfileScreen() {
                                     busy: isSavingThisTheme,
                                 }}
                                 disabled={savingTheme !== null}
-                                onPress={() => handleThemeChange(option.value)}
+                                onPress={() => {
+                                    void handleThemeChange(option.value);
+                                }}
                                 style={({ pressed }) => [
                                     styles.themeOption,
                                     {

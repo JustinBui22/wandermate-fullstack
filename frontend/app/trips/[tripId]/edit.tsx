@@ -146,6 +146,32 @@ export default function EditTripScreen() {
         });
     }
 
+    async function handleConfirmOverlapUpdate() {
+        try {
+            setIsSubmitting(true);
+            setError(null);
+
+            await submitTripUpdate(true);
+
+            Alert.alert("Trip updated", "Your trip has been updated.");
+            router.back();
+        } catch (confirmError: any) {
+            const message = getApiErrorMessage(
+                confirmError,
+                "Please check your input and try again."
+            );
+
+            setError(message);
+
+            Alert.alert(
+                getApiErrorTitle(confirmError, "Update trip failed"),
+                message
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
     async function handleUpdateTrip() {
         setError(null);
 
@@ -185,34 +211,8 @@ export default function EditTripScreen() {
                         {
                             text: "Continue anyway",
                             style: "destructive",
-                            onPress: async () => {
-                                try {
-                                    setIsSubmitting(true);
-                                    setError(null);
-
-                                    await submitTripUpdate(true);
-
-                                    Alert.alert("Trip updated", "Your trip has been updated.");
-                                    router.back();
-                                } catch (confirmError: any) {
-
-                                    setError(
-                                        getApiErrorMessage(
-                                            confirmError,
-                                            "Please check your input and try again."
-                                        )
-                                    );
-
-                                    Alert.alert(
-                                        getApiErrorTitle(confirmError, "Update trip failed"),
-                                        getApiErrorMessage(
-                                            confirmError,
-                                            "Please check your input and try again."
-                                        )
-                                    );
-                                } finally {
-                                    setIsSubmitting(false);
-                                }
+                            onPress: () => {
+                                void handleConfirmOverlapUpdate();
                             },
                         },
                     ]
@@ -256,7 +256,12 @@ export default function EditTripScreen() {
                     <Text style={styles.centerSubtitle}>{error}</Text>
                 </View>
 
-                <AppButton title="Try again" onPress={loadTripForEdit} />
+                <AppButton
+                    title="Try again"
+                    onPress={() => {
+                        void loadTripForEdit();
+                    }}
+                />
                 <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
             </AppScreen>
         );
@@ -327,7 +332,9 @@ export default function EditTripScreen() {
 
                 <AppButton
                     title="Save Trip"
-                    onPress={handleUpdateTrip}
+                    onPress={() => {
+                        void handleUpdateTrip();
+                    }}
                     loading={isSubmitting}
                     rightIcon={<Ionicons name="checkmark-circle" size={20} color={colors.textLight} />}
                 />

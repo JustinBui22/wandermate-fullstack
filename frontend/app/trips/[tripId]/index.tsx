@@ -146,6 +146,23 @@ export default function TripDetailScreen() {
         router.push(`/trips/${tripNumberId}/collaboration` as any);
     }
 
+    async function handleConfirmDeleteTrip() {
+        try {
+            setIsDeleting(true);
+            await deleteTrip(tripNumberId);
+
+            Alert.alert("Trip deleted", "Trip has been deleted.");
+            router.back();
+        } catch (error: any) {
+            Alert.alert(
+                "Delete trip failed",
+                getApiErrorMessage(error, "Please try again.")
+            );
+        } finally {
+            setIsDeleting(false);
+        }
+    }
+
     function handleDeleteTrip() {
         if (!hasValidTripId) {
             Alert.alert("Missing trip", "Trip ID is missing or invalid.");
@@ -160,21 +177,8 @@ export default function TripDetailScreen() {
                 {
                     text: "Delete",
                     style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setIsDeleting(true);
-                            await deleteTrip(tripNumberId);
-
-                            Alert.alert("Trip deleted", "Trip has been deleted.");
-                            router.back();
-                        } catch (error: any) {
-                            Alert.alert(
-                                "Delete trip failed",
-                                getApiErrorMessage(error, "Please try again.")
-                            );
-                        } finally {
-                            setIsDeleting(false);
-                        }
+                    onPress: () => {
+                        void handleConfirmDeleteTrip();
                     },
                 },
             ]
@@ -380,11 +384,11 @@ type HeaderIconButtonProps = Readonly<{
 }>;
 
 function HeaderIconButton({
-    icon,
-    accessibilityLabel,
-    onPress,
-    badgeCount = 0,
-}: HeaderIconButtonProps) {
+                              icon,
+                              accessibilityLabel,
+                              onPress,
+                              badgeCount = 0,
+                          }: HeaderIconButtonProps) {
     return (
         <Pressable
             accessibilityRole="button"

@@ -1,62 +1,36 @@
 # Frontend Integration Guide
 
-This document explains how the Expo React Native frontend connects to the Spring Boot backend.
+This document explains how the Expo React Native frontend connects to the WanderMate backend.
 
----
+## Backend Base URL
 
-## Frontend Stack
+Local IntelliJ backend:
 
-| Area | Technology |
-|---|---|
-| App framework | Expo React Native |
-| Language | TypeScript |
-| Routing | Expo Router |
-| HTTP client | Axios |
-| Auth state | Zustand |
-| Token storage | Expo SecureStore |
-| Validation/forms | React Hook Form, Zod |
+```env
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8080/The-Project
+```
 
----
+Android emulator calling host machine:
 
-## Backend URL Setup
-
-The frontend API URL is configured with Expo public environment variables. Example local Android emulator setup:
-
-```ts
+```env
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080/The-Project
 ```
 
-Use this when:
+Docker backend:
 
-```text
-Backend runs from IntelliJ/local Maven on host port 8080
-Frontend runs on Android emulator
+```env
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8082/The-Project
 ```
 
-For Android emulator connecting to Docker backend:
+Production Render backend:
 
-```ts
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8082/The-Project
+```env
+EXPO_PUBLIC_API_BASE_URL=https://wandermate-fullstack.onrender.com/The-Project
 ```
 
-For browser/Postman on host machine:
+## Auth Headers
 
-```text
-http://localhost:8082/The-Project
-```
-
-Important:
-
-```text
-Android emulator uses 10.0.2.2 to reach the host machine.
-localhost inside the emulator means the emulator itself.
-```
-
----
-
-## Auth Token Storage
-
-After login, frontend stores:
+After login, the frontend stores:
 
 ```text
 accessToken
@@ -64,289 +38,152 @@ refreshToken
 sessionToken
 ```
 
-in Expo SecureStore.
+Protected requests send:
 
-Storage file:
-
-```text
-frontend/src/stores/tokenStore.ts
-```
-
----
-
-## Axios Request Interceptor
-
-The Axios client is configured in:
-
-```text
-frontend/src/api/axiosClient.ts
-```
-
-For every request, it reads tokens from SecureStore and attaches:
-
-```text
+```http
 Authorization: Bearer <accessToken>
 Session-Token: <sessionToken>
 ```
 
-This matches the backend `TokenFilter` requirements.
+Refresh requests send:
 
----
-
-## Access Token Refresh Flow
-
-If the backend returns access-token-expired behaviour, the Axios response interceptor calls:
-
-```text
-POST /api/v1/auth/refresh
-```
-
-with headers:
-
-```text
+```http
 Refresh-Token: <refreshToken>
 Session-Token: <sessionToken>
 ```
 
-Refresh implementation:
+## Token Refresh
+
+Expected frontend behaviour:
 
 ```text
-frontend/src/refreshApi.ts
+1. Normal protected request uses accessToken + sessionToken.
+2. If access token expires, Axios refresh flow calls /api/v1/auth/refresh.
+3. New tokens are saved securely.
+4. Original request is retried.
+5. If refresh fails, frontend logs user out and clears tokens.
 ```
 
-The frontend saves the new access token and refresh token after a successful refresh.
+## Login Max Session Handling
 
----
-
-## Logout Flow
-
-Frontend logout calls:
+If backend returns `MAX_SESSIONS_REACHED`, frontend should:
 
 ```text
-POST /api/v1/users/logout
+1. Show confirmation Alert.
+2. If user cancels, do nothing.
+3. If user continues, retry login with overrideMaxSession=true.
 ```
 
-Then it clears local tokens from SecureStore whether or not the API call fails.
+React Native `Alert` callbacks should not be `async` directly. Use:
 
-This is good UX because the user is logged out locally even if the backend call fails due to network/session expiry.
-
----
-
-## OTP Integration Status
-
-Email OTP:
-
-```text
-Supported as the real working OTP path when backend email config is valid.
-```
-
-Phone/SMS OTP:
-
-```text
-Types and backend service branch exist, but real SMS provider is not enabled yet.
-```
-
-Frontend should not promise real SMS delivery until the backend integrates a provider.
-
----
-
-## Trip/Destination Warning Flow
-
-The backend uses soft warning codes for trip/destination overlaps:
-
-```text
-W001 TRIP_OVERLAP_WARNING
-W002 DESTINATION_OVERLAP_WARNING
-```
-
-Frontend expected flow:
-
-```text
-1. User submits trip/destination with allowOverlap=false
-2. Backend returns W001 or W002
-3. Frontend shows confirmation popup
-4. User confirms
-5. Frontend retries the same request with allowOverlap=true
-```
-
-Utility file:
-
-```text
-frontend/src/utils/apiWarningUtils.ts
-```
-
-Activity overlap is not a warning. It is a hard error.
-
----
-
-## Frontend API Modules
-
-| File | Purpose |
-|---|---|
-| `src/api/authApi.ts` | Login, logout, register, OTP send, forgot password |
-| `src/api/tripApi.ts` | Trip CRUD and search/suggest API calls |
-| `src/api/destinationApi.ts` | Destination CRUD |
-| `src/api/activityApi.ts` | Activity CRUD |
-| `src/api/uploadApi.ts` | Multipart image uploads for profile pictures and trip covers |
-| `src/api/axiosClient.ts` | Shared Axios client and token refresh handling |
-| `src/refreshApi.ts` | Refresh token call without interceptor loop |
-
----
-
-## Date/Time Format
-
-Backend expects Java `LocalDateTime` format:
-
-```text
-YYYY-MM-DDTHH:mm:ss
-```
-
-Example:
-
-```text
-2026-07-01T09:00:00
-```
-
-Frontend helper:
-
-```text
-frontend/src/utils/dateTimePickerUtils.ts
-```
-
----
-
-## Common Local URL Cases
-
-| Scenario | Backend URL |
-|---|---|
-| Android emulator → IntelliJ backend | `http://10.0.2.2:8080/The-Project` |
-| Android emulator → Docker backend | `http://10.0.2.2:8082/The-Project` |
-| Browser/Postman → Docker backend | `http://localhost:8082/The-Project` |
-| Browser/Postman → IntelliJ backend | `http://localhost:8080/The-Project` |
-
----
-
-## Recommended Future Improvement
-
-Instead of manually editing `env.ts`, move to Expo environment variables later, for example:
-
-```text
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8082/The-Project
-```
-
-This would make switching between local/Docker/cloud cleaner.
-
-## V3 Collaboration Frontend Integration
-
-Frontend collaboration screens use these backend areas:
-
-```text
-GET    /api/v1/collaboration/summary
-GET    /api/v1/trips/invitations/received
-GET    /api/v1/trips/join-requests/owned
-GET    /api/v1/trips/join-requests/sent
-POST   /api/v1/trips/{tripId}/invitations
-POST   /api/v1/trips/{tripId}/join-requests
-PATCH  /api/v1/trips/invitations/{requestId}/accept
-PATCH  /api/v1/trips/invitations/{requestId}/reject
-PATCH  /api/v1/trips/join-requests/{requestId}/accept
-PATCH  /api/v1/trips/join-requests/{requestId}/reject
-POST   /api/v1/trips/{tripId}/share-codes/regenerate
-GET    /api/v1/trips/share-codes/{code}
-POST   /api/v1/trips/share-codes/{code}/join-requests
-```
-
-Frontend should refresh lists after accept/reject so stale requests disappear or show a clear handled-status message.
-
-## V3 Profile, Theme, and Attribution Integration
-
-Profile/theme endpoints:
-
-```text
-GET   /api/v1/users/me
-PATCH /api/v1/users/me/profile
-PATCH /api/v1/users/me/settings
-```
-
-Destination/activity attribution fields:
-
-```text
-createdByUserId
-createdByUsername
-createdByDisplayName
-createdByProfileImageUrl
-modifiedByUserId
-modifiedByUsername
-modifiedByDisplayName
-modifiedByProfileImageUrl
-```
-
-The frontend uses these fields for avatar/initials display and quick user attribution cards.
-
----
-
-## Image Upload Frontend Flow
-
-The frontend uses Expo Image Picker for selecting profile pictures and trip cover images from the device.
-
-Relevant files:
-
-```text
-frontend/src/api/uploadApi.ts
-frontend/src/components/media/ImageUploadPicker.tsx
-frontend/app/(tabs)/profile.tsx
-frontend/app/trips/create.tsx
-frontend/app/trips/[tripId]/edit.tsx
-```
-
-Flow:
-
-```text
-1. User selects image from phone.
-2. Frontend uploads multipart file to POST /api/v1/uploads/images.
-3. Backend uploads to Cloudinary.
-4. Backend returns imageUrl + publicId.
-5. Frontend stores both values in form state.
-6. Frontend saves profile/trip with imageUrl + publicId.
-```
-
-Upload response shape:
-
-```json
-{
-  "imageUrl": "https://res.cloudinary.com/demo/image/upload/v123/wandermate/profile-images/users/1/profile-1-abc.jpg",
-  "publicId": "wandermate/profile-images/users/1/profile-1-abc",
-  "fileName": "wandermate/profile-images/users/1/profile-1-abc",
-  "imageType": "profile-images"
+```ts
+onPress: () => {
+    void handleConfirmLoginOverride();
 }
 ```
 
-When removing an image, the frontend sends empty strings for the URL and public ID. The backend uses the old stored public ID to delete the old Cloudinary asset.
+## Theme Hydration
 
----
-
-## Trip Cover and Avatar UI
-
-Current image usage:
+Saved theme preference is returned by:
 
 ```text
-- Profile screen displays uploaded profile picture.
-- My Trips screen displays trip cover image.
-- Trip Detail screen displays trip cover image.
-- Destination/activity creator attribution uses avatar-only display on cards.
-- Tapping an avatar opens the quick user card.
+GET /api/v1/users/me
 ```
 
-Profile image fields:
+The frontend should apply saved theme after:
 
 ```text
-profileImageUrl
-profileImagePublicId
+login success
+session restore
+profile/settings update
 ```
 
-Trip cover fields:
+This prevents the app from staying in `SYSTEM` theme until the Profile screen is opened.
+
+## Role-Based UI Rules
+
+Frontend should hide actions based on current role, but backend remains the source of truth.
+
+Recommended UI rules:
+
+```ts
+const isOwner = currentUserRole === "OWNER";
+const isEditor = currentUserRole === "EDITOR";
+const isViewer = currentUserRole === "VIEWER";
+
+const canEditTrip = isOwner || isEditor;
+const canEditContent = isOwner || isEditor;
+const canDeleteTrip = isOwner;
+const canManageCollaboration = isOwner;
+```
+
+Backend still enforces permissions even if frontend UI is bypassed.
+
+## Image Upload Flow
+
+Frontend flow:
 
 ```text
-coverImageUrl
-coverImagePublicId
+1. User selects image using Expo ImagePicker.
+2. Frontend sends multipart upload to POST /api/v1/uploads/images.
+3. Backend returns imageUrl and publicId.
+4. Frontend saves those values in profile or trip update request.
+```
+
+Image type values:
+
+```text
+profile-images
+trip-covers
+```
+
+## Collaboration Flow
+
+Owner flow:
+
+```text
+1. Open trip detail.
+2. Open collaboration menu.
+3. Invite user, manage join requests, generate share code, manage members.
+```
+
+Invited user flow:
+
+```text
+1. Login as invited user.
+2. View received invitation.
+3. Accept or reject.
+4. Access trip according to assigned role.
+```
+
+Share-code flow:
+
+```text
+1. Owner generates active share code.
+2. Other user enters/pastes code in join-trip screen.
+3. Frontend previews trip.
+4. User submits join request.
+5. Owner accepts/rejects request.
+```
+
+## Error and Warning Handling
+
+Backend can return warning-style business codes such as:
+
+```text
+TRIP_OVERLAP_WARNING
+DESTINATION_OVERLAP_WARNING
+```
+
+Frontend should show confirmation and resubmit with `allowOverlap=true` where supported.
+
+## Production Notes
+
+For production builds:
+
+```text
+EXPO_PUBLIC_API_BASE_URL should point to Render backend.
+Do not hardcode localhost.
+Do not expose backend secrets in frontend env.
+Only EXPO_PUBLIC_* values are public-safe values.
 ```

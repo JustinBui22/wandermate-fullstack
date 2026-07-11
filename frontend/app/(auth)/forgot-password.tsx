@@ -15,7 +15,8 @@ import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { OtpVerificationMethod } from "@/src/types/auth";
 
 const OTP_EXPIRY_SECONDS = 120;
@@ -53,6 +54,8 @@ function getStepTitle(step: 1 | 2 | 3) {
 
 export default function ForgotPasswordScreen() {
     const router = useRouter();
+    const theme = useAppTheme();
+    const colors = theme.colors;
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [userInput, setUserInput] = useState("");
@@ -247,21 +250,21 @@ export default function ForgotPasswordScreen() {
         <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
             <Pressable onPress={() => router.replace("/login" as any)} style={styles.backButton}>
                 <Ionicons name="chevron-back" size={20} color={colors.primary} />
-                <Text style={styles.backText}>Back to login</Text>
+                <Text style={[styles.backText, { color: colors.primary }]}>Back to login</Text>
             </Pressable>
 
             <View style={styles.header}>
-                <View style={styles.logoBadge}>
+                <View style={[styles.logoBadge, { backgroundColor: colors.primarySoft, borderColor: colors.border }]}>
                     <Ionicons name="key-outline" size={26} color={colors.primary} />
                 </View>
-                <Text style={styles.title}>Forgot password</Text>
-                <Text style={styles.subtitle}>Recover your account in a few quick steps.</Text>
+                <Text style={[styles.title, { color: colors.text }]}>Forgot password</Text>
+                <Text style={[styles.subtitle, { color: colors.textMuted }]}>Recover your account in a few quick steps.</Text>
             </View>
 
             <AppCard style={styles.card} contentStyle={styles.cardContent}>
                 <View style={styles.stepHeader}>
-                    <Text style={styles.stepText}>Step {step} of 3</Text>
-                    <Text style={styles.stepTitle}>{getStepTitle(step)}</Text>
+                    <Text style={[styles.stepText, { color: colors.primary }]}>Step {step} of 3</Text>
+                    <Text style={[styles.stepTitle, { color: colors.text }]}>{getStepTitle(step)}</Text>
                 </View>
 
                 {step === 1 ? (
@@ -283,7 +286,9 @@ export default function ForgotPasswordScreen() {
 
                         <AppButton
                             title="Continue"
-                            onPress={handleContinueToOtpMethod}
+                            onPress={() => {
+                                void handleContinueToOtpMethod();
+                            }}
                             loading={isSendingOtp}
                         />
                     </View>
@@ -291,10 +296,10 @@ export default function ForgotPasswordScreen() {
 
                 {step === 2 ? (
                     <View style={styles.section}>
-                        <Text style={styles.helperText}>Account found: {resolvedUsername}</Text>
+                        <Text style={[styles.helperText, { color: colors.textMuted }]}>Account found: {resolvedUsername}</Text>
 
                         <View style={styles.methodSection}>
-                            <Text style={styles.sectionLabel}>OTP method</Text>
+                            <Text style={[styles.sectionLabel, { color: colors.text }]}>OTP method</Text>
                             <View style={styles.methodRow}>
                                 <MethodButton
                                     label="Email"
@@ -337,14 +342,16 @@ export default function ForgotPasswordScreen() {
 
                         <AppButton
                             title={otpSent ? "Resend OTP" : "Send OTP"}
-                            onPress={handleSendOtp}
+                            onPress={() => {
+                                void handleSendOtp();
+                            }}
                             loading={isSendingOtp}
                             disabled={resendCooldown > 0}
                             variant="secondary"
                         />
 
                         {resendCooldown > 0 ? (
-                            <Text style={styles.timerText}>You can resend in {formatTimer(resendCooldown)}</Text>
+                            <Text style={[styles.timerText, { color: colors.textMuted }]}>You can resend in {formatTimer(resendCooldown)}</Text>
                         ) : null}
 
                         <AppButton
@@ -357,12 +364,12 @@ export default function ForgotPasswordScreen() {
 
                 {step === 3 ? (
                     <View style={styles.section}>
-                        <Text style={styles.helperText}>
+                        <Text style={[styles.helperText, { color: colors.textMuted }]}>
                             Code sent by {otpMethod === "EMAIL_OTP" ? "email" : "phone"}.
                         </Text>
 
                         {otpSent ? (
-                            <Text style={styles.timerText}>
+                            <Text style={[styles.timerText, { color: colors.textMuted }]}>
                                 OTP expires in {formatTimer(otpExpiresIn)}{" "}
                                 {resendCooldown > 0 ? `• Resend in ${formatTimer(resendCooldown)}` : ""}
                             </Text>
@@ -411,13 +418,17 @@ export default function ForgotPasswordScreen() {
 
                         <AppButton
                             title="Update password"
-                            onPress={handleResetPassword}
+                            onPress={() => {
+                                void handleResetPassword();
+                            }}
                             loading={isResetting}
                         />
 
                         <AppButton
                             title={resendCooldown > 0 ? `Resend OTP in ${formatTimer(resendCooldown)}` : "Resend OTP"}
-                            onPress={handleSendOtp}
+                            onPress={() => {
+                                void handleSendOtp();
+                            }}
                             loading={isSendingOtp}
                             disabled={resendCooldown > 0}
                             variant="ghost"
@@ -443,6 +454,9 @@ type MethodButtonProps = Readonly<{
 }>;
 
 function MethodButton({ label, icon, selected, onPress }: MethodButtonProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <Pressable
             accessibilityRole="button"
@@ -450,12 +464,13 @@ function MethodButton({ label, icon, selected, onPress }: MethodButtonProps) {
             onPress={onPress}
             style={({ pressed }) => [
                 styles.methodButton,
-                selected && styles.methodButtonSelected,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                selected && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
                 pressed && styles.methodButtonPressed,
             ]}
         >
             <Ionicons name={icon} size={18} color={selected ? colors.primary : colors.textMuted} />
-            <Text style={[styles.methodText, selected && styles.methodTextSelected]}>{label}</Text>
+            <Text style={[styles.methodText, { color: selected ? colors.primary : colors.textMuted }]}>{label}</Text>
         </Pressable>
     );
 }
@@ -473,7 +488,7 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     backText: {
-        color: colors.primary,
+        color: staticColors.primary,
         fontWeight: fontWeight.semibold,
     },
     header: {
@@ -484,19 +499,19 @@ const styles = StyleSheet.create({
         width: 58,
         height: 58,
         borderRadius: radius.xl,
-        backgroundColor: colors.primarySoft,
+        backgroundColor: staticColors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: spacing.xs,
     },
     title: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.hero,
         fontWeight: fontWeight.bold,
         textAlign: "center",
     },
     subtitle: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 21,
         textAlign: "center",
@@ -512,14 +527,14 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     stepText: {
-        color: colors.primary,
+        color: staticColors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.5,
     },
     stepTitle: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
     },
@@ -527,7 +542,7 @@ const styles = StyleSheet.create({
         gap: spacing.md,
     },
     helperText: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
         fontWeight: fontWeight.semibold,
@@ -536,7 +551,7 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     sectionLabel: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
@@ -549,30 +564,30 @@ const styles = StyleSheet.create({
         minHeight: 48,
         borderRadius: radius.md,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
+        borderColor: staticColors.border,
+        backgroundColor: staticColors.surface,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
         gap: spacing.sm,
     },
     methodButtonSelected: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
+        borderColor: staticColors.primary,
+        backgroundColor: staticColors.primarySoft,
     },
     methodButtonPressed: {
         opacity: 0.85,
         transform: [{ scale: 0.99 }],
     },
     methodText: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontWeight: fontWeight.bold,
     },
     methodTextSelected: {
-        color: colors.primary,
+        color: staticColors.primary,
     },
     timerText: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.caption,
         fontWeight: fontWeight.semibold,
         lineHeight: 18,

@@ -13,7 +13,8 @@ import { AppScreen } from "@/src/components/ui/AppScreen";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { TripCollaborationRole } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 
@@ -22,6 +23,8 @@ const ROLES: InvitableRole[] = ["VIEWER", "EDITOR"];
 
 export default function InviteMemberScreen() {
     const router = useRouter();
+    const theme = useAppTheme();
+    const colors = theme.colors;
     const params = useLocalSearchParams();
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const tripId = Number(tripIdParam);
@@ -123,9 +126,9 @@ export default function InviteMemberScreen() {
                 <View style={styles.header}>
                     <HeaderButton onPress={() => router.back()} />
                     <View style={styles.headerTextGroup}>
-                        <Text style={styles.eyebrow}>Invite member</Text>
-                        <Text style={styles.title}>Owner only</Text>
-                        <Text style={styles.subtitle}>
+                        <Text style={[styles.eyebrow, { color: colors.primary }]}>Invite member</Text>
+                        <Text style={[styles.title, { color: colors.text }]}>Owner only</Text>
+                        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                             This page is only available to the trip owner.
                         </Text>
                     </View>
@@ -149,9 +152,9 @@ export default function InviteMemberScreen() {
             <View style={styles.header}>
                 <HeaderButton onPress={() => router.back()} />
                 <View style={styles.headerTextGroup}>
-                    <Text style={styles.eyebrow}>Invite member</Text>
-                    <Text style={styles.title}>Invite by username</Text>
-                    <Text style={styles.subtitle}>
+                    <Text style={[styles.eyebrow, { color: colors.primary }]}>Invite member</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Invite by username</Text>
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                         Send a direct invitation to a WanderMate user.
                     </Text>
                 </View>
@@ -169,7 +172,7 @@ export default function InviteMemberScreen() {
                 />
 
                 <View style={styles.roleSection}>
-                    <Text style={styles.roleLabel}>Role</Text>
+                    <Text style={[styles.roleLabel, { color: colors.text }]}>Role</Text>
                     <View style={styles.roleRow}>
                         {ROLES.map((item) => (
                             <Pressable
@@ -178,12 +181,13 @@ export default function InviteMemberScreen() {
                                 onPress={() => setRole(item)}
                                 style={({ pressed }) => [
                                     styles.roleChip,
-                                    role === item && styles.roleChipSelected,
+                                    { backgroundColor: colors.surface, borderColor: colors.border },
+                                    role === item && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
                                     pressed && styles.pressed,
                                 ]}
                             >
                                 <RoleBadge role={item} />
-                                <Text style={styles.roleHelpText}>
+                                <Text style={[styles.roleHelpText, { color: colors.textMuted }]}>
                                     {item === "VIEWER" ? "Can view the trip" : "Can edit trip details"}
                                 </Text>
                             </Pressable>
@@ -193,7 +197,9 @@ export default function InviteMemberScreen() {
 
                 <AppButton
                     title="Send Invitation"
-                    onPress={handleSendInvitation}
+                    onPress={() => {
+                        void handleSendInvitation();
+                    }}
                     loading={isSubmitting}
                     leftIcon={<Ionicons name="send-outline" size={19} color={colors.textLight} />}
                 />
@@ -203,6 +209,9 @@ export default function InviteMemberScreen() {
 }
 
 function HeaderButton({ onPress }: { onPress: () => void }) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <AppCard onPress={onPress} style={styles.backButton} contentStyle={styles.backButtonContent}>
             <Ionicons name="chevron-back" size={22} color={colors.text} />
@@ -234,19 +243,19 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     eyebrow: {
-        color: colors.primary,
+        color: staticColors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.7,
     },
     title: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.heading,
         fontWeight: fontWeight.bold,
     },
     subtitle: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 21,
     },
@@ -257,7 +266,7 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     roleLabel: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
@@ -267,17 +276,17 @@ const styles = StyleSheet.create({
     roleChip: {
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
+        borderColor: staticColors.border,
+        backgroundColor: staticColors.surface,
         padding: spacing.md,
         gap: spacing.sm,
     },
     roleChipSelected: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
+        borderColor: staticColors.primary,
+        backgroundColor: staticColors.primarySoft,
     },
     roleHelpText: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.caption,
         lineHeight: 18,
         fontWeight: fontWeight.semibold,

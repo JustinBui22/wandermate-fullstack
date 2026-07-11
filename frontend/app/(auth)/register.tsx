@@ -17,7 +17,8 @@ import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { OtpVerificationMethod } from "@/src/types/auth";
 
 const OTP_EXPIRY_SECONDS = 120;
@@ -79,6 +80,8 @@ function getStepTitle(step: 1 | 2) {
 
 export default function RegisterScreen() {
     const router = useRouter();
+    const theme = useAppTheme();
+    const colors = theme.colors;
 
     const [step, setStep] = useState<1 | 2>(1);
     const [username, setUsername] = useState("");
@@ -293,24 +296,24 @@ export default function RegisterScreen() {
         <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
             <Pressable onPress={() => router.replace("/login" as any)} style={styles.backButton}>
                 <Ionicons name="chevron-back" size={20} color={colors.primary} />
-                <Text style={styles.backText}>Back to login</Text>
+                <Text style={[styles.backText, { color: colors.primary }]}>Back to login</Text>
             </Pressable>
 
             <View style={styles.header}>
-                <View style={styles.logoBadge}>
+                <View style={[styles.logoBadge, { backgroundColor: colors.primarySoft, borderColor: colors.border }]}>
                     <Ionicons name="person-add-outline" size={26} color={colors.primary} />
                 </View>
-                <Text style={styles.title}>Create account</Text>
-                <Text style={styles.subtitle}>Create your account in a few quick steps.</Text>
-                <Text style={styles.requiredNote}>
+                <Text style={[styles.title, { color: colors.text }]}>Create account</Text>
+                <Text style={[styles.subtitle, { color: colors.textMuted }]}>Create your account in a few quick steps.</Text>
+                <Text style={[styles.requiredNote, { color: colors.textMuted }]}>
                     * Fields are required. Phone number is optional unless you choose phone OTP.
                 </Text>
             </View>
 
             <AppCard style={styles.card} contentStyle={styles.cardContent}>
                 <View style={styles.stepHeader}>
-                    <Text style={styles.stepText}>Step {step} of 2</Text>
-                    <Text style={styles.stepTitle}>{getStepTitle(step)}</Text>
+                    <Text style={[styles.stepText, { color: colors.primary }]}>Step {step} of 2</Text>
+                    <Text style={[styles.stepTitle, { color: colors.text }]}>{getStepTitle(step)}</Text>
                 </View>
 
                 {step === 1 ? (
@@ -348,8 +351,8 @@ export default function RegisterScreen() {
                         />
 
                         <View style={styles.dateField}>
-                            <Text style={styles.label}>
-                                Date of birth <Text style={styles.requiredMark}>*</Text>
+                            <Text style={[styles.label, { color: colors.text }]}>
+                                Date of birth <Text style={[styles.requiredMark, { color: colors.danger }]}>*</Text>
                             </Text>
 
                             <Pressable
@@ -357,17 +360,24 @@ export default function RegisterScreen() {
                                 onPress={() => setShowDobPicker(true)}
                                 style={({ pressed }) => [
                                     styles.dateButton,
+                                    {
+                                        backgroundColor: colors.inputBackground,
+                                        borderColor: colors.border,
+                                    },
                                     pressed && styles.dateButtonPressed,
                                 ]}
                             >
                                 <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
-                                <Text style={[styles.dateText, !dob && styles.datePlaceholder]}>
+                                <Text style={[
+                                    styles.dateText,
+                                    { color: dob ? colors.text : colors.placeholder },
+                                ]}>
                                     {dob || "Select your date of birth"}
                                 </Text>
                             </Pressable>
 
                             {showDobPicker ? (
-                                <View style={styles.pickerContainer}>
+                                <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                     <DateTimePicker
                                         value={dobDate ?? getDefaultDobDate()}
                                         mode="date"
@@ -378,7 +388,7 @@ export default function RegisterScreen() {
                                     />
 
                                     {Platform.OS === "ios" ? (
-                                        <View style={styles.pickerActionRow}>
+                                        <View style={[styles.pickerActionRow, { borderTopColor: colors.border }]}>
                                             <AppButton
                                                 title="Done"
                                                 onPress={() => setShowDobPicker(false)}
@@ -431,7 +441,9 @@ export default function RegisterScreen() {
 
                         <AppButton
                             title="Continue"
-                            onPress={handleContinueToOtpStep}
+                            onPress={() => {
+                                void handleContinueToOtpStep();
+                            }}
                             loading={isSendingOtp}
                             rightIcon={<Ionicons name="arrow-forward" size={18} color={colors.textLight} />}
                         />
@@ -440,12 +452,12 @@ export default function RegisterScreen() {
 
                 {step === 2 ? (
                     <View style={styles.section}>
-                        <Text style={styles.helperText}>
+                        <Text style={[styles.helperText, { color: colors.textMuted }]}>
                             Choose where you want to receive your verification code.
                         </Text>
 
                         <View style={styles.methodSection}>
-                            <Text style={styles.sectionLabel}>OTP method</Text>
+                            <Text style={[styles.sectionLabel, { color: colors.text }]}>OTP method</Text>
                             <View style={styles.methodRow}>
                                 <MethodButton
                                     label="Email"
@@ -464,19 +476,21 @@ export default function RegisterScreen() {
 
                         <AppButton
                             title={otpSent ? "Resend OTP" : "Send OTP"}
-                            onPress={handleSendOtp}
+                            onPress={() => {
+                                void handleSendOtp();
+                            }}
                             loading={isSendingOtp}
                             disabled={resendCooldown > 0}
                             variant="secondary"
                         />
 
                         {otpSent ? (
-                            <Text style={styles.timerText}>
+                            <Text style={[styles.timerText, { color: colors.textMuted }]}>
                                 OTP expires in {formatTimer(otpExpiresIn)}{" "}
                                 {resendCooldown > 0 ? `• Resend in ${formatTimer(resendCooldown)}` : ""}
                             </Text>
                         ) : resendCooldown > 0 ? (
-                            <Text style={styles.timerText}>You can resend in {formatTimer(resendCooldown)}</Text>
+                            <Text style={[styles.timerText, { color: colors.textMuted }]}>You can resend in {formatTimer(resendCooldown)}</Text>
                         ) : null}
 
                         <AppInput
@@ -493,7 +507,9 @@ export default function RegisterScreen() {
 
                         <AppButton
                             title="Create account"
-                            onPress={handleRegister}
+                            onPress={() => {
+                                void handleRegister();
+                            }}
                             loading={isRegistering}
                         />
 
@@ -517,6 +533,9 @@ type MethodButtonProps = Readonly<{
 }>;
 
 function MethodButton({ label, icon, selected, onPress }: MethodButtonProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <Pressable
             accessibilityRole="button"
@@ -524,12 +543,13 @@ function MethodButton({ label, icon, selected, onPress }: MethodButtonProps) {
             onPress={onPress}
             style={({ pressed }) => [
                 styles.methodButton,
-                selected && styles.methodButtonSelected,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                selected && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
                 pressed && styles.methodButtonPressed,
             ]}
         >
             <Ionicons name={icon} size={18} color={selected ? colors.primary : colors.textMuted} />
-            <Text style={[styles.methodText, selected && styles.methodTextSelected]}>{label}</Text>
+            <Text style={[styles.methodText, { color: selected ? colors.primary : colors.textMuted }]}>{label}</Text>
         </Pressable>
     );
 }
@@ -547,7 +567,7 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     backText: {
-        color: colors.primary,
+        color: staticColors.primary,
         fontWeight: fontWeight.semibold,
     },
     header: {
@@ -558,26 +578,26 @@ const styles = StyleSheet.create({
         width: 58,
         height: 58,
         borderRadius: radius.xl,
-        backgroundColor: colors.primarySoft,
+        backgroundColor: staticColors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: spacing.xs,
     },
     title: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.hero,
         fontWeight: fontWeight.bold,
         textAlign: "center",
     },
     subtitle: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 21,
         textAlign: "center",
         maxWidth: 320,
     },
     requiredNote: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.caption,
         fontWeight: fontWeight.semibold,
         lineHeight: 18,
@@ -594,14 +614,14 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     stepText: {
-        color: colors.primary,
+        color: staticColors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.5,
     },
     stepTitle: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.title,
         fontWeight: fontWeight.bold,
     },
@@ -609,12 +629,12 @@ const styles = StyleSheet.create({
         gap: spacing.md,
     },
     label: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.semibold,
     },
     requiredMark: {
-        color: colors.danger,
+        color: staticColors.danger,
     },
     dateField: {
         gap: spacing.sm,
@@ -622,9 +642,9 @@ const styles = StyleSheet.create({
     dateButton: {
         minHeight: 52,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: staticColors.border,
         borderRadius: radius.md,
-        backgroundColor: colors.surface,
+        backgroundColor: staticColors.surface,
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: spacing.md,
@@ -635,28 +655,28 @@ const styles = StyleSheet.create({
     },
     dateText: {
         flex: 1,
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.body,
         fontWeight: fontWeight.medium,
     },
     datePlaceholder: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
     },
     pickerContainer: {
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: staticColors.border,
         borderRadius: radius.md,
-        backgroundColor: colors.surface,
+        backgroundColor: staticColors.surface,
         overflow: "hidden",
     },
     pickerActionRow: {
         alignItems: "flex-end",
         padding: spacing.md,
         borderTopWidth: 1,
-        borderTopColor: colors.border,
+        borderTopColor: staticColors.border,
     },
     helperText: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
         fontWeight: fontWeight.semibold,
@@ -665,7 +685,7 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     sectionLabel: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
@@ -678,30 +698,30 @@ const styles = StyleSheet.create({
         minHeight: 48,
         borderRadius: radius.md,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
+        borderColor: staticColors.border,
+        backgroundColor: staticColors.surface,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
         gap: spacing.sm,
     },
     methodButtonSelected: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
+        borderColor: staticColors.primary,
+        backgroundColor: staticColors.primarySoft,
     },
     methodButtonPressed: {
         opacity: 0.85,
         transform: [{ scale: 0.99 }],
     },
     methodText: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontWeight: fontWeight.bold,
     },
     methodTextSelected: {
-        color: colors.primary,
+        color: staticColors.primary,
     },
     timerText: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.caption,
         fontWeight: fontWeight.semibold,
         lineHeight: 18,

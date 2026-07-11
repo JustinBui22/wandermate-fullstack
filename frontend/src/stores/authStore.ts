@@ -1,6 +1,8 @@
 import { create } from "zustand";
-import { refreshAccessToken } from "@/src/refreshApi";
+
 import { login, logout } from "../api/authApi";
+import { getMyProfile } from "@/src/api/userApi";
+import { refreshAccessToken } from "@/src/refreshApi";
 import {
     clearTokens,
     getAccessToken,
@@ -9,8 +11,21 @@ import {
     getStoredUsername,
     saveTokens,
 } from "../stores/tokenStore";
+import { useThemeStore } from "@/src/stores/themeStore";
 import type { LoginRequest } from "../types/auth";
 import { logger } from "../utils/logger";
+
+async function syncPreferredThemeFromProfile() {
+    try {
+        const profile = await getMyProfile();
+        useThemeStore.getState().setPreferredTheme(profile.preferredTheme ?? "SYSTEM");
+    } catch (error: any) {
+        logger.error(
+            "Failed to sync theme preference:",
+            error.response?.data || error.message
+        );
+    }
+}
 
 type AuthState = {
     isAuthenticated: boolean;
@@ -48,6 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             });
 
             await saveTokens(tokens, normalizedUsername);
+            await syncPreferredThemeFromProfile();
 
             set({
                 isAuthenticated: true,
@@ -85,6 +101,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             logger.error("Logout API failed:", error.response?.data || error.message);
         } finally {
             await clearTokens();
+            useThemeStore.getState().resetPreferredTheme();
 
             set({
                 isAuthenticated: false,
@@ -113,6 +130,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
             if (!accessToken || !refreshToken || !sessionToken || !storedUsername) {
                 await clearTokens();
+                useThemeStore.getState().resetPreferredTheme();
 
                 set({
                     isAuthenticated: false,
@@ -127,6 +145,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
             logger.debug("Restoring session: refreshing access token...");
             await refreshAccessToken();
+            await syncPreferredThemeFromProfile();
             logger.debug("Session restored successfully.");
 
             set({
@@ -143,6 +162,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             );
 
             await clearTokens();
+            useThemeStore.getState().resetPreferredTheme();
 
             set({
                 isAuthenticated: false,

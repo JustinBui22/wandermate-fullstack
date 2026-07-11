@@ -18,8 +18,8 @@ import com.example.travellingapp.service.TripService;
 import com.example.travellingapp.validator.TripValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -79,6 +79,7 @@ public class TripServiceImpl implements TripService {
         this.cloudinaryImageClient = cloudinaryImageClient;
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> createTrip(CreateTripDTO tripDTO) {
         try {
@@ -251,6 +252,7 @@ public class TripServiceImpl implements TripService {
         }
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> updateTrip(Long tripId, UpdateTripDTO tripDTO) {
         try {
@@ -355,6 +357,7 @@ public class TripServiceImpl implements TripService {
         }
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> deleteTrip(Long tripId) {
         try {
@@ -374,7 +377,7 @@ public class TripServiceImpl implements TripService {
             tripRepository.delete(trip);
 
             // Delete old cover image from Cloudinary if it exists
-            cloudinaryImageClient.deleteOldCloudinaryImageIfChanged(oldCoverImagePublicId, null, "trip cover");;
+            cloudinaryImageClient.deleteOldCloudinaryImageIfChanged(oldCoverImagePublicId, null, "trip cover");
 
             return getCompleteResponse(
                     errorCodeRepository,

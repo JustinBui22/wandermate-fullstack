@@ -1,244 +1,172 @@
-# Database Seed Guide
+# Database Seed Strategy
 
-This document explains the purpose of the SQL seed files used by the local Docker MariaDB setup.
+This document explains how WanderMate should seed the local Docker database safely.
 
----
+## Current Recommendation
 
-## Seed Location
+Do not commit a full cloud/production database dump.
 
-Docker Compose mounts this folder into the MariaDB container:
-
-```text
-backend/docker/init
-```
-
-MariaDB automatically runs SQL files in:
-
-```text
-/docker-entrypoint-initdb.d
-```
-
-only when the database volume is first created.
-
----
-
-## Main Safe Seed File
-
-The safe local demo seed should be:
+Use a clean local seed file only for reference data:
 
 ```text
 backend/docker/init/init.sql
 ```
 
-This file should contain safe schema/configuration/demo data only.
-
-It can include:
-
-- Table structure
-- Error-code rows
-- Public/non-sensitive configuration keys
-- Email/SMS template rows with placeholder values
-- Search/suggest seed data for cities/restaurants/accommodations
-
-It should not include:
-
-- Real passwords
-- Real users
-- OTP records
-- Session tokens
-- Refresh tokens
-- Real OAuth tokens
-- Real email credentials
-- Personal/private data
-
----
-
-## Private Dump File
-
-The project currently may contain or locally generate files such as:
+The local Docker database should contain:
 
 ```text
-backend/docker/init/full-init.sql
+✅ schema or safe reference table creation required for local boot
+✅ configuration seed rows
+✅ error_codes seed rows
+✅ email_contents seed rows
+✅ sms_contents seed rows
 ```
 
-This type of file should be treated as private/local if it came from a real or cloud database dump. It should not be committed if it contains real data or environment-specific details.
-
-Recommended approach:
+It should not contain:
 
 ```text
-init.sql       → committed safe demo seed
-full-init.sql  → ignored/private local dump
+❌ real users
+❌ real emails
+❌ hashed passwords from private accounts
+❌ OTP rows
+❌ refresh token rows
+❌ session token rows
+❌ trip/demo data
+❌ Cloudinary private demo URLs
+❌ Google OAuth access tokens
+❌ Google OAuth refresh tokens
+❌ Google client secrets
 ```
 
----
+## Why Not Use Raw Dumps?
 
-## Why Seed Data Matters
-
-The backend uses database-backed configuration for several behaviours, including:
-
-- Public/non-authenticated URLs
-- Token expiration times
-- OTP retry limits
-- OTP restriction duration
-- OTP/email/SMS template data
-- Error code lookups
-- Search/suggest data
-
-Without seed configuration, some flows may fail at runtime because the app expects configuration rows to exist.
-
----
-
-## Docker Import Behaviour
-
-MariaDB imports seed files only when the DB volume is empty.
-
-If `init.sql` changes but your container already has an existing volume, the changes will not re-import automatically.
-
-Reset the DB volume:
-
-```bash
-docker compose down -v
-docker compose up --build
-```
-
-Warning: `down -v` deletes local Docker database data.
-
----
-
-## Safe Seed Rules for GitHub
-
-Before committing SQL seed files, check:
+Raw MariaDB dumps often include:
 
 ```text
-No real usernames/emails/phone numbers
-No real hashed passwords
-No OTP values
-No refresh/session tokens
-No OAuth access/refresh tokens
-No cloud DB hostnames if they reveal private infrastructure
-No private API keys or secrets
+- real user records
+- OAuth tokens
+- hashed session/refresh tokens
+- one-time passwords
+- generated AUTO_INCREMENT values
+- lock/disable-key commands
+- old or dirty test/demo rows
 ```
 
-For public GitHub, use placeholder values such as:
+That is risky for public GitHub and messy for portfolio review.
 
-```text
-demo@example.com
-replace_me
-local/demo
-```
+## Safe Seed Tables
 
----
+The backend depends on configuration/error/template data for many flows.
 
-## Recommended Future Improvement
-
-For a more production-style setup later, consider replacing large SQL dumps with:
-
-```text
-Flyway or Liquibase migrations
-```
-
-That would separate:
-
-```text
-Schema migration
-Seed reference data
-Private runtime secrets
-```
-
-## V3 Schema Fields to Keep
-
-The V3 schema needs these columns for profile/theme/attribution features:
-
-```text
-users.display_name
-users.preferred_theme
-users.profile_image_url
-users.profile_image_public_id
-users.profile_image_public_id
-users.modified_date
-
-trip_destinations.created_by_user_id
-trip_destinations.modified_by_user_id
-
-destination_activities.created_by_user_id
-destination_activities.modified_by_user_id
-
-trips.cover_image_url
-trips.cover_image_public_id
-```
-
-If a local database was created before V3, verify these columns exist before testing profile and attribution screens.
-
----
-
-## Current V3 + Cloudinary Option B Schema Checklist
-
-A fresh Docker schema must include these V3 and image-storage fields:
-
-```text
-users.display_name
-users.preferred_theme
-users.profile_image_url
-users.profile_image_public_id
-users.modified_date
-
-trips.cover_image_url
-trips.cover_image_public_id
-
-trip_destinations.created_by_user_id
-trip_destinations.modified_by_user_id
-
-destination_activities.created_by_user_id
-destination_activities.modified_by_user_id
-
-trip_members
-trip_collaboration_requests
-trip_share_codes
-trip_share_code_attempts
-```
-
-The uploaded current schema includes the `profile_image_public_id` and `cover_image_public_id` columns needed for Cloudinary cleanup, plus destination/activity attribution columns.
-
-Important: schema alone is not enough. `init.sql` also needs safe seed rows for:
+Safe seed tables:
 
 ```text
 configuration
 error_codes
 email_contents
 sms_contents
-cities
-restaurants
-accommodations
 ```
 
-Do not reset Docker with a schema-only `init.sql` unless the application can boot and all required config/error-code rows are present.
+Runtime tables should start empty:
 
----
-
-## Recommended Docker init.sql Structure
-
-Use this structure:
-
-```sql
--- =========================================================
--- WanderMate V3 schema
--- =========================================================
-
-CREATE TABLE ...
-CREATE INDEX ...
-ALTER TABLE ...
-
--- =========================================================
--- Safe reference/config seed data
--- =========================================================
-
-INSERT INTO configuration ...
-INSERT INTO error_codes ...
-INSERT INTO email_contents ...
-INSERT INTO sms_contents ...
-INSERT INTO cities ...
-INSERT INTO restaurants ...
-INSERT INTO accommodations ...
+```text
+users
+trips
+trip_destinations
+destination_activities
+trip_members
+trip_collaboration_requests
+trip_share_codes
+trip_share_code_attempts
+otp_check
+refresh_token
+session_token
 ```
 
-Do not include real users, OTPs, tokens, passwords, OAuth secrets, Cloudinary secrets, or production database credentials.
+## Required Placeholder Values
+
+Sensitive configuration rows must use placeholders in GitHub:
+
+```text
+SECRET_KEY_CONFIG=replace-with-a-strong-256-bit-secret-key-for-local-dev-only
+EMAIL_ADDRESS_CONFIG=your-email@example.com
+EMAIL_ACCESS_TOKEN_CONFIG=SET_BY_APPLICATION_RUNTIME_OR_ENV
+EMAIL_CLIENT_ID=SET_IN_ENV
+EMAIL_CLIENT_SECRET=SET_IN_ENV
+EMAIL_REFRESH_TOKEN=SET_IN_ENV
+```
+
+Real secrets should come from:
+
+```text
+backend/.env locally
+Docker environment variables
+Render environment variables
+```
+
+## Important Cleanup
+
+Do not keep both files in Docker init:
+
+```text
+backend/docker/init/init.sql
+backend/docker/init/full-init.sql
+```
+
+Docker runs `.sql` files in the init folder. Keeping both can create old/stale schemas or duplicate data.
+
+Recommended final folder:
+
+```text
+backend/docker/init/init.sql
+```
+
+Delete or archive outside the project:
+
+```text
+backend/docker/init/full-init.sql
+```
+
+## Fresh Start Test
+
+After replacing the init SQL:
+
+```bash
+cd backend
+docker compose down -v
+docker compose up --build
+```
+
+Then test:
+
+```text
+http://localhost:8082/The-Project/api/v1/health
+```
+
+Expected result:
+
+```text
+backend starts successfully
+MariaDB container starts successfully
+health endpoint responds
+no duplicate table/constraint SQL errors
+```
+
+## Future Improvement
+
+For a more production-grade backend, replace `ddl-auto=update` and SQL dumps with migrations:
+
+```text
+Flyway
+Liquibase
+```
+
+Suggested future migration structure:
+
+```text
+V1__create_auth_tables.sql
+V2__create_trip_tables.sql
+V3__create_collaboration_tables.sql
+V4__add_image_fields.sql
+V5__seed_reference_data.sql
+```

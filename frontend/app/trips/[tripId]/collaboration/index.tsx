@@ -8,12 +8,15 @@ import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { TripRole } from "@/src/types/trip";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 
 export default function TripCollaborationMenuScreen() {
     const router = useRouter();
+    const theme = useAppTheme();
+    const colors = theme.colors;
     const params = useLocalSearchParams();
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const tripId = Number(tripIdParam);
@@ -75,9 +78,9 @@ export default function TripCollaborationMenuScreen() {
                 <IconButton icon="chevron-back" onPress={() => router.back()} />
 
                 <View style={styles.headerTextGroup}>
-                    <Text style={styles.eyebrow}>Trip collaboration</Text>
-                    <Text style={styles.title}>Manage sharing</Text>
-                    <Text style={styles.subtitle}>
+                    <Text style={[styles.eyebrow, { color: colors.primary }]}>Trip collaboration</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Manage sharing</Text>
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                         {isOwner
                             ? "Invite people, manage requests, and control who can access this trip."
                             : "View who has access to this trip. Only the owner can manage sharing settings."}
@@ -90,7 +93,7 @@ export default function TripCollaborationMenuScreen() {
             {!isOwner ? (
                 <AppCard variant="soft" contentStyle={styles.noticeContent}>
                     <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
-                    <Text style={styles.noticeText}>
+                    <Text style={[styles.noticeText, { color: colors.textMuted }]}>
                         You can view the member list, but invitation tools are hidden because you are not the trip owner.
                     </Text>
                 </AppCard>
@@ -146,6 +149,9 @@ type IconButtonProps = Readonly<{
 }>;
 
 function IconButton({ icon, onPress }: IconButtonProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <AppCard onPress={onPress} style={styles.backButton} contentStyle={styles.backButtonContent}>
             <Ionicons name={icon} size={22} color={colors.text} />
@@ -162,23 +168,26 @@ type CollaborationOptionProps = Readonly<{
 }>;
 
 function CollaborationOption({ icon, title, subtitle, badge, onPress }: CollaborationOptionProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <AppCard onPress={onPress} contentStyle={styles.optionContent}>
-            <View style={styles.optionIconBadge}>
+            <View style={[styles.optionIconBadge, { backgroundColor: colors.primarySoft }]}>
                 <Ionicons name={icon} size={23} color={colors.primary} />
             </View>
 
             <View style={styles.optionTextGroup}>
                 <View style={styles.optionTitleRow}>
-                    <Text style={styles.optionTitle}>{title}</Text>
+                    <Text style={[styles.optionTitle, { color: colors.text }]}>{title}</Text>
                     {badge ? (
-                        <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{badge}</Text>
+                        <View style={[styles.badge, { backgroundColor: colors.primarySoft }]}>
+                            <Text style={[styles.badgeText, { color: colors.primary }]}>{badge}</Text>
                         </View>
                     ) : null}
                 </View>
 
-                <Text style={styles.optionSubtitle}>{subtitle}</Text>
+                <Text style={[styles.optionSubtitle, { color: colors.textMuted }]}>{subtitle}</Text>
             </View>
 
             <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
@@ -210,20 +219,20 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     eyebrow: {
-        color: colors.primary,
+        color: staticColors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.7,
     },
     title: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.hero,
         fontWeight: fontWeight.bold,
         lineHeight: 38,
     },
     subtitle: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 21,
     },
@@ -234,7 +243,7 @@ const styles = StyleSheet.create({
     },
     noticeText: {
         flex: 1,
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
         fontWeight: fontWeight.semibold,
@@ -251,7 +260,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: radius.lg,
-        backgroundColor: colors.primarySoft,
+        backgroundColor: staticColors.primarySoft,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -265,23 +274,23 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     optionTitle: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.body,
         fontWeight: fontWeight.bold,
     },
     optionSubtitle: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
     },
     badge: {
         borderRadius: radius.pill,
-        backgroundColor: colors.primarySoft,
+        backgroundColor: staticColors.primarySoft,
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
     },
     badgeText: {
-        color: colors.primary,
+        color: staticColors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
     },

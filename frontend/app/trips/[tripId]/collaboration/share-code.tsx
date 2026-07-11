@@ -16,7 +16,8 @@ import { AppScreen } from "@/src/components/ui/AppScreen";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { TripShareCode } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
@@ -27,6 +28,8 @@ const ROLES: InvitableRole[] = ["VIEWER", "EDITOR"];
 
 export default function TripShareCodeScreen() {
     const router = useRouter();
+    const theme = useAppTheme();
+    const colors = theme.colors;
     const params = useLocalSearchParams();
 
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
@@ -180,9 +183,9 @@ export default function TripShareCodeScreen() {
                     <HeaderButton onPress={() => router.back()} />
 
                     <View style={styles.headerTextGroup}>
-                        <Text style={styles.eyebrow}>Invite code</Text>
-                        <Text style={styles.title}>Owner only</Text>
-                        <Text style={styles.subtitle}>
+                        <Text style={[styles.eyebrow, { color: colors.primary }]}>Invite code</Text>
+                        <Text style={[styles.title, { color: colors.text }]}>Owner only</Text>
+                        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                             This page is only available to the trip owner.
                         </Text>
                     </View>
@@ -207,11 +210,11 @@ export default function TripShareCodeScreen() {
                 <HeaderButton onPress={() => router.back()} />
 
                 <View style={styles.headerTextGroup}>
-                    <Text style={styles.eyebrow}>Invite code</Text>
+                    <Text style={[styles.eyebrow, { color: colors.primary }]}>Invite code</Text>
 
-                    <Text style={styles.title}>Share by code or link</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Share by code or link</Text>
 
-                    <Text style={styles.subtitle}>
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                         Generate a single-use invite code. When someone successfully requests to
                         join, the code becomes used.
                     </Text>
@@ -222,7 +225,7 @@ export default function TripShareCodeScreen() {
 
             <AppCard contentStyle={styles.formContent}>
                 <View style={styles.roleSection}>
-                    <Text style={styles.roleLabel}>Default role for this code</Text>
+                    <Text style={[styles.roleLabel, { color: colors.text }]}>Default role for this code</Text>
 
                     <View style={styles.roleRow}>
                         {ROLES.map((item) => (
@@ -232,13 +235,14 @@ export default function TripShareCodeScreen() {
                                 onPress={() => setRole(item)}
                                 style={({ pressed }) => [
                                     styles.roleChip,
-                                    role === item && styles.roleChipSelected,
+                                    { backgroundColor: colors.surface, borderColor: colors.border },
+                                    role === item && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
                                     pressed && styles.pressed,
                                 ]}
                             >
                                 <RoleBadge role={item} />
 
-                                <Text style={styles.roleHelpText}>
+                                <Text style={[styles.roleHelpText, { color: colors.textMuted }]}>
                                     {item === "VIEWER"
                                         ? "View-only access"
                                         : "Can edit trip content"}
@@ -250,7 +254,9 @@ export default function TripShareCodeScreen() {
 
                 <AppButton
                     title={shareCode ? "Regenerate Invite Code" : "Generate Invite Code"}
-                    onPress={handleGenerateCode}
+                    onPress={() => {
+                        void handleGenerateCode();
+                    }}
                     loading={isGenerating || isLoadingActiveCode}
                     leftIcon={
                         <Ionicons
@@ -266,7 +272,7 @@ export default function TripShareCodeScreen() {
                 <AppCard contentStyle={styles.infoCardContent}>
                     <Ionicons name="sync-outline" size={22} color={colors.primary} />
 
-                    <Text style={styles.infoText}>
+                    <Text style={[styles.infoText, { color: colors.textMuted }]}>
                         Checking for active invite code...
                     </Text>
                 </AppCard>
@@ -278,31 +284,31 @@ export default function TripShareCodeScreen() {
                     subtitle="Use the code for manual entry or the link for deep-link opening."
                     contentStyle={styles.codeCardContent}
                 >
-                    <View style={styles.codeBox}>
+                    <View style={[styles.codeBox, { backgroundColor: colors.primary }]}>
                         <Text style={styles.codeLabel}>Invite code</Text>
 
-                        <Text style={styles.codeText}>{shareCode.code}</Text>
+                        <Text style={[styles.codeText, { color: colors.textLight }]}>{shareCode.code}</Text>
                     </View>
 
-                    <View style={styles.expiryBox}>
+                    <View style={[styles.expiryBox, { borderColor: colors.warning, backgroundColor: colors.warningSoft }]}>
                         <Ionicons name="time-outline" size={22} color={colors.warning} />
 
                         <View style={styles.expiryTextGroup}>
-                            <Text style={styles.expiryTitle}>
+                            <Text style={[styles.expiryTitle, { color: colors.warning }]}>
                                 Expires {formatDateTime(shareCode.expiresAt)}
                             </Text>
 
-                            <Text style={styles.expirySubtitle}>
+                            <Text style={[styles.expirySubtitle, { color: colors.warning }]}>
                                 This code is single-use. It also becomes invalid if you regenerate
                                 another code.
                             </Text>
                         </View>
                     </View>
 
-                    <View style={styles.linkBox}>
-                        <Text style={styles.linkLabel}>Deep link</Text>
+                    <View style={[styles.linkBox, { backgroundColor: colors.surfaceSoft, borderColor: colors.border }]}>
+                        <Text style={[styles.linkLabel, { color: colors.textMuted }]}>Deep link</Text>
 
-                        <Text style={styles.linkText} numberOfLines={2}>
+                        <Text style={[styles.linkText, { color: colors.text }]} numberOfLines={2}>
                             {shareCode.inviteLink}
                         </Text>
                     </View>
@@ -310,7 +316,9 @@ export default function TripShareCodeScreen() {
                     <View style={styles.actionGrid}>
                         <AppButton
                             title="Copy Code"
-                            onPress={handleCopyCode}
+                            onPress={() => {
+                                void handleCopyCode();
+                            }}
                             variant="outline"
                             fullWidth={false}
                             style={styles.actionButton}
@@ -318,7 +326,9 @@ export default function TripShareCodeScreen() {
 
                         <AppButton
                             title="Copy Link"
-                            onPress={handleCopyLink}
+                            onPress={() => {
+                                void handleCopyLink();
+                            }}
                             variant="outline"
                             fullWidth={false}
                             style={styles.actionButton}
@@ -327,7 +337,9 @@ export default function TripShareCodeScreen() {
 
                     <AppButton
                         title="Share Invite Message"
-                        onPress={handleShareInvite}
+                        onPress={() => {
+                            void handleShareInvite();
+                        }}
                         loading={isSharing}
                         variant="outline"
                         leftIcon={
@@ -341,7 +353,9 @@ export default function TripShareCodeScreen() {
 
                     <AppButton
                         title="Regenerate Invite Code"
-                        onPress={handleGenerateCode}
+                        onPress={() => {
+                            void handleGenerateCode();
+                        }}
                         loading={isGenerating || isLoadingActiveCode}
                         leftIcon={
                             <Ionicons
@@ -358,6 +372,9 @@ export default function TripShareCodeScreen() {
 }
 
 function HeaderButton({ onPress }: Readonly<{ onPress: () => void }>) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <AppCard
             onPress={onPress}
@@ -393,19 +410,19 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     eyebrow: {
-        color: colors.primary,
+        color: staticColors.primary,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.7,
     },
     title: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.heading,
         fontWeight: fontWeight.bold,
     },
     subtitle: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 21,
     },
@@ -416,7 +433,7 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     roleLabel: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
@@ -426,17 +443,17 @@ const styles = StyleSheet.create({
     roleChip: {
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
+        borderColor: staticColors.border,
+        backgroundColor: staticColors.surface,
         padding: spacing.md,
         gap: spacing.sm,
     },
     roleChipSelected: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
+        borderColor: staticColors.primary,
+        backgroundColor: staticColors.primarySoft,
     },
     roleHelpText: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.caption,
         lineHeight: 18,
         fontWeight: fontWeight.semibold,
@@ -448,7 +465,7 @@ const styles = StyleSheet.create({
     },
     infoText: {
         flex: 1,
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.bodySmall,
         lineHeight: 20,
         fontWeight: fontWeight.semibold,
@@ -458,7 +475,7 @@ const styles = StyleSheet.create({
     },
     codeBox: {
         borderRadius: radius.lg,
-        backgroundColor: colors.primary,
+        backgroundColor: staticColors.primary,
         padding: spacing.lg,
         gap: spacing.xs,
     },
@@ -470,7 +487,7 @@ const styles = StyleSheet.create({
         letterSpacing: 0.6,
     },
     codeText: {
-        color: colors.textLight,
+        color: staticColors.textLight,
         fontSize: typography.heading,
         fontWeight: fontWeight.bold,
         letterSpacing: 1.2,
@@ -481,8 +498,8 @@ const styles = StyleSheet.create({
         gap: spacing.md,
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.warning,
-        backgroundColor: colors.warningSoft,
+        borderColor: staticColors.warning,
+        backgroundColor: staticColors.warningSoft,
         padding: spacing.md,
     },
     expiryTextGroup: {
@@ -490,12 +507,12 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     expiryTitle: {
-        color: colors.warning,
+        color: staticColors.warning,
         fontSize: typography.bodySmall,
         fontWeight: fontWeight.bold,
     },
     expirySubtitle: {
-        color: colors.warning,
+        color: staticColors.warning,
         fontSize: typography.caption,
         lineHeight: 18,
         fontWeight: fontWeight.semibold,
@@ -503,20 +520,20 @@ const styles = StyleSheet.create({
     linkBox: {
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surfaceSoft,
+        borderColor: staticColors.border,
+        backgroundColor: staticColors.surfaceSoft,
         padding: spacing.md,
         gap: spacing.xs,
     },
     linkLabel: {
-        color: colors.textMuted,
+        color: staticColors.textMuted,
         fontSize: typography.caption,
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0.4,
     },
     linkText: {
-        color: colors.text,
+        color: staticColors.text,
         fontSize: typography.bodySmall,
         lineHeight: 20,
         fontWeight: fontWeight.semibold,

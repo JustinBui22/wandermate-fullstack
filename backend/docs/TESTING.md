@@ -1,28 +1,23 @@
 # Testing Guide
 
-This document summarizes the backend test suite and how to run it.
+This document summarizes the WanderMate backend test suite and how to run it.
 
----
+## Test Result Snapshot
 
-## Test Style
-
-The current backend tests are mainly service/controller tests using:
+The latest uploaded project contains Maven Surefire reports showing:
 
 ```text
-JUnit 5
-Mockito
-AssertJ
-Spring MockMvc
-Maven Surefire
+399 tests
+0 failures
+0 errors
+0 skipped
 ```
 
-These tests focus on business logic and controller behaviour without needing a real database connection for most cases.
+This is strong backend test proof for a graduate/junior full-stack portfolio project.
 
----
+## Run All Backend Tests
 
-## Run Tests
-
-From the backend folder:
+From backend folder:
 
 ```bash
 ./mvnw test
@@ -34,45 +29,128 @@ Windows PowerShell:
 .\mvnw test
 ```
 
-Run one test class:
+## Run One Test Class
 
 ```powershell
 .\mvnw -Dtest=TripServiceImplTest test
 ```
 
-Run one method:
+## Run One Test Method
 
 ```powershell
-.\mvnw -Dtest=DestinationServiceImplTest#updateDestination_shouldUpdateDestination_whenUserCanEditAndNoOverlapOrActivityConflictExists test
+.\mvnw -Dtest=TripServiceImplTest#updateTrip_shouldChangeFinishedTripToOngoing_whenEndDateIsExtendedIntoFuture test
 ```
 
----
-
-## Current/Expected Passing Test Suite
-
-The uploaded project contains Surefire reports showing:
+## Test Stack
 
 ```text
-392 tests expected after V3 + Cloudinary Option B updates
-0 failures expected
-0 errors expected
-0 skipped expected
+JUnit 5
+Mockito
+AssertJ
+Spring MockMvc
+Maven Surefire
 ```
 
-Main test areas:
+Most tests are unit/service/controller tests. They do not require a real database for the main coverage.
+
+## Main Test Areas
+
+### Auth/User/OTP
+
+Covered areas:
 
 ```text
-Controller tests
-Service tests
-Validator tests
+registration validation
+duplicate username/email/phone checks
+password hashing
+login success/failure
+max-session reached flow
+max-session override flow
+access token generation/validation
+refresh token rotation
+refresh token reuse detection
+session token validation
+logout/session revocation
+forgot password with OTP
+OTP send/verify retry and expiry rules
+current profile retrieval
+profile update
+settings/theme update
 ```
 
-Test classes include:
+### Trip/Destination/Activity
+
+Covered areas:
+
+```text
+trip create/list/detail/update/delete
+destination create/list/detail/update/delete
+activity create/list/detail/update/delete
+trip status recalculation
+trip overlap warning and allowOverlap flow
+trip date conflict with destinations
+destination date conflict with activities
+activity overlap hard error
+createdBy/modifiedBy attribution
+Cloudinary public ID metadata updates
+image cleanup helper behaviour
+```
+
+### Collaboration
+
+Covered areas:
+
+```text
+owner/editor/viewer access checks
+trip member listing
+member role update
+member removal
+owner cannot be removed
+owner role cannot be manually assigned
+invitation creation
+invitation accept/reject
+join request creation
+join request accept/reject
+duplicate request prevention
+private overlap warning behaviour
+collaboration summary count behaviour
+```
+
+### Share Codes
+
+Covered areas:
+
+```text
+owner-only share-code generation/regeneration
+active share-code retrieval
+share-code preview
+join request through share code
+share-code expired/inactive/used/revoked validation
+invalid share-code attempt restriction
+```
+
+### Image Upload
+
+Covered areas:
+
+```text
+image upload service validation
+image upload controller response mapping
+Cloudinary client upload/delete behaviour
+profile image cleanup
+trip cover cleanup
+cleanup failure does not fail main update
+```
+
+## Key Test Classes
+
+Controller tests:
 
 ```text
 ActivityControllerImplTest
 DestinationControllerImplTest
 HealthControllerImplTest
+ImageUploadControllerImplTest
 OtpControllerImplTest
 TokenControllerImplTest
 TripCollaborationControllerImplTest
@@ -80,13 +158,16 @@ TripControllerImplTest
 TripMemberControllerImplTest
 TripShareCodeControllerImplTest
 UserControllerImplTest
+```
 
-ImageUploadServiceImplTest
-ImageUploadControllerImplTest
+Service tests:
 
+```text
 ActivityServiceImplTest
+CloudinaryImageClientImplTest
 DestinationServiceImplTest
 EmailServiceImplTest
+ImageUploadServiceImplTest
 OtpServiceImplTest
 SmsServiceImplTest
 TokenServiceImplTest
@@ -97,83 +178,29 @@ TripOverlapWarningServiceImplTest
 TripServiceImplTest
 TripShareCodeServiceImplTest
 UserServiceImplTest
+```
 
+Validator tests:
+
+```text
 TripCollaborationRequestValidatorTest
 TripShareCodeValidatorTest
 ```
 
----
+## Frontend Typecheck
 
-## What Is Covered
+Frontend test command:
 
-### User/Auth/OTP
-
-```text
-- Register validation
-- Duplicate username/email/phone checks
-- Password hashing flow
-- Login success/failure paths
-- Max session flow integration
-- Forgot password with OTP
-- Logout flow
-- User check flow
-- Profile/settings retrieval and updates
-- Access token generation and validation
-- Refresh token rotation and reuse detection
-- Session token validation/revocation
-- OTP send/verify retry, expiry, destination mismatch, and consume-on-success
+```bash
+cd frontend
+npm run typecheck
 ```
 
-### Trip/Destination/Activity
+Latest replacement-file checks passed after the alert-callback and theme fixes.
 
-```text
-- Create/list/detail/update/delete trips
-- Create/list/detail/update/delete destinations
-- Create/list/detail/update/delete activities
-- Owner/member access checks
-- Trip/destination overlap warning
-- allowOverlap flow
-- Trip date conflict with existing destinations
-- Destination date conflict with existing activities
-- Activity overlap hard error
-- createdBy/modifiedBy attribution behaviour
-```
+## Context Load Test Note
 
-### Collaboration and Share Codes
-
-```text
-- Owner/editor/viewer access checks
-- Trip member listing
-- Member role updates
-- Member removal
-- Invitation creation and accept/reject
-- Join request creation and accept/reject
-- Duplicate request prevention
-- Request stale-status handling
-- Private overlap warning behaviour
-- Owner-only share-code generation/regeneration
-- Share-code trip preview
-- Join request by share code
-- Share-code role validation
-- Collaboration summary counts
-```
-
-### Controller/API Tests
-
-```text
-- HTTP status mapping
-- Request binding
-- Success response mapping
-- Business exception response mapping
-- Authenticated endpoint controller behaviour
-- Collaboration/share-code endpoint behaviour
-```
-
----
-
-## Default Spring Boot Context Test Note
-
-A generated test such as:
+A generated test like this:
 
 ```java
 @SpringBootTest
@@ -183,92 +210,47 @@ class TheProjectApplicationTests {
 }
 ```
 
-starts the full Spring application context. Because this project uses:
+can fail if no test database/profile is configured, because the app uses environment-based datasource properties:
 
 ```properties
 spring.datasource.url=${DB_URL}
 ```
 
-that test requires real DB environment variables or a dedicated test profile.
-
 Acceptable options:
 
 ```text
-Option A: Remove the generated contextLoads test if service/controller tests are the main proof.
-Option B: Add application-test.properties and @ActiveProfiles("test").
-Option C: Use Testcontainers later for a real integration test setup.
+Option A: remove generated contextLoads test if service/controller tests are the main proof
+Option B: add application-test.properties and @ActiveProfiles("test")
+Option C: add Testcontainers later for integration tests
 ```
 
----
-
-## Common Test Maintenance Rule
-
-When a service method validates several conditions, tests should usually expect the earliest meaningful business error in the service order.
-
-Recommended order for update flows:
+## Recommended Manual Test Pass Before Demo
 
 ```text
-1. Validate input
-2. Check current user/session
-3. Check trip access
-4. Check entity exists
-5. Check date/business conflicts
-6. Load current user for attribution if save will happen
-7. Save and map response
+1. Register or login as owner.
+2. Create trip.
+3. Upload trip cover.
+4. Add destination.
+5. Add activity.
+6. Invite editor/viewer.
+7. Accept invitation from another account.
+8. Confirm viewer read-only mode.
+9. Generate share code.
+10. Submit/accept join request.
+11. Upload profile avatar.
+12. Toggle dark/light mode.
+13. Test logout and session restore.
+14. Test Render health endpoint.
 ```
-
-Do not load attribution-only data too early if it can hide the real business error.
-
----
 
 ## Future Testing Improvements
 
-```text
-1. Add integration tests for key auth and trip flows
-2. Add Testcontainers for MariaDB integration testing
-3. Add frontend tests after frontend stabilizes
-4. Add end-to-end demo smoke checklist for V4 portfolio proof
-```
-
----
-
-## Cloudinary Image Upload Test Coverage
-
-The Option B image-storage tests should cover:
+Not required for V4, but good later:
 
 ```text
-ImageUploadServiceImplTest:
-- valid profile image upload
-- valid trip cover image upload
-- imageType normalization
-- Cloudinary folder uses userId
-- response includes imageUrl, publicId, fileName, imageType
-- invalid file/content-type/size failures
-- missing current user failure
-- Cloudinary upload failure mapped to INTERNAL_SERVER_ERROR
-
-ImageUploadControllerImplTest:
-- multipart request delegates to service
-- success response includes publicId
-- bad request response maps correctly
-
-UserServiceImplTest:
-- replacing profile image deletes old publicId
-- removing profile image deletes old publicId
-- unchanged publicId does not delete
-- Cloudinary delete failure logs warning but update still succeeds
-
-TripServiceImplTest:
-- create trip saves coverImageUrl and coverImagePublicId
-- update trip saves coverImageUrl and coverImagePublicId
-- replacing/removing trip cover deletes old publicId
-- deleting trip deletes old cover publicId
-- Cloudinary delete failure logs warning but update still succeeds
-```
-
-Run the full suite after changing image upload or cleanup logic:
-
-```powershell
-cd backend
-.\mvnw clean test
+Testcontainers for MariaDB integration tests
+frontend component tests
+frontend E2E tests with Detox/Maestro
+CI badges/screenshots in README
+coverage report
 ```

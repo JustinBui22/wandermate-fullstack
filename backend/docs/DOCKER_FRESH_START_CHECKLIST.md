@@ -1,106 +1,149 @@
 # Docker Fresh Start Checklist
 
-Use this checklist to prove the backend can run from a clean local Docker setup.
+Use this checklist before claiming Docker setup is working.
 
----
+## 1. Check Docker init folder
 
-## Before Running
-
-Confirm these files exist:
+Expected:
 
 ```text
-backend/Dockerfile
-backend/docker-compose.yml
-backend/.env.example
 backend/docker/init/init.sql
 ```
 
-Create local `.env`:
+Not expected:
 
-```powershell
-cd backend
-copy .env.example .env
+```text
+backend/docker/init/full-init.sql
+raw dump files
+old schema dumps
 ```
 
-Fill safe local values. Cloudinary image upload requires:
+## 2. Check `.env`
+
+`backend/.env` should exist locally only.
+
+Required DB values:
 
 ```env
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+DB_URL=jdbc:mariadb://db:3306/TravellingApp
+DB_USERNAME=app_user
+DB_PASSWORD=app_password
+MARIADB_DATABASE=TravellingApp
+MARIADB_USER=app_user
+MARIADB_PASSWORD=app_password
+MARIADB_ROOT_PASSWORD=root_password
+```
+
+Required Cloudinary values if testing upload:
+
+```env
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
 CLOUDINARY_BASE_FOLDER=wandermate
 ```
 
----
+## 3. Reset containers and volumes
 
-## Fresh Reset
+From backend folder:
 
-Warning: this deletes the Docker database volume.
-
-```powershell
-cd backend
+```bash
 docker compose down -v
 docker compose up --build
 ```
 
----
+## 4. Confirm containers
 
-## Verify
-
-Check containers:
-
-```powershell
+```bash
 docker compose ps
 ```
 
 Expected:
 
 ```text
-database container healthy
-backend container running
+backend service running
+MariaDB service running
 ```
 
-Check health:
+## 5. Test health endpoint
 
 ```text
 http://localhost:8082/The-Project/api/v1/health
 ```
 
-Check Swagger:
+Expected:
+
+```text
+healthy/success response
+```
+
+## 6. Test Swagger locally
 
 ```text
 http://localhost:8082/The-Project/swagger-ui/index.html
 ```
 
----
-
-## Manual Smoke Test
+Expected:
 
 ```text
-1. Health endpoint returns UP.
-2. Swagger opens locally.
-3. Register/login works if seed config is complete.
-4. Create trip works.
-5. Create destination works.
-6. Create activity works.
-7. Upload profile image works if Cloudinary env vars are real.
-8. Upload trip cover works if Cloudinary env vars are real.
+Swagger UI loads locally when production profile is not active
 ```
 
----
+## 7. Test auth flow manually
 
-## Troubleshooting
-
-If the backend starts but flows fail, check that `docker/init/init.sql` includes safe seed rows for:
+Minimum manual flow:
 
 ```text
-configuration
-error_codes
-email_contents
-sms_contents
-cities
-restaurants
-accommodations
+1. Register/verify user or use local test user created through API.
+2. Login.
+3. Confirm accessToken, refreshToken, sessionToken are returned.
+4. Call GET /api/v1/users/me with Authorization and Session-Token.
+5. Call POST /api/v1/auth/refresh with Refresh-Token and Session-Token.
+6. Call POST /api/v1/users/logout.
 ```
 
-Schema-only SQL is not enough for all runtime flows.
+## 8. Test core trip flow
+
+```text
+1. Create trip.
+2. Get trip list.
+3. Open trip detail.
+4. Add destination.
+5. Add activity.
+6. Update trip date and confirm status recalculates.
+7. Delete test trip if needed.
+```
+
+## 9. Test collaboration flow
+
+```text
+1. Login as owner.
+2. Create trip.
+3. Invite another user as VIEWER or EDITOR.
+4. Login as invited user.
+5. Accept invite.
+6. Confirm role-based access.
+7. Owner updates role or removes member.
+```
+
+## 10. Test image upload if Cloudinary env is set
+
+```text
+1. Upload profile image.
+2. Save profile.
+3. Confirm image URL/public ID are stored.
+4. Upload trip cover image.
+5. Save trip.
+6. Confirm cover URL/public ID are stored.
+```
+
+## 11. Final result to record
+
+For README/portfolio, capture proof of:
+
+```text
+Docker containers running
+Health endpoint working
+Frontend typecheck passing
+Backend tests passing
+```

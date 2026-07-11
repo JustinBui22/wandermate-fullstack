@@ -127,6 +127,24 @@ export default function DestinationDetailScreen() {
         router.push(`/trips/${tripNumberId}/destinations/${destinationNumberId}/activities/${activityId}` as any);
     }
 
+    async function handleConfirmDeleteDestination() {
+        try {
+            setIsDeleting(true);
+
+            await deleteDestination(tripNumberId, destinationNumberId);
+
+            Alert.alert("Destination deleted", "Destination has been deleted.");
+            router.back();
+        } catch (error: any) {
+            Alert.alert(
+                "Delete destination failed",
+                getApiErrorMessage(error, "Please try again.")
+            );
+        } finally {
+            setIsDeleting(false);
+        }
+    }
+
     function handleDeleteDestination() {
         if (!hasValidRouteIds) {
             Alert.alert("Missing destination", "Trip ID or destination ID is missing or invalid.");
@@ -141,23 +159,8 @@ export default function DestinationDetailScreen() {
                 {
                     text: "Delete",
                     style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setIsDeleting(true);
-
-                            await deleteDestination(tripNumberId, destinationNumberId);
-
-                            Alert.alert("Destination deleted", "Destination has been deleted.");
-                            router.back();
-                        } catch (error: any) {
-
-                            Alert.alert(
-                                "Delete destination failed",
-                                getApiErrorMessage(error, "Please try again.")
-                            );
-                        } finally {
-                            setIsDeleting(false);
-                        }
+                    onPress: () => {
+                        void handleConfirmDeleteDestination();
                     },
                 },
             ]
@@ -188,7 +191,12 @@ export default function DestinationDetailScreen() {
                     <Text style={[styles.centerSubtitle, { color: themeColors.textMuted }]}>{error ?? "Destination not found."}</Text>
                 </View>
 
-                <AppButton title="Try again" onPress={loadDestinationDetail} />
+                <AppButton
+                    title="Try again"
+                    onPress={() => {
+                        void loadDestinationDetail();
+                    }}
+                />
                 <AppButton title="Go back" onPress={() => router.back()} variant="ghost" />
             </AppScreen>
         );

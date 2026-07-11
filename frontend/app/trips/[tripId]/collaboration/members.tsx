@@ -95,10 +95,22 @@ export default function TripMembersListScreen() {
 
         try {
             setUpdatingMemberId(member.tripMemberId);
-            await updateTripMemberRole(tripId, member.tripMemberId, { role });
+            await updateTripMemberRole(tripId, member.tripMemberId, {role});
             await loadMembers();
         } catch (error: any) {
             Alert.alert("Update role failed", getApiErrorMessage(error, "Please try again."));
+        } finally {
+            setUpdatingMemberId(null);
+        }
+    }
+
+    async function handleConfirmRemoveMember(member: TripMember) {
+        try {
+            setUpdatingMemberId(member.tripMemberId);
+            await removeTripMember(tripId, member.tripMemberId);
+            await loadMembers();
+        } catch (error: any) {
+            Alert.alert("Remove failed", getApiErrorMessage(error, "Please try again."));
         } finally {
             setUpdatingMemberId(null);
         }
@@ -115,16 +127,8 @@ export default function TripMembersListScreen() {
             {
                 text: "Remove",
                 style: "destructive",
-                onPress: async () => {
-                    try {
-                        setUpdatingMemberId(member.tripMemberId);
-                        await removeTripMember(tripId, member.tripMemberId);
-                        await loadMembers();
-                    } catch (error: any) {
-                        Alert.alert("Remove failed", getApiErrorMessage(error, "Please try again."));
-                    } finally {
-                        setUpdatingMemberId(null);
-                    }
+                onPress: () => {
+                    void handleConfirmRemoveMember(member);
                 },
             },
         ]);
@@ -150,7 +154,7 @@ export default function TripMembersListScreen() {
                     <View style={styles.headerTextGroup}>
                         <Text style={[styles.eyebrow, { color: themeColors.primary }]}>Members</Text>
                         <Text style={[styles.title, { color: themeColors.text }]}>Trip members</Text>
-                        <Text style={[styles.subtitle, { color: themeColors.textMuted }]}> 
+                        <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>
                             {canManageMembers
                                 ? "Update roles or remove members from this trip."
                                 : "View who currently has access to this trip."}
@@ -163,7 +167,7 @@ export default function TripMembersListScreen() {
                 {!canManageMembers ? (
                     <AppCard variant="soft" contentStyle={styles.noticeContent}>
                         <Ionicons name="lock-closed-outline" size={21} color={themeColors.primary} />
-                        <Text style={[styles.noticeText, { color: themeColors.textMuted }]}> 
+                        <Text style={[styles.noticeText, { color: themeColors.textMuted }]}>
                             Only the trip owner can change roles or remove members.
                         </Text>
                     </AppCard>
@@ -183,7 +187,9 @@ export default function TripMembersListScreen() {
                                 member={member}
                                 loading={updatingMemberId === member.tripMemberId}
                                 canManageMembers={canManageMembers}
-                                onChangeRole={(role) => handleRoleChange(member, role)}
+                                onChangeRole={(role) => {
+                                    void handleRoleChange(member, role);
+                                }}
                                 onRemove={() => handleRemoveMember(member)}
                             />
                         ))}
@@ -221,8 +227,8 @@ function MemberCard({ member, loading, canManageMembers, onChangeRole, onRemove 
     return (
         <AppCard contentStyle={styles.memberCardContent}>
             <View style={styles.memberTopRow}>
-                <View style={[styles.avatar, { backgroundColor: themeColors.primarySoft }]}> 
-                    <Text style={[styles.avatarText, { color: themeColors.primary }]}> 
+                <View style={[styles.avatar, { backgroundColor: themeColors.primarySoft }]}>
+                    <Text style={[styles.avatarText, { color: themeColors.primary }]}>
                         {username.charAt(0).toUpperCase()}
                     </Text>
                 </View>
@@ -230,7 +236,7 @@ function MemberCard({ member, loading, canManageMembers, onChangeRole, onRemove 
                 <View style={styles.memberTextGroup}>
                     <Text style={[styles.memberName, { color: themeColors.text }]}>{username}</Text>
                     {member.email ? (
-                        <Text style={[styles.memberEmail, { color: themeColors.textMuted }]}> 
+                        <Text style={[styles.memberEmail, { color: themeColors.textMuted }]}>
                             {member.email}
                         </Text>
                     ) : null}

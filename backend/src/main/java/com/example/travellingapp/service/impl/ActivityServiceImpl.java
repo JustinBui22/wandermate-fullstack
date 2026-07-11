@@ -19,6 +19,7 @@ import com.example.travellingapp.service.TripAccessService;
 import com.example.travellingapp.validator.ActivityValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -59,6 +60,7 @@ public class ActivityServiceImpl implements ActivityService {
         this.tripAccessService = tripAccessService;
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> createActivity(Long tripId, Long destinationId, CreateActivityDTO activityDTO) {
         try {
@@ -227,6 +229,7 @@ public class ActivityServiceImpl implements ActivityService {
         }
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> updateActivity(
             Long tripId,
@@ -314,6 +317,7 @@ public class ActivityServiceImpl implements ActivityService {
         }
     }
 
+    @Transactional
     @Override
     public CompleteResponse<Object> deleteActivity(Long tripId, Long destinationId, Long activityId) {
         try {

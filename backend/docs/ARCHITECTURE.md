@@ -1,426 +1,258 @@
 # Backend Architecture
 
-This document explains the backend structure of the WanderMate / Travelling App backend.
+This document explains the backend structure and main design decisions for WanderMate.
 
----
+## Summary
 
-## High-Level Architecture
+WanderMate backend is a Spring Boot REST API for a mobile trip planning and collaboration app.
+
+Main responsibilities:
+
+```text
+- user registration/login/OTP/password reset
+- JWT access token, refresh token, and session token lifecycle
+- trip, destination, and activity persistence
+- owner/editor/viewer collaboration access control
+- invitations, join requests, and share-code joining
+- Cloudinary image upload metadata flow
+- standardized API responses and database-backed error messages
+- Docker/Render deployment support
+```
+
+## High-Level Flow
 
 ```mermaid
 flowchart TD
-    Client[Frontend / Swagger / Postman] --> Security[Spring Security Filter Chain]
-    Security --> TokenFilter[TokenFilter]
-    TokenFilter --> Controller[Controller Layer]
-    Controller --> Service[Service Layer]
-    Service --> Validator[Validator Layer]
-    Service --> Mapper[Mapper Layer]
-    Service --> Repository[Repository Layer]
-    Repository --> DB[(MariaDB)]
-    Service --> Response[CompleteResponse / ResponseBody]
-    Response --> Controller
-    Controller --> Client
+    Mobile[Expo React Native App] --> API[Spring Boot REST API]
+    API --> Security[Spring Security + Token Filter]
+    Security --> Controllers[Controller Layer]
+    Controllers --> Services[Service Layer]
+    Services --> Access[TripAccessService]
+    Services --> Validators[Validators]
+    Services --> Mappers[Mappers]
+    Services --> Repositories[Spring Data JPA Repositories]
+    Repositories --> DB[(MariaDB)]
+    Services --> Cloudinary[Cloudinary Image Storage]
 ```
 
-The code follows this structure:
+The main request path is:
 
 ```text
-Controller → Service → Access Control / Validator / Mapper → Repository → Database
+Controller -> Service -> Access Control / Validator -> Repository -> Mapper -> Response
 ```
-
----
 
 ## Package Structure
 
 ```text
 com.example.travellingapp
-├── config              # Spring Security, Swagger/OpenAPI, Mail config
+├── config              # Spring Security, Swagger/OpenAPI, mail config
 ├── controller          # Controller interfaces
 ├── controller.impl     # Controller implementations
-├── dto                 # Request and response DTOs
+├── dto                 # Request/response DTOs
 ├── entity              # JPA entities
-├── enums               # Error codes, flows, email/sms enums
+├── enums               # Error enums, flow enums, shared enum values
 ├── exception_handler   # Global exception handling
-├── mapper              # Entity to response DTO mapping
+├── mapper              # Entity-to-DTO mapping
 ├── repository          # Spring Data JPA repositories
-├── response_template   # Standard API response wrappers
-├── security            # Token filter, authenticated user helpers, hashing
+├── response_template   # Standard response wrappers
+├── security            # Token filter, auth helpers, hashing
 ├── service             # Service interfaces
 ├── service.impl        # Business logic implementations
-├── util                # Shared helpers
-└── validator           # Validation logic
+├── util                # Utility classes
+└── validator           # Business validation helpers
 ```
-
----
 
 ## Core Domain Model
 
 ```text
 User
-  └── Trip
-        └── Destination
-              └── Activity
+ ├── owns Trips
+ ├── collaborates through TripMember
+ └── sends/receives TripCollaborationRequest
+
+Trip
+ ├── has many TripDestination
+ ├── has many TripMember
+ ├── has many TripShareCode
+ └── has cover image metadata
+
+TripDestination
+ ├── belongs to Trip
+ ├── has many DestinationActivity
+ └── has created/modified user attribution
+
+DestinationActivity
+ ├── belongs to TripDestination
+ └── has created/modified user attribution
 ```
 
-A user owns trips. Each trip can contain multiple destinations. Each destination can contain multiple activities.
+## Collaboration Model
 
-The route design follows the same hierarchy:
+Trip access is role-based:
+
+| Role | Can view | Can edit planning content | Can manage collaboration | Can delete trip |
+|---|---:|---:|---:|---:|
+| `OWNER` | Yes | Yes | Yes | Yes |
+| `EDITOR` | Yes | Yes | No | No |
+| `VIEWER` | Yes | No | No | No |
+
+Important services:
 
 ```text
-/api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}
+TripAccessServiceImpl
+TripMemberServiceImpl
+TripCollaborationRequestServiceImpl
+TripShareCodeServiceImpl
+TripOverlapWarningServiceImpl
+CollaborationSummaryServiceImpl
 ```
 
----
-
-## Layer Responsibilities
-
-### Controller Layer
-
-Responsibilities:
-
-- Receive HTTP requests
-- Bind request bodies, headers, path variables, and query parameters
-- Call service methods
-- Convert `CompleteResponse` into `ResponseEntity`
-
-Controllers should not contain complex business logic.
-
-### Security Layer
-
-Responsibilities:
-
-- Skip token validation for public routes
-- Extract and validate Bearer access token
-- Validate `Session-Token`
-- Populate `SecurityContext` with authenticated user details
-- Reject invalid/expired token/session requests
-
-### Service Layer
-
-Responsibilities:
-
-- Authentication flow
-- Token generation, refresh, revocation, and reuse detection
-- OTP send/verify flow
-- Trip/destination/activity business rules
-- Ownership checks
-- Calling validators, mappers, and repositories
-
-### Validator Layer
-
-Responsibilities:
-
-- Required field validation beyond DTO annotations
-- Date/time rules
-- OTP method-specific checks
-- Format checks
-- Business preconditions before data is saved
-
-### Mapper Layer
-
-Responsibilities:
-
-- Convert entities to response DTOs
-- Avoid returning internal JPA entity objects directly
-- Keep response structure consistent
-
-### Repository Layer
-
-Responsibilities:
-
-- Query, save, update, and delete data
-- Provide ownership-aware lookup methods
-- Support overlap and conflict checks
-
----
-
-## Authorization Pattern
-
-Ownership is enforced by querying through the authenticated username.
-
-Example patterns:
+`TripAccessServiceImpl` centralizes access checks:
 
 ```text
-Trip:        findByTripIdAndUser_Username(...)
-Destination: findByDestinationIdAndTrip_TripIdAndTrip_User_Username(...)
-Activity:    findByActivityIdAndDestination_DestinationIdAndDestination_Trip_TripIdAndDestination_Trip_User_Username(...)
+getTripIfCanView
+getTripIfCanEdit
+getTripIfOwner
+assertCanView
+assertCanEdit
+assertIsOwner
 ```
 
-This ensures users can only access resources connected to their own account.
+This avoids repeating permission logic inside every trip/destination/activity service.
 
----
+## Authentication Model
+
+After login, the backend returns:
+
+```text
+accessToken
+refreshToken
+sessionToken
+```
+
+The access token is a short-lived JWT. The refresh token is stored as a hash in the database. The session token is encoded and stored separately to validate active device sessions.
+
+Main auth services:
+
+```text
+UserServiceImpl
+TokenServiceImpl
+OtpServiceImpl
+```
+
+Security entry point:
+
+```text
+SecurityConfig -> TokenFilter -> SecurityContext
+```
+
+## Image Storage Model
+
+Images are uploaded to Cloudinary via:
+
+```text
+POST /api/v1/uploads/images
+```
+
+The upload API returns:
+
+```text
+imageUrl
+publicId
+```
+
+The frontend then saves those fields through:
+
+```text
+PATCH /api/v1/users/me/profile
+PUT   /api/v1/trips/{tripId}
+```
+
+Cloudinary cleanup is handled by comparing old and new `publicId` values. If the public ID changes, the old image is deleted. Cleanup failures are logged and should not fail the main profile/trip update.
 
 ## Response Pattern
 
-Service methods return:
+Service methods usually return:
 
 ```java
 CompleteResponse<Object>
 ```
 
-Controller methods return:
+Controllers return:
 
 ```java
 ResponseEntity<ResponseBody<Object>>
 ```
 
-Standard response shape:
+The API response shape stays consistent across success and business-error flows.
 
-```json
-{
-  "code": "E000",
-  "message": "Trip created successfully",
-  "flow": "TRIP",
-  "body": {}
-}
-```
+## Validation Model
 
-Benefits:
+Validation is split across DTO validation and explicit validator/service checks.
 
-- Consistent success/error response structure
-- Business code is separated from HTTP status
-- Error messages can be database-backed through `ErrorCodeEntity`
-
----
-
-## Authentication Components
+Examples:
 
 ```text
-SecurityConfig
-  └── Configures public/protected routes and installs TokenFilter
-
-TokenFilter
-  └── Validates access token + session token for protected requests
-
-TokenServiceImpl
-  ├── Generates JWT access token
-  ├── Generates and hashes refresh token
-  ├── Generates and encodes session token
-  ├── Rotates refresh token
-  ├── Detects refresh token reuse
-  └── Revokes session/refresh tokens
+TripValidator
+DestinationValidator
+ActivityValidator
+TripShareCodeValidator
+TripCollaborationRequestValidator
 ```
 
----
-
-## Validation Rules
-
-### Trip Rules
-
-- Trip name is required and length-limited.
-- Destination is required.
-- Start/end dates are required.
-- Start date must be before end date.
-- Start date cannot be in the past.
-- Trip name must be unique per user.
-- Trip overlap returns warning `TRIP_OVERLAP_WARNING` unless `allowOverlap=true`.
-- Trip update cannot exclude existing destinations.
-
-### Destination Rules
-
-- Destination name is required.
-- Start/end dates are required.
-- Start date must be before end date.
-- Start date cannot be in the past.
-- Destination must stay inside parent trip range.
-- Destination overlap returns warning `DESTINATION_OVERLAP_WARNING` unless `allowOverlap=true`.
-- Destination update cannot exclude existing activities.
-
-### Activity Rules
-
-- Activity name is required.
-- Start/end date-times are required.
-- Start time must be before end time.
-- Activity must stay inside destination range.
-- Activity overlap is a hard error.
-
-Overlap logic:
+Important validation rules:
 
 ```text
-newStart < existingEnd AND newEnd > existingStart
+- trip start/end must be valid
+- destination dates must stay inside trip date range
+- activity times must stay inside destination date range
+- activities cannot overlap
+- trip name must be unique per user
+- editors/viewers cannot manage members
+- owners cannot remove themselves or assign OWNER manually
+- share code must be active, unexpired, and not abused
 ```
 
----
+## Database Strategy
 
-## Trip Creation Flow
+Current local development uses:
 
-```mermaid
-sequenceDiagram
-    actor Client
-    participant Security as TokenFilter
-    participant Controller
-    participant Service as TripService
-    participant Validator as TripValidator
-    participant Repo as Repositories
-    participant DB as MariaDB
-    participant Mapper as TripMapper
-
-    Client->>Security: POST /api/v1/trips
-    Security->>Security: Validate access token + session token
-    Security->>Controller: Allow request
-    Controller->>Service: createTrip(dto)
-    Service->>Validator: validateCreateInput(dto)
-    Validator-->>Service: normalized trip name
-    Service->>Repo: Find authenticated user
-    Repo->>DB: Query user
-    DB-->>Repo: User entity
-    Repo-->>Service: User entity
-    Service->>Repo: Check duplicate trip name
-    Service->>Repo: Check trip overlap
-    alt Overlap and allowOverlap=false
-        Service-->>Controller: TRIP_OVERLAP_WARNING
-        Controller-->>Client: Warning response
-    else No overlap or allowOverlap=true
-        Service->>Repo: Save trip
-        Repo->>DB: Insert trip
-        DB-->>Repo: Saved trip
-        Service->>Mapper: toResponseDTO(trip)
-        Mapper-->>Service: TripResponseDTO
-        Service-->>Controller: CompleteResponse
-        Controller-->>Client: API response
-    end
+```properties
+spring.jpa.hibernate.ddl-auto=update
 ```
 
----
-
-## Docker Runtime Architecture
-
-```mermaid
-flowchart TD
-    Browser[Browser / Swagger / Postman] --> HostPort[localhost:8082]
-    HostPort --> Backend[Backend container :8080]
-    Backend --> Env[DB_URL / DB_USERNAME / DB_PASSWORD]
-    Backend --> MariaDB[db container :3306]
-    MariaDB --> Volume[traveling-db-data]
-    Init[docker/init/init.sql] --> MariaDB
-```
-
-Important:
+This is acceptable for the current portfolio phase. For a more production-grade version, replace it with migrations:
 
 ```text
-Inside Docker: db:3306
-From host machine: localhost:3307
+Flyway or Liquibase
 ```
 
----
+The local Docker database should not use a raw production dump. It should start from a clean DB plus safe reference seed data.
 
-## Current Design Strengths
+## Deployment Model
 
-- Clear layered backend structure
-- Strong service-level test coverage
-- Auth design includes access token, refresh token, and session token
-- Refresh token reuse detection is implemented
-- Ownership-aware repository lookups protect user data
-- Trip/destination/activity hierarchy is modelled cleanly
-- Docker Compose gives a reproducible local backend environment
-
----
-
-## Current Design Limitations
-
-- SMS/phone OTP is not connected to a real SMS provider.
-- Public Docker demo does not include real email/OAuth secrets.
-- Swagger is currently part of the app; for production, it should be restricted or disabled.
-- The generated full-context Spring Boot test needs DB env variables or a dedicated test profile.
-- Frontend environment switching is currently manual through `src/constants/env.ts`.
-
-## V3 Collaboration Architecture
-
-The project now uses role-based collaboration instead of simple owner-only access.
+Local:
 
 ```text
-TripEntity
-├── TripMemberEntity
-│   ├── OWNER
-│   ├── EDITOR
-│   └── VIEWER
-├── TripCollaborationRequestEntity
-│   ├── INVITATION
-│   └── JOIN_REQUEST
-└── TripShareCodeEntity
+Spring Boot + MariaDB local or Docker Compose
 ```
 
-`TripAccessService` centralizes these checks:
+Production:
 
 ```text
-getTripIfOwner
-getTripIfCanEdit
-getTripIfMember
-assertCanView
-assertCanEdit
+Render backend service + external MariaDB + Cloudinary
 ```
 
-This keeps permission logic out of controllers and avoids duplicating access checks in every service.
+Production profile disables Swagger UI and OpenAPI docs.
 
-## V3 Attribution and Profile Model
+## Known Technical Debt
 
-V3 adds user-facing profile fields and content attribution.
+Not blockers for V4 portfolio proof:
 
 ```text
-users.display_name
-users.preferred_theme
-users.profile_image_url
-users.profile_image_public_id
-
-trip_destinations.created_by_user_id
-trip_destinations.modified_by_user_id
-
-destination_activities.created_by_user_id
-destination_activities.modified_by_user_id
+- Split the broad TripEnum into smaller enums
+- Add @Transactional to all multi-write service methods
+- Replace ddl-auto=update with Flyway/Liquibase
+- Add Testcontainers integration tests
+- Add frontend E2E tests
 ```
-
-The frontend uses these fields to show creator/last-editor avatars and quick user cards on destination and activity screens.
-
----
-
-## Cloudinary Image Storage Architecture
-
-WanderMate stores profile images and trip cover images in Cloudinary rather than in the backend filesystem.
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant App as Expo App
-    participant API as Spring Boot API
-    participant Cloudinary
-    participant DB as MariaDB
-
-    User->>App: Pick image from phone
-    App->>API: POST /api/v1/uploads/images multipart
-    API->>API: Validate auth, file type, file size, imageType
-    API->>Cloudinary: Upload image bytes
-    Cloudinary-->>API: secure_url + public_id
-    API-->>App: imageUrl + publicId
-    App->>API: Save profile/trip with URL + publicId
-    API->>DB: Store URL + publicId
-```
-
-Stored fields:
-
-```text
-users.profile_image_url
-users.profile_image_public_id
-
-trips.cover_image_url
-trips.cover_image_public_id
-```
-
-Folder strategy:
-
-```text
-wandermate/profile-images/users/{userId}
-wandermate/trip-covers/users/{userId}
-```
-
-The folder uses `userId` instead of username because user IDs are stable and usernames may change.
-
-Cleanup strategy:
-
-```text
-- Replace profile picture → delete old profile_image_public_id from Cloudinary.
-- Remove profile picture → delete old profile_image_public_id from Cloudinary.
-- Replace trip cover → delete old cover_image_public_id from Cloudinary.
-- Remove trip cover → delete old cover_image_public_id from Cloudinary.
-- Delete trip → delete old trip cover from Cloudinary.
-```
-
-The backend logs Cloudinary deletion failures as warnings so that profile/trip updates do not fail only because cleanup failed.

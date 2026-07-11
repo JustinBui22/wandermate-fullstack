@@ -12,7 +12,8 @@ import { AppScreen } from "@/src/components/ui/AppScreen";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
-import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { TripCollaborationRequest } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
@@ -60,6 +61,8 @@ function showAlreadyHandledAlert(onRefresh?: () => void) {
 
 export default function TripJoinRequestsScreen() {
     const router = useRouter();
+    const theme = useAppTheme();
+    const colors = theme.colors;
     const params = useLocalSearchParams();
     const tripIdParam = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
     const tripId = Number(tripIdParam);
@@ -209,9 +212,9 @@ export default function TripJoinRequestsScreen() {
                     <View style={styles.header}>
                         <HeaderButton onPress={() => router.back()} />
                         <View style={styles.headerTextGroup}>
-                            <Text style={styles.eyebrow}>Requests</Text>
-                            <Text style={styles.title}>Owner only</Text>
-                            <Text style={styles.subtitle}>Only the trip owner can review pending join requests.</Text>
+                            <Text style={[styles.eyebrow, { color: colors.primary }]}>Requests</Text>
+                            <Text style={[styles.title, { color: colors.text }]}>Owner only</Text>
+                            <Text style={[styles.subtitle, { color: colors.textMuted }]}>Only the trip owner can review pending join requests.</Text>
                         </View>
                     </View>
 
@@ -239,9 +242,9 @@ export default function TripJoinRequestsScreen() {
                 <View style={styles.header}>
                     <HeaderButton onPress={() => router.back()} />
                     <View style={styles.headerTextGroup}>
-                        <Text style={styles.eyebrow}>Requests</Text>
-                        <Text style={styles.title}>Pending join requests</Text>
-                        <Text style={styles.subtitle}>Review people who requested access through a code, link, or trip request.</Text>
+                        <Text style={[styles.eyebrow, { color: colors.primary }]}>Requests</Text>
+                        <Text style={[styles.title, { color: colors.text }]}>Pending join requests</Text>
+                        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Review people who requested access through a code, link, or trip request.</Text>
                     </View>
                 </View>
 
@@ -272,6 +275,9 @@ export default function TripJoinRequestsScreen() {
 }
 
 function HeaderButton({ onPress }: { onPress: () => void }) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
     return (
         <AppCard onPress={onPress} style={styles.backButton} contentStyle={styles.backButtonContent}>
             <Ionicons name="chevron-back" size={22} color={colors.text} />
@@ -287,6 +293,8 @@ type RequestCardProps = Readonly<{
 }>;
 
 function RequestCard({ request, loadingAction, onAccept, onReject }: RequestCardProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
     const username = getRequestUsername(request);
     const isAccepting = loadingAction?.requestId === request.requestId && loadingAction.action === "ACCEPT";
     const isRejecting = loadingAction?.requestId === request.requestId && loadingAction.action === "REJECT";
@@ -294,13 +302,13 @@ function RequestCard({ request, loadingAction, onAccept, onReject }: RequestCard
     return (
         <AppCard contentStyle={styles.requestCardContent}>
             <View style={styles.requestTopRow}>
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{username.charAt(0).toUpperCase()}</Text>
+                <View style={[styles.avatar, { backgroundColor: colors.primarySoft }]}>
+                    <Text style={[styles.avatarText, { color: colors.primary }]}>{username.charAt(0).toUpperCase()}</Text>
                 </View>
 
                 <View style={styles.requestTextGroup}>
-                    <Text style={styles.requestTitle}>{username}</Text>
-                    <Text style={styles.requestSubtitle}>Requested {formatDateTime(request.createdDate)}</Text>
+                    <Text style={[styles.requestTitle, { color: colors.text }]}>{username}</Text>
+                    <Text style={[styles.requestSubtitle, { color: colors.textMuted }]}>Requested {formatDateTime(request.createdDate)}</Text>
                 </View>
 
                 <RoleBadge role={request.requestedRole} />
@@ -321,17 +329,17 @@ const styles = StyleSheet.create({
     backButton: { width: 46, height: 46, borderRadius: radius.lg },
     backButtonContent: { flex: 1, padding: 0, alignItems: "center", justifyContent: "center" },
     headerTextGroup: { gap: spacing.xs },
-    eyebrow: { color: colors.primary, fontSize: typography.caption, fontWeight: fontWeight.bold, textTransform: "uppercase", letterSpacing: 0.7 },
-    title: { color: colors.text, fontSize: typography.heading, fontWeight: fontWeight.bold },
-    subtitle: { color: colors.textMuted, fontSize: typography.bodySmall, lineHeight: 21 },
+    eyebrow: { color: staticColors.primary, fontSize: typography.caption, fontWeight: fontWeight.bold, textTransform: "uppercase", letterSpacing: 0.7 },
+    title: { color: staticColors.text, fontSize: typography.heading, fontWeight: fontWeight.bold },
+    subtitle: { color: staticColors.textMuted, fontSize: typography.bodySmall, lineHeight: 21 },
     requestList: { gap: spacing.md },
     requestCardContent: { gap: spacing.lg },
     requestTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-    avatar: { width: 46, height: 46, borderRadius: radius.pill, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
-    avatarText: { color: colors.primary, fontSize: typography.body, fontWeight: fontWeight.bold },
+    avatar: { width: 46, height: 46, borderRadius: radius.pill, backgroundColor: staticColors.primarySoft, alignItems: "center", justifyContent: "center" },
+    avatarText: { color: staticColors.primary, fontSize: typography.body, fontWeight: fontWeight.bold },
     requestTextGroup: { flex: 1, gap: spacing.xs },
-    requestTitle: { color: colors.text, fontSize: typography.body, fontWeight: fontWeight.bold },
-    requestSubtitle: { color: colors.textMuted, fontSize: typography.caption, lineHeight: 18 },
+    requestTitle: { color: staticColors.text, fontSize: typography.body, fontWeight: fontWeight.bold },
+    requestSubtitle: { color: staticColors.textMuted, fontSize: typography.caption, lineHeight: 18 },
     actionRow: { flexDirection: "row", gap: spacing.md },
     actionButton: { flex: 1 },
 });
