@@ -12,4 +12,6 @@ public interface OtpCheckRepository extends JpaRepository<OtpCheckEntity, Intege
 
 
     Optional<OtpCheckEntity> findByUsername(String username);
+
+    Optional<OtpCheckEntity> findByEmailIgnoreCase(String email);
 }

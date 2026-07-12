@@ -156,7 +156,10 @@ public enum ErrorCodeEnum {
     TRIP_SHARE_CODE_ATTEMPT_RESTRICTED("E084", "Too many invalid invite code attempts. Please try again later", TRIP_MEMBER, HttpStatusCodeEnum.TOO_MANY_REQUESTS),
 
 
-    DELETE_IMAGE_FAIL("E085", "Failed to delete image from cloud storage", COMMON, HttpStatusCodeEnum.INTERNAL_SERVER_ERROR)
+    DELETE_IMAGE_FAIL("E085", "Failed to delete image from cloud storage", COMMON, HttpStatusCodeEnum.INTERNAL_SERVER_ERROR),
+    OTP_COOLDOWN_NOT_EXPIRED("E086", "OTP cooldown period has not expired yet", OTP, HttpStatusCodeEnum.TOO_MANY_REQUESTS),
+    REGISTER_OTP_ALREADY_SENT("E087", "An OTP has already been sent for registration. Please wait before requesting another one.", REGISTER, HttpStatusCodeEnum.TOO_MANY_REQUESTS)
+
 
     ;
 

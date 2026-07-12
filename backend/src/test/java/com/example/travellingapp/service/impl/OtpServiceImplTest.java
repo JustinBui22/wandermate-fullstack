@@ -151,14 +151,16 @@ class OtpServiceImplTest {
     }
 
     @Test
-    void sendOtp_shouldUpdateExistingOtpRecord_whenUserRequestsEmailOtpAgain() {
+    void sendOtp_shouldUpdateExistingOtpRecord_whenUserRequestsEmailOtpAgainAfterCooldown() {
         OtpDTO request = emailOtpRequest();
 
         OtpCheckEntity existingOtp = otpRecordForEmail();
+        existingOtp.setCreatedDate(LocalDateTime.now().minusMinutes(2));
         existingOtp.setRetrySendOtpCount(1);
         existingOtp.setRetryVerifyOtpCount(2);
 
         mockSendRetryConfigs();
+        mockOtpCooldownConfig("60000");
         mockOtpExpirationConfig("120000");
         mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
         mockConfig(EMAIL_ADDRESS_CONFIG.name(), "noreply@wandermate.com");
@@ -182,6 +184,79 @@ class OtpServiceImplTest {
         assertThat(existingOtp.getRetrySendOtpCount()).isEqualTo(2);
         assertThat(existingOtp.getRetryVerifyOtpCount()).isEqualTo(0);
 
+        verify(otpCheckRepository).save(existingOtp);
+    }
+
+    @Test
+    void sendOtp_shouldThrowOtpCooldownNotExpired_whenUserRequestsEmailOtpAgainTooSoon() {
+        OtpDTO request = emailOtpRequest();
+
+        OtpCheckEntity existingOtp = otpRecordForEmail();
+        existingOtp.setCreatedDate(LocalDateTime.now().minusSeconds(10));
+        existingOtp.setRetrySendOtpCount(1);
+        existingOtp.setBlock(false);
+
+        mockSendRetryConfigs();
+        mockOtpCooldownConfig("60000");
+        mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.empty());
+        when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
+                .thenReturn(Optional.empty());
+        when(otpCheckRepository.findByUsername(USERNAME))
+                .thenReturn(Optional.of(existingOtp));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> otpService.sendOtp(request)
+        );
+
+        assertBusinessException(exception, OTP_COOLDOWN_NOT_EXPIRED, OTP.name());
+
+        verify(emailServiceImpl, never()).sendEmail(anyString(), anyString(), anyString(), anyString());
+        verify(otpCheckRepository, never()).save(any());
+    }
+
+    @Test
+    void sendOtp_shouldReuseExistingOtpRecordByEmail_whenSameEmailRequestedWithDifferentUsernameAfterCooldown() {
+        OtpDTO request = emailOtpRequest();
+        request.setUserName("NewJustinBo123");
+
+        OtpCheckEntity existingOtp = otpRecordForEmail();
+        existingOtp.setUsername("OldJustinBo123");
+        existingOtp.setCreatedDate(LocalDateTime.now().minusMinutes(2));
+        existingOtp.setRetrySendOtpCount(1);
+        existingOtp.setRetryVerifyOtpCount(2);
+
+        mockSendRetryConfigs();
+        mockOtpCooldownConfig("60000");
+        mockOtpExpirationConfig("120000");
+        mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+        mockConfig(EMAIL_ADDRESS_CONFIG.name(), "noreply@wandermate.com");
+        mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
+        mockErrorCode(OTP_SENT_SUCCESS, OTP.name());
+
+        when(userRepository.findByUsernameAndActive("NewJustinBo123"))
+                .thenReturn(Optional.empty());
+        when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
+                .thenReturn(Optional.empty());
+        when(otpCheckRepository.findByUsername("NewJustinBo123"))
+                .thenReturn(Optional.empty());
+        when(otpCheckRepository.findByEmailIgnoreCase(EMAIL_ADDRESS))
+                .thenReturn(Optional.of(existingOtp));
+        when(emailRepository.findByEmailEnum(EmailEnum.EMAIL_OTP_REGISTER))
+                .thenReturn(Optional.of(emailContent()));
+
+        otpService.sendOtp(request);
+
+        assertThat(existingOtp.getUsername()).isEqualTo("NewJustinBo123");
+        assertThat(existingOtp.getEmail()).isEqualTo(EMAIL_ADDRESS);
+        assertThat(existingOtp.getNewestOtp()).matches("\\d{6}");
+        assertThat(existingOtp.getRetrySendOtpCount()).isEqualTo(2);
+        assertThat(existingOtp.getRetryVerifyOtpCount()).isEqualTo(0);
+
+        verify(otpCheckRepository).findByEmailIgnoreCase(EMAIL_ADDRESS);
         verify(otpCheckRepository).save(existingOtp);
     }
 
@@ -1025,6 +1100,10 @@ class OtpServiceImplTest {
     private void mockSendRetryConfigs() {
         mockConfig(MAX_RETRY_SEND_OTP.name(), "3");
         mockConfig(OTP_RESTRICTED_TIME.name(), "900000");
+    }
+
+    private void mockOtpCooldownConfig(String value) {
+        mockConfig(OTP_RETRY_COOLDOWN.name(), value);
     }
 
     private void mockVerifyConfigs() {

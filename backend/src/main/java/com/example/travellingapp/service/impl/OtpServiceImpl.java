@@ -75,7 +75,7 @@ public class OtpServiceImpl implements OtpService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("There has been an error in sending otp!", e);
+            log.error("There has been an error in the OTP send flow!", e);
             throw new BusinessException(INTERNAL_SERVER_ERROR, OTP.name());
         }
     }
@@ -85,11 +85,11 @@ public class OtpServiceImpl implements OtpService {
             int maxRetrySendOtp = convertStringToInt(getConfigValue(MAX_RETRY_SEND_OTP.name(), configurationRepository, "3"));
             long restrictedOtpDuration = convertStringToLong(getConfigValue(OTP_RESTRICTED_TIME.name(), configurationRepository, "900000"));
 
-            // Check if the OTP record is currently blocked/restricted
+            // If the OTP record is currently blocked, restriction status must be checked before cooldown or retry count.
             if (otpCheckEntity.isBlock()) {
-                // If the restricted time is empty or already expired, remove the restriction
+                // If the restriction has expired, unblock the record and allow the user to request a fresh OTP immediately.
                 if (otpCheckEntity.getOtpRestrictedTime() == null || otpCheckEntity.getOtpRestrictedTime().isBefore(LocalDateTime.now())) {
-                    log.info("OTP restriction removed for user {}!", otpDTO.getUserName());
+                    log.info("OTP restriction expired for user {}. Resetting OTP retry state.", otpDTO.getUserName());
                     otpCheckEntity.setOtpRestrictedTime(null);
                     otpCheckEntity.setBlock(false);
                     otpCheckEntity.setRetrySendOtpCount(0);
@@ -97,20 +97,43 @@ public class OtpServiceImpl implements OtpService {
                     otpCheckRepository.save(otpCheckEntity);
                     return;
                 }
-                // The OTP restriction has not expired yet, so the user must wait before requesting another OTP
-                log.error("Time restricted from sending otp is not expired for user {}!", otpDTO.getUserName());
+
+                // The OTP restriction has not expired yet, so the user must wait before requesting another OTP.
+                log.error("OTP restriction has not expired yet for user {}.", otpDTO.getUserName());
                 throw new BusinessException(OTP_BLOCKED_OR_NOT_FOUND, OTP.name());
             }
 
-            // Check if the user has already reached the maximum OTP retry/send limit
+            // A newly-created OTP row has no actual OTP code yet, so cooldown/retry rules should not block the first send.
+            if (otpCheckEntity.getNewestOtp() == null) {
+               return;
+            }
+
+            if (otpCheckEntity.getCreatedDate() == null) {
+                log.error("Existing OTP check entity for user {} has an OTP code but no created date.", otpDTO.getUserName());
+                throw new BusinessException(INTERNAL_SERVER_ERROR, OTP.name());
+            }
+
+            // Max retry checked before cooldown so users who already hit the limit are blocked correctly.
             if (otpCheckEntity.getRetrySendOtpCount() >= maxRetrySendOtp) {
-                log.error("User {} has exceeded max retry count of sending OTP", otpDTO.getUserName());
+                log.error("User {} has exceeded max retry count of sending OTP.", otpDTO.getUserName());
                 otpCheckEntity.setBlock(true);
-                // Calculate when the OTP restriction will expire
+
+                // Calculate when the OTP restriction will expire.
                 LocalDateTime restrictedOtpTime = LocalDateTime.now().plusSeconds(restrictedOtpDuration / 1000);
                 otpCheckEntity.setOtpRestrictedTime(restrictedOtpTime);
                 otpCheckRepository.save(otpCheckEntity);
+
                 throw new BusinessException(MAX_OTP_RETRY, OTP.name());
+            }
+
+            // Cooldown so users cannot spam OTP requests.
+            long otpCooldownDuration = convertStringToLong(getConfigValue(OTP_RETRY_COOLDOWN.name(), configurationRepository, "60000"));
+            long timeSinceLastOtp = java.time.Duration.between(otpCheckEntity.getCreatedDate(), LocalDateTime.now()).toMillis();
+
+            if (timeSinceLastOtp < otpCooldownDuration) {
+                log.error("OTP cooldown has not expired yet for user {}. Elapsed={}ms, required={}ms.",
+                        otpDTO.getUserName(), timeSinceLastOtp, otpCooldownDuration);
+                throw new BusinessException(OTP_COOLDOWN_NOT_EXPIRED, OTP.name());
             }
         } catch (BusinessException e) {
             throw e;
@@ -121,22 +144,40 @@ public class OtpServiceImpl implements OtpService {
     }
 
     private OtpCheckEntity getOrCreateOtpCheckEntity(OtpDTO otpDTO) {
-        // Check if the user has requested to send OTP before to determine if create new OTP check entity or update the existing one
-        return otpCheckRepository
-                .findByUsername(otpDTO.getUserName())
-                .orElseGet(() -> {
-                    log.info("Create new OtpCheck entity for user {}!", otpDTO.getUserName());
-                    return new OtpCheckEntity(
-                            otpDTO.getUserName(),
-                            otpDTO.getEmail(),
-                            LocalDateTime.now(),
-                            otpDTO.getPhoneNumber(),
-                            0,
-                            0,
-                            null,
-                            false
-                    );
-                });
+        // First search by username because this is the normal OTP flow.
+        Optional<OtpCheckEntity> existingOtpByUsername = otpCheckRepository.findByUsername(otpDTO.getUserName());
+
+        if (existingOtpByUsername.isPresent()) {
+            log.info("Reuse existing OtpCheck entity for username {}!", otpDTO.getUserName());
+            return existingOtpByUsername.get();
+        }
+
+        // For email OTP, also search by email before creating a new row.
+        // This prevents duplicate insert when the same email already exists under another username.
+        if (EMAIL_OTP.name().equals(otpDTO.getOtpVerificationMethod()) && otpDTO.getEmail() != null) {
+            Optional<OtpCheckEntity> existingOtpByEmail = otpCheckRepository.findByEmailIgnoreCase(otpDTO.getEmail());
+
+            if (existingOtpByEmail.isPresent()) {
+                OtpCheckEntity otpCheckEntity = existingOtpByEmail.get();
+                log.info("Reuse existing OtpCheck entity for email {} and update username from {} to {}!",
+                        otpDTO.getEmail(), otpCheckEntity.getUsername(), otpDTO.getUserName());
+
+                // Keep the OTP record aligned with the latest request so verifyOtp can still find it by username.
+                otpCheckEntity.setUsername(otpDTO.getUserName());
+                return otpCheckEntity;
+            }
+        }
+        log.info("Create new OtpCheck entity for user {}!", otpDTO.getUserName());
+        return new OtpCheckEntity(
+                otpDTO.getUserName(),
+                otpDTO.getEmail(),
+                LocalDateTime.now(),
+                otpDTO.getPhoneNumber(),
+                0,
+                0,
+                null,
+                false
+        );
     }
 
     private void validateOtpDestinationBelongsToExistingUser(OtpDTO otpDTO, User user) {
@@ -155,18 +196,22 @@ public class OtpServiceImpl implements OtpService {
 
     private void validateOtpDestinationAvailableForRegistration(OtpDTO otpDTO) {
         if (EMAIL_OTP.name().equals(otpDTO.getOtpVerificationMethod())) {
-            // Validate email otp request
+            // Registration can continue only when the email is not already used by an active user.
+            // Existing unverified OTP rows are handled later by retry/cooldown rules, not by blocking registration here.
             otpValidator.validateEmailOtpRequest(otpDTO, configurationRepository.findByConfigCode(EMAIL_PATTERN.name()));
+
             if (userRepository.findByEmailAndActive(otpDTO.getEmail(), true).isPresent()) {
                 log.error("Email {} is already taken!", otpDTO.getEmail());
                 throw new BusinessException(EMAIL_TAKEN, REGISTER.name());
             }
+
             return;
         }
 
         if (PHONE_NUM_OTP.name().equals(otpDTO.getOtpVerificationMethod())) {
-            // Validate phone otp request
+            // Registration can continue only when the phone number is not already used by an active user.
             otpValidator.validatePhoneOtpRequest(otpDTO, configurationRepository.findByConfigCode(PHONE_VN_PATTERN.name()));
+
             if (userRepository.findByPhoneNumberAndActive(otpDTO.getPhoneNumber(), true).isPresent()) {
                 log.error("Phone number {} is already linked to an active user!", otpDTO.getPhoneNumber());
                 throw new BusinessException(PHONE_NUMBER_TAKEN, REGISTER.name());
@@ -205,7 +250,6 @@ public class OtpServiceImpl implements OtpService {
                 otpDTO,
                 configurationRepository.findByConfigCode(EMAIL_PATTERN.name())
         );
-        // Send verification code through email
         try {
             Optional<EmailContentEntity> emailContentOptional = emailRepository.findByEmailEnum(emailEnum);
             if (emailContentOptional.isEmpty()) {
@@ -221,9 +265,11 @@ public class OtpServiceImpl implements OtpService {
                             .replace("{otp}", generatedOtp)
                             .replace("{expire_time}", String.valueOf(emailOtpExpirationTime / 60000)));
             log.info("OTP email sent successfully to {}", otpDTO.getEmail());
-        } catch (BusinessException e) {
+        } catch (
+                BusinessException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (
+                Exception e) {
             log.error("There has been an error in sending otp email!", e);
             throw new BusinessException(INTERNAL_SERVER_ERROR, OTP.name());
         }
