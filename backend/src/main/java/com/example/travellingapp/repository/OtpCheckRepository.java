@@ -10,8 +10,9 @@ public interface OtpCheckRepository extends JpaRepository<OtpCheckEntity, Intege
     @Query("SELECT o FROM OtpCheckEntity o WHERE o.username = :username AND o.isBlock = :isBlock")
     Optional<OtpCheckEntity> findByUsernameAndBlock(String username, boolean isBlock);
 
-
     Optional<OtpCheckEntity> findByUsername(String username);
 
     Optional<OtpCheckEntity> findByEmailIgnoreCase(String email);
+
+    Optional<OtpCheckEntity> findFirstByPhoneNumber(String phoneNumber);
 }

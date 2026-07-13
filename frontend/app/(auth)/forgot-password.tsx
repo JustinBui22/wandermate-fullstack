@@ -340,15 +340,20 @@ export default function ForgotPasswordScreen() {
 
                         <ErrorMessage message={error} title="OTP request failed" />
 
-                        <AppButton
-                            title={otpSent ? "Resend OTP" : "Send OTP"}
-                            onPress={() => {
-                                void handleSendOtp();
-                            }}
-                            loading={isSendingOtp}
-                            disabled={resendCooldown > 0}
-                            variant="secondary"
-                        />
+                        <View style={styles.otpActionRow}>
+                            <AppButton
+                                title={otpSent ? "Resend OTP" : "Send OTP"}
+                                onPress={() => {
+                                    void handleSendOtp();
+                                }}
+                                loading={isSendingOtp}
+                                disabled={resendCooldown > 0}
+                                variant="secondary"
+                                fullWidth={false}
+                                style={styles.otpActionButton}
+                            />
+                            <OtpCooldownBadge seconds={resendCooldown} />
+                        </View>
 
                         {resendCooldown > 0 ? (
                             <Text style={[styles.timerText, { color: colors.textMuted }]}>You can resend in {formatTimer(resendCooldown)}</Text>
@@ -424,15 +429,20 @@ export default function ForgotPasswordScreen() {
                             loading={isResetting}
                         />
 
-                        <AppButton
-                            title={resendCooldown > 0 ? `Resend OTP in ${formatTimer(resendCooldown)}` : "Resend OTP"}
-                            onPress={() => {
-                                void handleSendOtp();
-                            }}
-                            loading={isSendingOtp}
-                            disabled={resendCooldown > 0}
-                            variant="ghost"
-                        />
+                        <View style={styles.otpActionRow}>
+                            <AppButton
+                                title="Resend OTP"
+                                onPress={() => {
+                                    void handleSendOtp();
+                                }}
+                                loading={isSendingOtp}
+                                disabled={resendCooldown > 0}
+                                variant="ghost"
+                                fullWidth={false}
+                                style={styles.otpActionButton}
+                            />
+                            <OtpCooldownBadge seconds={resendCooldown} />
+                        </View>
 
                         <AppButton
                             title="Change OTP method"
@@ -472,6 +482,31 @@ function MethodButton({ label, icon, selected, onPress }: MethodButtonProps) {
             <Ionicons name={icon} size={18} color={selected ? colors.primary : colors.textMuted} />
             <Text style={[styles.methodText, { color: selected ? colors.primary : colors.textMuted }]}>{label}</Text>
         </Pressable>
+    );
+}
+
+type OtpCooldownBadgeProps = Readonly<{
+    seconds: number;
+}>;
+
+function OtpCooldownBadge({ seconds }: OtpCooldownBadgeProps) {
+    const theme = useAppTheme();
+    const colors = theme.colors;
+
+    if (seconds <= 0) {
+        return null;
+    }
+
+    return (
+        <View
+            style={[
+                styles.cooldownBadge,
+                { backgroundColor: colors.warningSoft, borderColor: colors.warning },
+            ]}
+        >
+            <Ionicons name="time-outline" size={15} color={colors.warning} />
+            <Text style={[styles.cooldownBadgeText, { color: colors.warning }]}>Wait {formatTimer(seconds)}</Text>
+        </View>
     );
 }
 
@@ -540,6 +575,28 @@ const styles = StyleSheet.create({
     },
     section: {
         gap: spacing.md,
+    },
+    otpActionRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    otpActionButton: {
+        flex: 1,
+    },
+    cooldownBadge: {
+        minHeight: 38,
+        borderRadius: radius.pill,
+        borderWidth: 1,
+        paddingHorizontal: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+    },
+    cooldownBadgeText: {
+        fontSize: typography.caption,
+        fontWeight: fontWeight.bold,
     },
     helperText: {
         color: staticColors.textMuted,

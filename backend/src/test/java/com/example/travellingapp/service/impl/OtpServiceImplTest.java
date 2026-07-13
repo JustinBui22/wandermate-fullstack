@@ -260,6 +260,43 @@ class OtpServiceImplTest {
         verify(otpCheckRepository).save(existingOtp);
     }
 
+    @Test
+    void sendOtp_shouldThrowOtpCooldownNotExpired_whenSameEmailRequestedWithDifferentUsernameTooSoon() {
+        OtpDTO request = emailOtpRequest();
+        request.setUserName("NewJustinBo123");
+
+        OtpCheckEntity existingOtp = otpRecordForEmail();
+        existingOtp.setUsername("OldJustinBo123");
+        existingOtp.setCreatedDate(LocalDateTime.now().minusSeconds(10));
+        existingOtp.setRetrySendOtpCount(1);
+        existingOtp.setBlock(false);
+
+        mockSendRetryConfigs();
+        mockOtpCooldownConfig("60000");
+        mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+
+        when(userRepository.findByUsernameAndActive("NewJustinBo123"))
+                .thenReturn(Optional.empty());
+        when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true))
+                .thenReturn(Optional.empty());
+        when(otpCheckRepository.findByUsername("NewJustinBo123"))
+                .thenReturn(Optional.empty());
+        when(otpCheckRepository.findByEmailIgnoreCase(EMAIL_ADDRESS))
+                .thenReturn(Optional.of(existingOtp));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> otpService.sendOtp(request)
+        );
+
+        assertBusinessException(exception, OTP_COOLDOWN_NOT_EXPIRED, OTP.name());
+
+        assertThat(existingOtp.getUsername()).isEqualTo("NewJustinBo123");
+        verify(otpCheckRepository).findByEmailIgnoreCase(EMAIL_ADDRESS);
+        verify(emailServiceImpl, never()).sendEmail(anyString(), anyString(), anyString(), anyString());
+        verify(otpCheckRepository, never()).save(any());
+    }
+
     // -------------------------------------------------------------------------
     // sendOtp() - Phone OTP success
     // -------------------------------------------------------------------------
@@ -308,6 +345,82 @@ class OtpServiceImplTest {
 
         verify(smsServiceImpl).sendSms(eq(PHONE_NUMBER), contains(savedOtp.getNewestOtp()));
         verify(emailServiceImpl, never()).sendEmail(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void sendOtp_shouldReuseExistingOtpRecordByPhone_whenSamePhoneRequestedWithDifferentUsernameAfterCooldown() {
+        OtpDTO request = phoneOtpRequest();
+        request.setUserName("NewJustinBo123");
+
+        OtpCheckEntity existingOtp = otpRecordForPhone();
+        existingOtp.setUsername("OldJustinBo123");
+        existingOtp.setCreatedDate(LocalDateTime.now().minusMinutes(2));
+        existingOtp.setRetrySendOtpCount(1);
+        existingOtp.setRetryVerifyOtpCount(2);
+
+        mockSendRetryConfigs();
+        mockOtpCooldownConfig("60000");
+        mockOtpExpirationConfig("120000");
+        mockConfig(PHONE_VN_PATTERN.name(), "^(0|84|\\+84)(3|5|7|8|9)\\d{7,8}$");
+        mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
+        mockErrorCode(OTP_SENT_SUCCESS, OTP.name());
+
+        when(userRepository.findByUsernameAndActive("NewJustinBo123"))
+                .thenReturn(Optional.empty());
+        when(userRepository.findByPhoneNumberAndActive(PHONE_NUMBER, true))
+                .thenReturn(Optional.empty());
+        when(otpCheckRepository.findByUsername("NewJustinBo123"))
+                .thenReturn(Optional.empty());
+        when(otpCheckRepository.findFirstByPhoneNumber(PHONE_NUMBER))
+                .thenReturn(Optional.of(existingOtp));
+        when(smsRepository.findBySmsCodeAndSmsFlow(
+                SmsEnum.SMS_OTP_REGISTER.getCode(),
+                SmsEnum.SMS_OTP_REGISTER.getFlow().name()
+        )).thenReturn(Optional.of(smsContent()));
+        when(smsServiceImpl.sendSms(eq(PHONE_NUMBER), anyString()))
+                .thenReturn(smsResponse(SMS_SENT_SUCCESS));
+
+        otpService.sendOtp(request);
+
+        assertThat(existingOtp.getUsername()).isEqualTo("NewJustinBo123");
+        assertThat(existingOtp.getPhoneNumber()).isEqualTo(PHONE_NUMBER);
+        assertThat(existingOtp.getEmail()).isNull();
+        assertThat(existingOtp.getNewestOtp()).matches("\\d{6}");
+        assertThat(existingOtp.getRetrySendOtpCount()).isEqualTo(2);
+        assertThat(existingOtp.getRetryVerifyOtpCount()).isEqualTo(0);
+
+        verify(otpCheckRepository).findFirstByPhoneNumber(PHONE_NUMBER);
+        verify(otpCheckRepository).save(existingOtp);
+        verify(smsServiceImpl).sendSms(eq(PHONE_NUMBER), contains(existingOtp.getNewestOtp()));
+    }
+
+    @Test
+    void sendOtp_shouldThrowOtpBlockedOrNotFound_whenSameUsernameSwitchesFromBlockedEmailOtpToPhoneOtp() {
+        OtpDTO request = phoneOtpRequest();
+
+        OtpCheckEntity existingOtp = otpRecordForEmail();
+        existingOtp.setBlock(true);
+        existingOtp.setOtpRestrictedTime(LocalDateTime.now().plusMinutes(10));
+
+        mockSendRetryConfigs();
+        mockConfig(PHONE_VN_PATTERN.name(), "^(0|84|\\+84)(3|5|7|8|9)\\d{7,8}$");
+
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.empty());
+        when(userRepository.findByPhoneNumberAndActive(PHONE_NUMBER, true))
+                .thenReturn(Optional.empty());
+        when(otpCheckRepository.findByUsername(USERNAME))
+                .thenReturn(Optional.of(existingOtp));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> otpService.sendOtp(request)
+        );
+
+        assertBusinessException(exception, OTP_BLOCKED_OR_NOT_FOUND, OTP.name());
+
+        verify(smsServiceImpl, never()).sendSms(anyString(), anyString());
+        verify(otpCheckRepository, never()).save(any());
     }
 
     // -------------------------------------------------------------------------

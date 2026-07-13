@@ -55,9 +55,8 @@ public class OtpServiceImpl implements OtpService {
     @Override
     public CompleteResponse<Object> sendOtp(OtpDTO otpDTO) {
         try {
-            // Validate common input for sending otp request
+            // Validate common inputs for sending otp request
             otpValidator.validateOtpRequest(otpDTO);
-            // Check if user already existed to send otp for
             Optional<User> existingUserOptional = userRepository.findByUsernameAndActive(otpDTO.getUserName());
 
             if (existingUserOptional.isPresent()) {
@@ -105,7 +104,7 @@ public class OtpServiceImpl implements OtpService {
 
             // A newly-created OTP row has no actual OTP code yet, so cooldown/retry rules should not block the first send.
             if (otpCheckEntity.getNewestOtp() == null) {
-               return;
+                return;
             }
 
             if (otpCheckEntity.getCreatedDate() == null) {
@@ -144,29 +143,40 @@ public class OtpServiceImpl implements OtpService {
     }
 
     private OtpCheckEntity getOrCreateOtpCheckEntity(OtpDTO otpDTO) {
-        // First search by username because this is the normal OTP flow.
         Optional<OtpCheckEntity> existingOtpByUsername = otpCheckRepository.findByUsername(otpDTO.getUserName());
-
         if (existingOtpByUsername.isPresent()) {
             log.info("Reuse existing OtpCheck entity for username {}!", otpDTO.getUserName());
             return existingOtpByUsername.get();
         }
 
-        // For email OTP, also search by email before creating a new row.
-        // This prevents duplicate insert when the same email already exists under another username.
+        // For email OTP, search by email before creating a new row to prevents duplicate email inserts and stops users bypassing cooldown by changing username.
         if (EMAIL_OTP.name().equals(otpDTO.getOtpVerificationMethod()) && otpDTO.getEmail() != null) {
             Optional<OtpCheckEntity> existingOtpByEmail = otpCheckRepository.findByEmailIgnoreCase(otpDTO.getEmail());
-
             if (existingOtpByEmail.isPresent()) {
                 OtpCheckEntity otpCheckEntity = existingOtpByEmail.get();
                 log.info("Reuse existing OtpCheck entity for email {} and update username from {} to {}!",
                         otpDTO.getEmail(), otpCheckEntity.getUsername(), otpDTO.getUserName());
 
+                // Keep the OTP record aligned with the latest request => verifyOtp can still find it by username.
+                otpCheckEntity.setUsername(otpDTO.getUserName());
+                return otpCheckEntity;
+            }
+        }
+
+        // For phone OTP, also search by phone number before creating a new row.
+        // This stops users bypassing OTP cooldown/restriction by changing username but reusing the same phone number.
+        if (PHONE_NUM_OTP.name().equals(otpDTO.getOtpVerificationMethod()) && otpDTO.getPhoneNumber() != null) {
+            Optional<OtpCheckEntity> existingOtpByPhoneNumber = otpCheckRepository.findFirstByPhoneNumber(otpDTO.getPhoneNumber());
+            if (existingOtpByPhoneNumber.isPresent()) {
+                OtpCheckEntity otpCheckEntity = existingOtpByPhoneNumber.get();
+                log.info("Reuse existing OtpCheck entity for phone number {} and update username from {} to {}!",
+                        otpDTO.getPhoneNumber(), otpCheckEntity.getUsername(), otpDTO.getUserName());
                 // Keep the OTP record aligned with the latest request so verifyOtp can still find it by username.
                 otpCheckEntity.setUsername(otpDTO.getUserName());
                 return otpCheckEntity;
             }
         }
+
         log.info("Create new OtpCheck entity for user {}!", otpDTO.getUserName());
         return new OtpCheckEntity(
                 otpDTO.getUserName(),
@@ -197,7 +207,6 @@ public class OtpServiceImpl implements OtpService {
     private void validateOtpDestinationAvailableForRegistration(OtpDTO otpDTO) {
         if (EMAIL_OTP.name().equals(otpDTO.getOtpVerificationMethod())) {
             // Registration can continue only when the email is not already used by an active user.
-            // Existing unverified OTP rows are handled later by retry/cooldown rules, not by blocking registration here.
             otpValidator.validateEmailOtpRequest(otpDTO, configurationRepository.findByConfigCode(EMAIL_PATTERN.name()));
 
             if (userRepository.findByEmailAndActive(otpDTO.getEmail(), true).isPresent()) {
