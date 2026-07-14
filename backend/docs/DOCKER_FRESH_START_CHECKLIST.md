@@ -1,149 +1,49 @@
 # Docker Fresh Start Checklist
 
-Use this checklist before claiming Docker setup is working.
+Use this checklist when testing the backend with a fresh MariaDB container.
 
-## 1. Check Docker init folder
+## Before starting
 
-Expected:
+1. Ensure `.env` exists locally but is not committed.
+2. Ensure Docker Desktop is running.
+3. Ensure only sanitized SQL is in `backend/docker/init/`.
+4. Do not include raw dumps with real runtime data.
 
-```text
-backend/docker/init/init.sql
-```
-
-Not expected:
-
-```text
-backend/docker/init/full-init.sql
-raw dump files
-old schema dumps
-```
-
-## 2. Check `.env`
-
-`backend/.env` should exist locally only.
-
-Required DB values:
-
-```env
-DB_URL=jdbc:mariadb://db:3306/TravellingApp
-DB_USERNAME=app_user
-DB_PASSWORD=app_password
-MARIADB_DATABASE=TravellingApp
-MARIADB_USER=app_user
-MARIADB_PASSWORD=app_password
-MARIADB_ROOT_PASSWORD=root_password
-```
-
-Required Cloudinary values if testing upload:
-
-```env
-CLOUDINARY_CLOUD_NAME=...
-CLOUDINARY_API_KEY=...
-CLOUDINARY_API_SECRET=...
-CLOUDINARY_BASE_FOLDER=wandermate
-```
-
-## 3. Reset containers and volumes
-
-From backend folder:
+## Fresh start commands
 
 ```bash
+cd backend
 docker compose down -v
 docker compose up --build
 ```
 
-## 4. Confirm containers
+## Verify containers
+
+![Docker running](../../docs/media/screenshots/23-docker-running.png)
+
+## Verify health
 
 ```bash
-docker compose ps
+curl http://localhost:8080/The-Project/api/v1/health
 ```
 
-Expected:
+or use the configured host port from your `.env` / Docker setup.
 
-```text
-backend service running
-MariaDB service running
-```
+## Verify app flow
 
-## 5. Test health endpoint
+1. Send OTP.
+2. Register or log in.
+3. Create trip.
+4. Upload image.
+5. Create destination.
+6. Create nested activity.
+7. Invite member or generate share code.
+8. Check permissions.
 
-```text
-http://localhost:8082/The-Project/api/v1/health
-```
+## Troubleshooting
 
-Expected:
-
-```text
-healthy/success response
-```
-
-## 6. Test Swagger locally
-
-```text
-http://localhost:8082/The-Project/swagger-ui/index.html
-```
-
-Expected:
-
-```text
-Swagger UI loads locally when production profile is not active
-```
-
-## 7. Test auth flow manually
-
-Minimum manual flow:
-
-```text
-1. Register/verify user or use local test user created through API.
-2. Login.
-3. Confirm accessToken, refreshToken, sessionToken are returned.
-4. Call GET /api/v1/users/me with Authorization and Session-Token.
-5. Call POST /api/v1/auth/refresh with Refresh-Token and Session-Token.
-6. Call POST /api/v1/users/logout.
-```
-
-## 8. Test core trip flow
-
-```text
-1. Create trip.
-2. Get trip list.
-3. Open trip detail.
-4. Add destination.
-5. Add activity.
-6. Update trip date and confirm status recalculates.
-7. Delete test trip if needed.
-```
-
-## 9. Test collaboration flow
-
-```text
-1. Login as owner.
-2. Create trip.
-3. Invite another user as VIEWER or EDITOR.
-4. Login as invited user.
-5. Accept invite.
-6. Confirm role-based access.
-7. Owner updates role or removes member.
-```
-
-## 10. Test image upload if Cloudinary env is set
-
-```text
-1. Upload profile image.
-2. Save profile.
-3. Confirm image URL/public ID are stored.
-4. Upload trip cover image.
-5. Save trip.
-6. Confirm cover URL/public ID are stored.
-```
-
-## 11. Final result to record
-
-For README/portfolio, capture proof of:
-
-```text
-Docker containers running
-Health endpoint working
-Frontend typecheck passing
-Backend tests passing
-```
+- If DB init does not run, remove the Docker volume and restart.
+- If port is already used, change the host port in `.env`.
+- If Cloudinary upload fails, check Cloudinary variables.
+- If email OTP fails, check email/OAuth config.
+- If Docker works but Expo cannot connect, verify frontend base URL and device networking.

@@ -1,81 +1,48 @@
-# Production API Documentation
+# Production API Docs
 
-This document explains how API documentation is handled for production.
+Production deployment uses the same context path:
 
-## Production Base URL
+```text
+/The-Project
+```
+
+Render base URL:
 
 ```text
 https://wandermate-fullstack.onrender.com/The-Project
 ```
 
-Health endpoint:
+## Health proof
 
-```text
-https://wandermate-fullstack.onrender.com/The-Project/api/v1/health
-```
+![Render health](../../docs/media/screenshots/17-render-health.png)
 
-## Swagger Policy
+## Render logs proof
 
-Swagger UI and OpenAPI docs are disabled in production:
+![Render logs](../../docs/media/screenshots/25-render-logs.png)
 
-```properties
-springdoc.swagger-ui.enabled=false
-springdoc.api-docs.enabled=false
-```
+## Swagger/OpenAPI
 
-This means these production URLs should not expose docs:
+Swagger/OpenAPI is useful locally for development and endpoint inspection.
 
-```text
-/The-Project/swagger-ui/index.html
-/The-Project/v3/api-docs
-```
+Local Swagger proof:
 
-## Why Disable Swagger in Production?
+![Swagger local](../../docs/media/screenshots/18-swagger-local.png)
 
-Reasons:
+In production profile, Swagger may be disabled for security/simplicity depending on configuration.
 
-```text
-- avoid exposing endpoint metadata publicly
-- reduce attack surface
-- keep production cleaner
-- document public portfolio details through README/docs instead
-```
+## Production testing checklist
 
-## Where API Docs Live
+1. Health endpoint returns success.
+2. Register/login works against production DB/config.
+3. OTP email works.
+4. Access token works on protected endpoint.
+5. Refresh token works.
+6. Logout revokes session.
+7. Cloudinary image upload works.
+8. Trip/destination/activity CRUD works.
+9. Collaboration roles work.
+10. No secrets are exposed in logs or docs.
 
-For local development:
+## Environment warning
 
-```text
-http://localhost:8080/The-Project/swagger-ui/index.html
-http://localhost:8082/The-Project/swagger-ui/index.html
-```
-
-For GitHub/portfolio:
-
-```text
-backend/docs/API_GUIDE.md
-backend/docs/POSTMAN_GUIDE.md
-backend/docs/AUTH_FLOW.md
-```
-
-## Production Verification
-
-Before using the production URL in README/CV/demo:
-
-```text
-1. Open health endpoint.
-2. Confirm successful response.
-3. Confirm Swagger is not exposed in production.
-4. Login with a demo account if demo DB is configured.
-5. Test one protected endpoint.
-```
-
-## README Recommendation
-
-In the root README, link production like this:
-
-```markdown
-Backend health: https://wandermate-fullstack.onrender.com/The-Project/api/v1/health
-```
-
-Do not include secrets, raw tokens, or private test accounts in README.
+Production secrets must live in Render environment variables, not in committed files.

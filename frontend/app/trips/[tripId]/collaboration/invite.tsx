@@ -168,6 +168,8 @@ export default function InviteMemberScreen() {
                     autoCapitalize="none"
                     autoCorrect={false}
                     placeholder="Enter username"
+                    helperText="Enter the exact WanderMate username of the person you want to invite."
+                    style={{ backgroundColor: colors.surfaceSoft, borderColor: colors.borderStrong }}
                     leftIcon={<Ionicons name="person-outline" size={20} color={colors.textMuted} />}
                 />
 

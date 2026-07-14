@@ -83,7 +83,7 @@ export function AppCard({
             backgroundColor: cardBackgroundColor,
             borderColor: cardBorderColor,
         },
-        variant !== "soft" && shadow.card,
+        variant !== "soft" && theme.name === "LIGHT" && shadow.card,
         style,
     ];
 

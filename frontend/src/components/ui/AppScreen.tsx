@@ -8,10 +8,12 @@ import {
     type StyleProp,
     type ViewStyle,
 } from "react-native";
+import { useSegments } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { spacing } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { useAuthStore } from "@/src/stores/authStore";
 
 type AppScreenProps = Readonly<{
     children: ReactNode;
@@ -34,6 +36,14 @@ export function AppScreen({
                           }: AppScreenProps) {
     const theme = useAppTheme();
     const colors = theme.colors;
+    const segments = useSegments();
+    const { isAuthenticated } = useAuthStore();
+    const currentRouteGroup = String(segments[0] ?? "");
+    const shouldPadForPersistentTabs =
+        isAuthenticated &&
+        currentRouteGroup !== "(auth)" &&
+        currentRouteGroup !== "(tabs)" &&
+        currentRouteGroup !== "modal";
 
     const body = scroll ? (
         <ScrollView
@@ -42,6 +52,7 @@ export function AppScreen({
                 styles.content,
                 centerContent && styles.centerContent,
                 contentContainerStyle,
+                shouldPadForPersistentTabs && styles.persistentTabPadding,
             ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -57,6 +68,7 @@ export function AppScreen({
                 { backgroundColor: colors.background },
                 style,
                 contentContainerStyle,
+                shouldPadForPersistentTabs && styles.persistentTabPadding,
             ]}
         >
             {children}
@@ -98,5 +110,8 @@ const styles = StyleSheet.create({
     },
     centerContent: {
         justifyContent: "center",
+    },
+    persistentTabPadding: {
+        paddingBottom: 112,
     },
 });

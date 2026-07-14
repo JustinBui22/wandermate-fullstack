@@ -13,6 +13,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
+import { PersistentBottomTabs } from "@/src/components/navigation/PersistentBottomTabs";
 import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useAuthStore } from "@/src/stores/authStore";
@@ -55,6 +56,13 @@ function RootLayoutNav() {
   const { isAuthenticated, restoreAuthSession } = useAuthStore();
   const [isAuthReady, setIsAuthReady] = useState(false);
 
+  const currentRouteGroup = String(segments[0] ?? "");
+  const shouldShowPersistentTabs =
+      isAuthenticated &&
+      currentRouteGroup !== "(auth)" &&
+      currentRouteGroup !== "(tabs)" &&
+      currentRouteGroup !== "modal";
+
   useEffect(() => {
     let isMounted = true;
 
@@ -74,7 +82,6 @@ function RootLayoutNav() {
   useEffect(() => {
     if (!isAuthReady) return;
 
-    const currentRouteGroup = String(segments[0] ?? "");
     const isInAuthGroup = currentRouteGroup === "(auth)";
 
     if (!isAuthenticated && !isInAuthGroup) {
@@ -85,7 +92,7 @@ function RootLayoutNav() {
     if (isAuthenticated && isInAuthGroup) {
       router.replace("/" as any);
     }
-  }, [isAuthenticated, isAuthReady, router, segments]);
+  }, [currentRouteGroup, isAuthenticated, isAuthReady, router]);
 
   if (!isAuthReady) {
     return <AuthLoadingScreen />;
@@ -95,17 +102,21 @@ function RootLayoutNav() {
       <ThemeProvider value={theme.name === "DARK" ? DarkTheme : DefaultTheme}>
         <StatusBar style={theme.name === "DARK" ? "light" : "dark"} />
 
-        <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-              animation: "slide_from_right",
-            }}
-        >
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-        </Stack>
+        <View style={styles.rootContainer}>
+          <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+                animation: "slide_from_right",
+              }}
+          >
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+          </Stack>
+
+          {shouldShowPersistentTabs ? <PersistentBottomTabs /> : null}
+        </View>
       </ThemeProvider>
   );
 }
@@ -131,6 +142,9 @@ function AuthLoadingScreen() {
 }
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
   loadingScreen: {
     flex: 1,
     alignItems: "center",

@@ -1,184 +1,80 @@
-# Authentication and OTP Flow
+# Authentication, OTP and Session Flow
 
-This document explains the authentication design in WanderMate.
+WanderMate uses a custom authentication flow built around password hashing, OTP verification, JWT access tokens, refresh tokens and session tokens.
 
-## Token Model
+## Main concepts
 
-The backend uses three values after login:
+| Concept | Purpose |
+|---|---|
+| Password hash | Stores password securely instead of plain text |
+| OTP | Verifies registration and forgot-password flows |
+| Access token | Short-lived Bearer token for protected APIs |
+| Refresh token | Used to obtain a new access token |
+| Session token | Tracks active login session and supports logout/revocation |
 
-| Token | Purpose | Database Storage |
-|---|---|---|
-| `accessToken` | JWT for protected APIs | Not stored as raw token |
-| `refreshToken` | Used to rotate tokens | Hashed in `refresh_token` |
-| `sessionToken` | Validates active login session/device | Encoded/hashed in `session_token` |
+## Register flow
 
-Protected calls require:
+1. User enters username, email, phone and password.
+2. Backend checks active user uniqueness.
+3. User requests OTP.
+4. Backend validates destination, retry, block and cooldown rules.
+5. Backend sends OTP.
+6. User verifies OTP.
+7. Backend consumes/deletes verified OTP record.
+8. User completes registration.
 
-```http
-Authorization: Bearer <accessToken>
-Session-Token: <sessionToken>
-```
+Screenshot:
 
-Refresh calls require:
+![Register OTP](../../docs/media/screenshots/02-register-otp.png)
 
-```http
-Refresh-Token: <refreshToken>
-Session-Token: <sessionToken>
-```
+## OTP resend flow
 
-## Login Flow
+1. Existing OTP row is found by username, email or phone depending on request.
+2. If blocked and restriction has not expired, request fails.
+3. If blocked but restriction expired, retry state resets.
+4. If send retry limit is reached, row becomes blocked.
+5. If cooldown has not expired, request fails with cooldown error.
+6. If checks pass, a new OTP is sent and saved.
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant App as Expo App
-    participant API as User API
-    participant UserService
-    participant TokenService
-    participant DB as MariaDB
+The frontend shows a resend timer so users cannot spam OTP requests.
 
-    User->>App: Enter username/password
-    App->>API: POST /api/v1/users/login
-    API->>UserService: loginUser(...)
-    UserService->>DB: Find user
-    UserService->>UserService: Verify password hash
-    UserService->>TokenService: Generate access/refresh/session tokens
-    TokenService->>DB: Store refresh token hash + session token
-    TokenService-->>UserService: Token response
-    UserService-->>API: CompleteResponse
-    API-->>App: accessToken, refreshToken, sessionToken
-```
+## Login flow
 
-The frontend stores tokens using Expo SecureStore.
+1. User submits username/password.
+2. Backend validates credentials.
+3. Backend issues access token, refresh token and session token.
+4. Frontend stores tokens securely.
+5. Frontend sends access token in `Authorization: Bearer` header.
 
-## Max Session Flow
+Screenshot:
 
-`MAX_ALLOWED_SESSIONS` is configured in the `configuration` table.
+![Login](../../docs/media/screenshots/01-login.png)
 
-If a user reaches the max session count:
+## Refresh flow
 
-```text
-1. Backend returns MAX_SESSIONS_REACHED.
-2. Frontend shows confirmation.
-3. If user continues, frontend retries login with overrideMaxSession=true.
-4. Backend revokes the oldest session and creates a new one.
-```
+1. Frontend calls `/api/v1/auth/refresh`.
+2. Request includes refresh token and session token.
+3. Backend validates the session and refresh token.
+4. Backend returns a fresh access token and refresh token.
 
-Example retry request:
+## Logout flow
 
-```json
-{
-  "username": "owner_user",
-  "password": "Password123!",
-  "overrideMaxSession": true
-}
-```
+1. Frontend calls logout with access token and session token.
+2. Backend revokes the current session.
+3. Frontend clears stored tokens.
+4. Revoked session cannot refresh or continue authenticated requests.
 
-## Access Token Validation
+Screenshot:
 
-For protected APIs:
+![Logout session proof](../../docs/media/screenshots/30-logout-session-proof.png)
 
-```text
-1. TokenFilter checks whether the route is public.
-2. It reads Authorization Bearer access token.
-3. It validates JWT signature and expiry.
-4. It validates Session-Token against active session data.
-5. It loads user identity into Spring SecurityContext.
-6. Controller/service layer continues as authenticated user.
-```
+## Session limit proof
 
-## Refresh Flow
+![Session limit proof](../../docs/media/screenshots/29-session-limit-proof.png)
 
-```mermaid
-sequenceDiagram
-    participant App
-    participant API as Token API
-    participant TokenService
-    participant DB as MariaDB
+## Security notes
 
-    App->>API: POST /api/v1/auth/refresh
-    API->>TokenService: refresh(refreshToken, sessionToken)
-    TokenService->>DB: Find refresh token hash
-    TokenService->>DB: Validate session token
-    TokenService->>TokenService: Detect expired/revoked/reused token
-    TokenService->>DB: Revoke old refresh token
-    TokenService->>DB: Save new refresh token hash
-    TokenService-->>App: new accessToken + refreshToken + sessionToken
-```
-
-Refresh-token reuse is treated as suspicious. Reused or invalid refresh tokens are rejected.
-
-## Logout Flow
-
-```text
-1. Frontend calls POST /api/v1/users/logout.
-2. Backend reads current session token and username.
-3. Backend revokes the current session/refresh token chain.
-4. Frontend clears SecureStore tokens.
-5. Frontend resets auth state and theme preference to SYSTEM.
-```
-
-## OTP Flow
-
-OTP is used for registration and forgot-password flows.
-
-High-level send flow:
-
-```text
-1. User submits username/email/phone depending on flow.
-2. Backend validates the user details.
-3. Backend checks retry/restriction limits.
-4. Backend generates OTP.
-5. Backend sends email/SMS depending on verification method.
-6. Backend stores newest OTP and expiry metadata.
-```
-
-High-level verify flow:
-
-```text
-1. User enters OTP.
-2. Backend checks OTP record.
-3. Backend checks block/retry/expiry state.
-4. Backend checks OTP value.
-5. On success, OTP is consumed/accepted for the target flow.
-```
-
-Important OTP configuration keys:
-
-```text
-OTP_EXPIRATION_TIME
-OTP_RESTRICTED_TIME
-MAX_RETRY_SEND_OTP
-MAX_RETRY_VERIFY_OTP
-EMAIL_OAUTH_REFRESH_ENABLED
-```
-
-## Frontend Theme Hydration
-
-User theme preference is stored in the backend profile.
-
-The frontend should apply saved theme after:
-
-```text
-- login success
-- session restore/app boot
-- profile/settings update
-```
-
-This avoids requiring the user to open the Profile screen before dark/light mode is applied.
-
-## Security Notes
-
-Do not commit:
-
-```text
-JWT secret
-Google OAuth client secret
-Google OAuth refresh token
-raw database dumps
-refresh token rows
-session token rows
-backend/.env
-```
-
-For public GitHub, use `.env.example` and safe placeholder seed data only.
+- Do not store real tokens in docs or screenshots.
+- Do not export Postman environments after login unless tokens are cleared.
+- Consider hashing OTP values in a future production hardening step.
+- Consider explicit OTP purpose values such as `REGISTER`, `FORGOT_PASSWORD`, `CHANGE_EMAIL` in a future version.

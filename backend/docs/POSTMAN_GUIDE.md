@@ -1,264 +1,47 @@
 # Postman Guide
 
-This guide gives a practical Postman flow for manually testing the WanderMate backend.
+The Postman collection should cover auth, OTP, tokens, users, uploads, trips, destinations, nested activities, collaboration, members and share codes.
 
-## Environment Variables
+## Import order
 
-Create a Postman environment with:
+1. Import the collection.
+2. Import the environment you want to use: Local, Docker or Render.
+3. Select the environment.
+4. Run login and allow token variables to populate.
+5. Run protected requests.
 
-```text
-baseUrl=http://localhost:8080/The-Project
-accessToken=
-refreshToken=
-sessionToken=
-tripId=
-destinationId=
-activityId=
-shareCode=
-requestId=
-tripMemberId=
-```
+## Important variables
 
-For Docker:
+| Variable | Purpose |
+|---|---|
+| `baseUrl` | Backend base URL including `/The-Project` |
+| `username` | Test username |
+| `password` | Test password |
+| `email` | Test email |
+| `phoneNumber` | Test phone |
+| `otp` | OTP value for manual testing |
+| `accessToken` | Bearer token after login |
+| `refreshToken` | Refresh token after login |
+| `sessionToken` | Session token after login |
+| `tripId` | Created/selected trip |
+| `destinationId` | Created/selected destination |
+| `activityId` | Created/selected activity |
+| `shareCode` | Generated share code |
 
-```text
-baseUrl=http://localhost:8082/The-Project
-```
+## Correct nested activity path
 
-For production:
-
-```text
-baseUrl=https://wandermate-fullstack.onrender.com/The-Project
-```
-
-## Common Headers
-
-For protected requests:
-
-```http
-Authorization: Bearer {{accessToken}}
-Session-Token: {{sessionToken}}
-Content-Type: application/json
-```
-
-For refresh:
-
-```http
-Refresh-Token: {{refreshToken}}
-Session-Token: {{sessionToken}}
-Content-Type: application/json
-```
-
-## 1. Health Check
-
-```http
-GET {{baseUrl}}/api/v1/health
-```
-
-Expected: success/healthy response.
-
-## 2. Register Verify
-
-```http
-POST {{baseUrl}}/api/v1/users/register/verify
-```
-
-Body:
-
-```json
-{
-  "username": "owner_user",
-  "password": "Password123!",
-  "email": "owner@example.com",
-  "phoneNumber": "0412345678",
-  "dob": "1999-12-25"
-}
-```
-
-## 3. Send OTP
-
-```http
-POST {{baseUrl}}/api/v1/otp/send
-```
-
-Body shape depends on the current DTO and OTP method. Use Swagger locally to confirm exact fields.
-
-## 4. Register
-
-```http
-POST {{baseUrl}}/api/v1/users/register
-```
-
-Body:
-
-```json
-{
-  "username": "owner_user",
-  "password": "Password123!",
-  "email": "owner@example.com",
-  "phoneNumber": "0412345678",
-  "dob": "1999-12-25",
-  "otp": "123456"
-}
-```
-
-## 5. Login
-
-```http
-POST {{baseUrl}}/api/v1/users/login
-```
-
-Body:
-
-```json
-{
-  "username": "owner_user",
-  "password": "Password123!",
-  "overrideMaxSession": false
-}
-```
-
-After response, save:
+Use:
 
 ```text
-accessToken
-refreshToken
-sessionToken
+/api/v1/trips/{tripId}/destinations/{destinationId}/activities
 ```
 
-## 6. Current Profile
+Do not use the older direct trip activity path.
 
-```http
-GET {{baseUrl}}/api/v1/users/me
-```
+## Proof
 
-Headers:
+![Postman protected API proof](../../docs/media/screenshots/24-api-postman-proof.png)
 
-```http
-Authorization: Bearer {{accessToken}}
-Session-Token: {{sessionToken}}
-```
+## Postman Vault note
 
-## 7. Create Trip
-
-```http
-POST {{baseUrl}}/api/v1/trips
-```
-
-Body example:
-
-```json
-{
-  "tripName": "Japan Food Trip",
-  "destination": "Japan",
-  "startDate": "2026-08-01T09:00:00",
-  "endDate": "2026-08-10T18:00:00",
-  "allowOverlap": false
-}
-```
-
-Save returned `tripId`.
-
-## 8. Create Destination
-
-```http
-POST {{baseUrl}}/api/v1/trips/{{tripId}}/destinations
-```
-
-Body example:
-
-```json
-{
-  "destinationName": "Tokyo",
-  "startDate": "2026-08-01T09:00:00",
-  "endDate": "2026-08-04T18:00:00",
-  "notes": "Food and city walks"
-}
-```
-
-Save `destinationId`.
-
-## 9. Create Activity
-
-```http
-POST {{baseUrl}}/api/v1/trips/{{tripId}}/destinations/{{destinationId}}/activities
-```
-
-Body example:
-
-```json
-{
-  "activityName": "Sushi night",
-  "description": "Dinner near Shibuya",
-  "location": "Shibuya",
-  "startDateTime": "2026-08-01T19:00:00",
-  "endDateTime": "2026-08-01T21:00:00"
-}
-```
-
-Save `activityId`.
-
-## 10. Invite User
-
-```http
-POST {{baseUrl}}/api/v1/trips/{{tripId}}/invitations
-```
-
-Body example:
-
-```json
-{
-  "targetUsername": "viewer_user",
-  "requestedRole": "VIEWER"
-}
-```
-
-## 11. Share Code
-
-Generate/regenerate active share code:
-
-```http
-POST {{baseUrl}}/api/v1/trips/{{tripId}}/share-codes/regenerate
-```
-
-Preview share code:
-
-```http
-GET {{baseUrl}}/api/v1/trips/share-codes/{{shareCode}}
-```
-
-Send join request by share code:
-
-```http
-POST {{baseUrl}}/api/v1/trips/share-codes/{{shareCode}}/join-requests
-```
-
-## 12. Refresh Token
-
-```http
-POST {{baseUrl}}/api/v1/auth/refresh
-```
-
-Headers:
-
-```http
-Refresh-Token: {{refreshToken}}
-Session-Token: {{sessionToken}}
-```
-
-Update saved tokens from response.
-
-## 13. Logout
-
-```http
-POST {{baseUrl}}/api/v1/users/logout
-```
-
-Headers:
-
-```http
-Authorization: Bearer {{accessToken}}
-Session-Token: {{sessionToken}}
-```
-
-After logout, protected calls with old tokens should fail.
+Postman may warn about variables named password, token, accessToken, refreshToken or sessionToken. That is expected. For public sharing, keep secret-like values empty or dummy and do not export real tokens after logging in.
