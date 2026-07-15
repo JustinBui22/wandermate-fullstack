@@ -124,7 +124,7 @@ Included Surefire reports show:
 
 Screenshot proof:
 
-![Backend tests](../docs/media/screenshots/19-backend-tests.png)
+![Backend tests](../docs/screenshots/19-backend-tests.png)
 
 ## Documentation
 

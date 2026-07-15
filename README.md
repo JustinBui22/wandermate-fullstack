@@ -53,26 +53,26 @@ This project is designed as a realistic junior/graduate backend/full-stack portf
 The full screenshot set is stored in:
 
 ```text
-docs/media/screenshots/
+docs/screenshots/
 ```
 
 ### Main app flow
 
 | My Trips | Trip Detail |
 |---|---|
-| ![My Trips](docs/media/screenshots/03-my-trips.png) | ![Trip detail owner view](docs/media/screenshots/04-trip-detail-owner.png) |
+| ![My Trips](docs/screenshots/03-my-trips.png) | ![Trip detail owner view](docs/screenshots/04-trip-detail-owner.png) |
 
 | Creator Attribution | Collaboration Menu |
 |---|---|
-| ![Destinations with creator attribution](docs/media/screenshots/06-destinations-with-creator.png) | ![Collaboration menu owner](docs/media/screenshots/09-collaboration-menu-owner.png) |
+| ![Destinations with creator attribution](docs/screenshots/06-destinations-with-creator.png) | ![Collaboration menu owner](docs/screenshots/09-collaboration-menu-owner.png) |
 
 | Share Code | Member Roles |
 |---|---|
-| ![Share code](docs/media/screenshots/11-share-code.png) | ![Members role management](docs/media/screenshots/13-members-role-management.png) |
+| ![Share code](docs/screenshots/11-share-code.png) | ![Members role management](docs/screenshots/13-members-role-management.png) |
 
 | Viewer Read-only | Profile Settings |
 |---|---|
-| ![Viewer read-only](docs/media/screenshots/14-viewer-read-only.png) | ![Profile avatar settings](docs/media/screenshots/15-profile-avatar-settings.png) |
+| ![Viewer read-only](docs/screenshots/14-viewer-read-only.png) | ![Profile avatar settings](docs/screenshots/15-profile-avatar-settings.png) |
 
 ## Complete screenshot inventory
 
@@ -211,21 +211,21 @@ The included backend Surefire reports show:
 
 Screenshot proof:
 
-![Backend tests passing](docs/media/screenshots/19-backend-tests.png)
+![Backend tests passing](docs/screenshots/19-backend-tests.png)
 
 Frontend TypeScript proof:
 
-![Frontend typecheck passing](docs/media/screenshots/20-frontend-typecheck.png)
+![Frontend typecheck passing](docs/screenshots/20-frontend-typecheck.png)
 
 ## Production proof
 
 Render health endpoint proof:
 
-![Render health endpoint](docs/media/screenshots/17-render-health.png)
+![Render health endpoint](docs/screenshots/17-render-health.png)
 
 Render logs proof:
 
-![Render logs](docs/media/screenshots/25-render-logs.png)
+![Render logs](docs/screenshots/25-render-logs.png)
 
 ## Important security note
 

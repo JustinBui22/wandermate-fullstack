@@ -107,23 +107,23 @@ Make sure it points to the backend base URL including `/The-Project`.
 
 ### My Trips
 
-![My Trips](../docs/media/screenshots/03-my-trips.png)
+![My Trips](../docs/screenshots/03-my-trips.png)
 
 ### Trip detail as owner
 
-![Trip detail owner](../docs/media/screenshots/04-trip-detail-owner.png)
+![Trip detail owner](../docs/screenshots/04-trip-detail-owner.png)
 
 ### Invite member
 
-![Invite member](../docs/media/screenshots/10-invite-member.png)
+![Invite member](../docs/screenshots/10-invite-member.png)
 
 ### Profile settings
 
-![Profile settings](../docs/media/screenshots/15-profile-avatar-settings.png)
+![Profile settings](../docs/screenshots/15-profile-avatar-settings.png)
 
 ### Dark mode
 
-![Dark mode](../docs/media/screenshots/16-dark-mode.png)
+![Dark mode](../docs/screenshots/16-dark-mode.png)
 
 ## Typecheck
 
@@ -133,7 +133,7 @@ npm run typecheck
 
 Proof:
 
-![Frontend typecheck](../docs/media/screenshots/20-frontend-typecheck.png)
+![Frontend typecheck](../docs/screenshots/20-frontend-typecheck.png)
 
 ## Permission-aware UI
 
@@ -147,7 +147,7 @@ The frontend hides or disables actions based on the current user's trip role.
 
 Proof:
 
-![Viewer read-only](../docs/media/screenshots/14-viewer-read-only.png)
+![Viewer read-only](../docs/screenshots/14-viewer-read-only.png)
 
 ## Image upload
 
@@ -155,4 +155,4 @@ Image upload is handled through shared media components and backend upload API.
 
 Proof:
 
-![Mobile upload proof](../docs/media/screenshots/27-mobile-upload-proof.png)
+![Mobile upload proof](../docs/screenshots/27-mobile-upload-proof.png)
