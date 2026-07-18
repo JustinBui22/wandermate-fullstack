@@ -34,7 +34,7 @@ services:
         condition: service_healthy
     ports:
       # Host 8082 -> container 8080. Avoid 8081 because Expo commonly uses it.
-      - "${BACKEND_HOST_PORT}:8082"
+      - "${BACKEND_HOST_PORT}:8080"
     environment:
       DB_URL: ${DB_URL}
       DB_USERNAME: ${DB_USERNAME}
