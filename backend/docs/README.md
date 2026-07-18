@@ -25,7 +25,7 @@ The included test reports show:
 404 tests, 0 failures, 0 errors, 0 skipped
 ```
 
-![Backend tests](../../docs/media/screenshots/19-backend-tests.png)
+![Backend tests](../../docs/screenshots/19-backend-tests.png)
 
 ## Main backend responsibilities
 
