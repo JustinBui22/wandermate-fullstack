@@ -29,15 +29,15 @@ npx expo start --tunnel -c
 GET /The-Project/api/v1/health
 ```
 
-Render proof:
+Live Render check (the free service may take about a minute to wake):
 
-![Render health](../../docs/media/screenshots/17-render-health.png)
+[Open the production health endpoint](https://wandermate-fullstack.onrender.com/The-Project/api/v1/health)
 
 ## Logs
 
 Render log proof:
 
-![Render logs](../../docs/media/screenshots/25-render-logs.png)
+![Render logs](../../docs/screenshots/25-render-logs.png)
 
 ## Common checks before demo
 
@@ -54,7 +54,7 @@ Render log proof:
 
 ## Postman proof
 
-![Postman proof](../../docs/media/screenshots/24-api-postman-proof.png)
+![Postman proof](../../docs/screenshots/24-api-postman-proof.png)
 
 ## Security notes
 
