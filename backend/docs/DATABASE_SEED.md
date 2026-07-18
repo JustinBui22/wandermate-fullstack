@@ -57,4 +57,4 @@ unless manually sanitized and reviewed.
 
 ## Database proof
 
-![Database schema](../../docs/media/screenshots/26-database-schema.png)
+![Database schema](../../docs/screenshots/26-database-schema.png)
