@@ -74,7 +74,7 @@ docs/screenshots/
 |---|---|
 | ![Viewer read-only](docs/screenshots/14-viewer-read-only.png) | ![Profile avatar settings](docs/screenshots/15-profile-avatar-settings.png) |
 
-## Complete screenshot inventory
+## Available screenshot inventory
 
 | File | What it proves | Notes |
 |---|---|---|
@@ -93,8 +93,6 @@ docs/screenshots/
 | `13-members-role-management.png` | Member role management | Members list with OWNER/EDITOR/VIEWER roles. |
 | `14-viewer-read-only.png` | Viewer read-only | Viewer role showing read-only permission state. |
 | `15-profile-avatar-settings.png` | Profile/avatar/settings | Profile screen with avatar upload and theme settings. |
-| `16-dark-mode.png` | Dark mode | Polished dark-mode screen. |
-| `17-render-health.png` | Render health endpoint | Production health endpoint proof. |
 | `18-swagger-local.png` | Swagger/OpenAPI local | Local API docs page. |
 | `19-backend-tests.png` | Backend tests | Maven/Surefire test pass proof. |
 | `20-frontend-typecheck.png` | Frontend typecheck | TypeScript typecheck pass proof. |
@@ -219,9 +217,9 @@ Frontend TypeScript proof:
 
 ## Production proof
 
-Render health endpoint proof:
+Live Render health check (the free service may take about a minute to wake):
 
-![Render health endpoint](docs/screenshots/17-render-health.png)
+[Open the production health endpoint](https://wandermate-fullstack.onrender.com/The-Project/api/v1/health)
 
 Render logs proof:
 
