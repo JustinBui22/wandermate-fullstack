@@ -121,9 +121,11 @@ Make sure it points to the backend base URL including `/The-Project`.
 
 ![Profile settings](../docs/screenshots/15-profile-avatar-settings.png)
 
-### Dark mode
+### Theme support
 
-![Dark mode](../docs/screenshots/16-dark-mode.png)
+The app supports light, dark and system themes. See the
+[dark-theme My Trips screen](../docs/screenshots/03-my-trips.png) and
+[theme settings](../docs/screenshots/15-profile-avatar-settings.png).
 
 ## Typecheck
 
