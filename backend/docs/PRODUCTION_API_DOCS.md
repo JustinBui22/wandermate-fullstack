@@ -12,13 +12,14 @@ Render base URL:
 https://wandermate-fullstack.onrender.com/The-Project
 ```
 
-## Health proof
+## Health check
 
-![Render health](../../docs/media/screenshots/17-render-health.png)
+[Open the production health endpoint](https://wandermate-fullstack.onrender.com/The-Project/api/v1/health).
+The free Render service may take about a minute to wake after inactivity.
 
 ## Render logs proof
 
-![Render logs](../../docs/media/screenshots/25-render-logs.png)
+![Render logs](../../docs/screenshots/25-render-logs.png)
 
 ## Swagger/OpenAPI
 
@@ -26,7 +27,7 @@ Swagger/OpenAPI is useful locally for development and endpoint inspection.
 
 Local Swagger proof:
 
-![Swagger local](../../docs/media/screenshots/18-swagger-local.png)
+![Swagger local](../../docs/screenshots/18-swagger-local.png)
 
 In production profile, Swagger may be disabled for security/simplicity depending on configuration.
 

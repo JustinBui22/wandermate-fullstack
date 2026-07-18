@@ -17,6 +17,13 @@ cd backend
 docker compose up --build
 ```
 
+The default `.env.example` maps host port `8082` to the application's container port `8080`.
+With that default, the Docker health endpoint is:
+
+```text
+http://localhost:8082/The-Project/api/v1/health
+```
+
 ## Stop
 
 ```bash
@@ -58,4 +65,4 @@ Do not commit real `.env` values.
 
 ## Proof
 
-![Docker running](../../docs/media/screenshots/23-docker-running.png)
+![Docker running](../../docs/screenshots/23-docker-running.png)

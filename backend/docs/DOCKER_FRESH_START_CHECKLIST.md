@@ -19,15 +19,17 @@ docker compose up --build
 
 ## Verify containers
 
-![Docker running](../../docs/media/screenshots/23-docker-running.png)
+![Docker running](../../docs/screenshots/23-docker-running.png)
 
 ## Verify health
 
 ```bash
-curl http://localhost:8080/The-Project/api/v1/health
+curl http://localhost:8082/The-Project/api/v1/health
 ```
 
-or use the configured host port from your `.env` / Docker setup.
+Port `8082` is the default host port from `.env.example`; use your configured
+`BACKEND_HOST_PORT` instead if you changed it. The application still listens on port `8080`
+inside the container.
 
 ## Verify app flow
 

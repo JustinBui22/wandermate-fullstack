@@ -40,6 +40,6 @@ Expo Router handles nested screens. Persistent bottom tabs allow users to jump b
 
 ## Screenshots
 
-![Mobile upload proof](../../docs/media/screenshots/27-mobile-upload-proof.png)
+![Mobile upload proof](../../docs/screenshots/27-mobile-upload-proof.png)
 
-![Frontend typecheck](../../docs/media/screenshots/20-frontend-typecheck.png)
+![Frontend typecheck](../../docs/screenshots/20-frontend-typecheck.png)

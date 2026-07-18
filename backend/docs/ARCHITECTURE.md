@@ -74,4 +74,4 @@ Repositories use Spring Data JPA and custom query methods for collaboration look
 
 ## Screenshot proof
 
-![Database schema](../../docs/media/screenshots/26-database-schema.png)
+![Database schema](../../docs/screenshots/26-database-schema.png)

@@ -25,7 +25,7 @@ WanderMate uses a custom authentication flow built around password hashing, OTP 
 
 Screenshot:
 
-![Register OTP](../../docs/media/screenshots/02-register-otp.png)
+![Register OTP](../../docs/screenshots/02-register-otp.png)
 
 ## OTP resend flow
 
@@ -48,7 +48,7 @@ The frontend shows a resend timer so users cannot spam OTP requests.
 
 Screenshot:
 
-![Login](../../docs/media/screenshots/01-login.png)
+![Login](../../docs/screenshots/01-login.png)
 
 ## Refresh flow
 
@@ -66,11 +66,11 @@ Screenshot:
 
 Screenshot:
 
-![Logout session proof](../../docs/media/screenshots/30-logout-session-proof.png)
+![Logout session proof](../../docs/screenshots/30-logout-session-proof.png)
 
 ## Session limit proof
 
-![Session limit proof](../../docs/media/screenshots/29-session-limit-proof.png)
+![Session limit proof](../../docs/screenshots/29-session-limit-proof.png)
 
 ## Security notes
 
