@@ -40,7 +40,7 @@ Do not use the older direct trip activity path.
 
 ## Proof
 
-![Postman protected API proof](../../docs/media/screenshots/24-api-postman-proof.png)
+![Postman protected API proof](../../docs/screenshots/24-api-postman-proof.png)
 
 ## Postman Vault note
 
