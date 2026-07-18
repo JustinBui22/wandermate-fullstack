@@ -32,15 +32,15 @@ The upload response includes the public image URL and Cloudinary public ID. The 
 
 ### Trip cover upload
 
-![Trip cover upload](../../docs/media/screenshots/05-trip-cover-upload.png)
+![Trip cover upload](../../docs/screenshots/05-trip-cover-upload.png)
 
 ### Profile avatar upload
 
-![Profile avatar settings](../../docs/media/screenshots/15-profile-avatar-settings.png)
+![Profile avatar settings](../../docs/screenshots/15-profile-avatar-settings.png)
 
 ### Cloudinary proof
 
-![Cloudinary upload proof](../../docs/media/screenshots/22-cloudinary-upload-proof.png)
+![Cloudinary upload proof](../../docs/screenshots/22-cloudinary-upload-proof.png)
 
 ## Environment variables
 
