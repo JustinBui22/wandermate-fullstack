@@ -29,6 +29,9 @@ SplashScreen.preventAutoHideAsync().catch(() => null);
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    // Load Ionicons from the app assets before any icon component mounts.
+    // This avoids repeated runtime downloads from the Metro node_modules asset URL.
+    ionicons: require("../assets/fonts/Ionicons.ttf"),
   });
 
   useEffect(() => {
