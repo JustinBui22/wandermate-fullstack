@@ -1,243 +1,320 @@
 # WanderMate — Full-Stack Trip Planning and Collaboration App
 
-WanderMate is a full-stack mobile trip planning app built with **Spring Boot**, **MariaDB**, **React Native Expo**, and **Cloudinary**. It helps users create trips, organise destinations and activities, upload profile/trip images, and collaborate with other users through **OWNER**, **EDITOR**, and **VIEWER** roles.
+WanderMate is a mobile trip-planning application with a **Spring Boot 3.5.4** backend and an **Expo 56 / React Native 0.85** frontend. Users can register with OTP verification, sign in with a session-aware token flow, create trips with nested destinations and activities, upload profile/trip images, and collaborate through owner, editor, and viewer roles.
 
-This project is designed as a realistic junior/graduate backend/full-stack portfolio project. It includes secure authentication, OTP verification, JWT access tokens, refresh tokens, session tokens, logout/session revocation, role-based access control, nested trip content, image upload, Docker support, production deployment proof, backend tests, and mobile frontend integration.
+This README describes the implementation contained in this repository. Planned hardening work is listed separately in the roadmap rather than presented as completed functionality.
 
-## Current V4 status
+## Current implementation
 
-| Area | Status |
+| Area | Implemented |
 |---|---|
-| Backend API | Feature-complete for V4 |
-| Frontend mobile app | Feature-complete for V4 |
-| Authentication | Email/password, OTP, access token, refresh token, session token, logout/session revocation |
-| Trip planning | Trips, destinations, nested activities, date validation, role-aware access |
-| Collaboration | Owner/editor/viewer roles, invitations, join requests, share codes, collaboration summary |
-| Image upload | Cloudinary upload for profile avatars and trip cover images |
-| Testing | 438 backend test methods plus 10 frontend unit/component tests |
-| Docs | Root, backend, frontend and backend docs updated with screenshot proof |
-| Portfolio readiness | Final security, evidence and submission verification in progress |
+| Authentication | Registration, login, forgot password, email/phone OTP flow, BCrypt passwords |
+| Tokens | HS512 JWT access token, HMAC-SHA256-hashed refresh tokens, BCrypt-hashed session tokens |
+| Session control | Maximum active sessions, optional oldest-session replacement, logout/revocation |
+| Trip planning | Trip CRUD, destination CRUD, nested activity CRUD, overlap/range validation |
+| Collaboration | Invitations, direct join requests, share-code join requests, member roles, summary badges |
+| Authorization | Backend-enforced `OWNER`, `EDITOR`, and `VIEWER` trip permissions |
+| Media | Authenticated Cloudinary upload for profile images and trip covers |
+| Mobile app | Expo Router screens, SecureStore token persistence, automatic access-token refresh, themes |
+| Automation | Backend and frontend GitHub Actions workflows; Render deploy hook after backend tests |
+| Tests in repository | 438 backend tests reported passing; 10 frontend unit/component test cases |
 
-## Tech stack
+## Technology stack
 
 ### Backend
 
 - Java 21
-- Spring Boot 3
-- Spring Security
-- Spring Data JPA / Hibernate
-- MariaDB
-- JWT with access and refresh tokens
-- Session token tracking and revocation
-- OTP verification
-- Transaction-safe OTP/share-code failure accounting
-- Cloudinary image storage
-- Docker / Docker Compose
-- JUnit 5 and Mockito
-- Swagger / OpenAPI
+- Spring Boot 3.5.4
+- Spring Web, Spring Security, Spring Data JPA, Bean Validation
+- MariaDB 11 for local Docker/runtime data
+- H2 in MariaDB compatibility mode for integration tests
+- JJWT 0.11.5
+- Cloudinary Java SDK 2.4.0
+- Spring Mail with Gmail OAuth2 configuration support
+- Springdoc OpenAPI 2.8.17
+- Maven Wrapper and Docker multi-stage builds
+- JUnit 5, Mockito, Spring Boot Test
 
 ### Frontend
 
-- React Native with Expo Router
-- TypeScript
+- Expo 56.0.16 and Expo Router 56.2.15
+- React 19.2.3 and React Native 0.85.3
+- TypeScript 6.0
 - Axios
+- Zustand
 - Expo SecureStore
-- Expo Image Picker
-- Expo Clipboard
-- Zustand-style auth/theme stores
-- Screen-level TypeScript validation flow
-- Persistent bottom tabs
-- Light/dark theme support
+- React Hook Form and Zod
+- Expo Image Picker, Clipboard, Linking, and DateTimePicker
+- Vitest, Jest, React Native Testing Library, and Maestro
 
-## Screenshots
-
-The full screenshot set is stored in:
+## Repository layout
 
 ```text
-docs/screenshots/
+wandermate-fullstack/
+├── backend/                 Spring Boot API, Docker setup, seed data and backend docs
+├── frontend/                Expo mobile/web client
+├── docs/                    Portfolio/demo/screenshot documentation
+├── .github/workflows/       Backend CI/CD and frontend CI
+└── README.md                Project overview and setup
 ```
 
-### Main app flow
+## Architecture overview
 
-| My Trips | Trip Detail |
-|---|---|
-| ![My Trips](docs/screenshots/03-my-trips.png) | ![Trip detail owner view](docs/screenshots/04-trip-detail-owner.png) |
+```text
+Expo Router screens
+        ↓
+Frontend API modules / Axios interceptors
+        ↓
+Spring controller interfaces + implementations
+        ↓
+Service interfaces + implementations
+        ↓
+Validators / mappers / repositories
+        ↓
+MariaDB and Cloudinary
+```
 
-| Creator Attribution | Collaboration Menu |
-|---|---|
-| ![Destinations with creator attribution](docs/screenshots/06-destinations-with-creator.png) | ![Collaboration menu owner](docs/screenshots/09-collaboration-menu-owner.png) |
+Protected API requests normally carry both:
 
-| Share Code | Member Roles |
-|---|---|
-| ![Share code](docs/screenshots/11-share-code.png) | ![Members role management](docs/screenshots/13-members-role-management.png) |
+```http
+Authorization: Bearer <access-token>
+Session-Token: <session-token>
+```
 
-| Viewer Read-only | Profile Settings |
-|---|---|
-| ![Viewer read-only](docs/screenshots/14-viewer-read-only.png) | ![Profile avatar settings](docs/screenshots/15-profile-avatar-settings.png) |
+Access-token refresh uses:
 
-## Available screenshot inventory
-
-| File | What it proves | Notes |
-|---|---|---|
-| `01-login.png` | Login screen | Auth entry point in light mode. |
-| `02-register-otp.png` | Register / OTP verification | Registration OTP flow with resend timer. |
-| `03-my-trips.png` | My Trips | Trip list with cover image and trip cards. |
-| `04-trip-detail-owner.png` | Trip detail as owner | Owner view with trip cover, dates, destinations and actions. |
-| `05-trip-cover-upload.png` | Trip cover upload | Trip edit screen with Cloudinary cover upload. |
-| `06-destinations-with-creator.png` | Destinations with creator attribution | Destination list showing profile/creator attribution. |
-| `07-destination-detail.png` | Destination detail | Destination details, creator, role-aware actions. |
-| `08-activity-detail.png` | Activity detail | Nested activity details inside a destination. |
-| `09-collaboration-menu-owner.png` | Collaboration menu | Owner collaboration entry points. |
-| `10-invite-member.png` | Invite member | Invite by username with role selection. |
-| `11-share-code.png` | Share code | Generated trip share code/link. |
-| `12-join-requests.png` | Join requests | Owner review of pending join requests. |
-| `13-members-role-management.png` | Member role management | Members list with OWNER/EDITOR/VIEWER roles. |
-| `14-viewer-read-only.png` | Viewer read-only | Viewer role showing read-only permission state. |
-| `15-profile-avatar-settings.png` | Profile/avatar/settings | Profile screen with avatar upload and theme settings. |
-| `18-swagger-local.png` | Swagger/OpenAPI local | Local API docs page. |
-| `19-backend-tests.png` | Backend tests | Maven/Surefire test pass proof. |
-| `20-frontend-typecheck.png` | Frontend typecheck | TypeScript typecheck pass proof. |
-| `21-github-repo.png` | GitHub repo | Repository/commit history proof. |
-| `22-cloudinary-upload-proof.png` | Cloudinary upload proof | Cloudinary media library proof. |
-| `23-docker-running.png` | Docker running | Docker Desktop / containers proof. |
-| `24-api-postman-proof.png` | Postman protected API proof | Must be replaced: the old image exposed raw tokens and was removed. |
-| `25-render-logs.png` | Render logs | Production startup/deploy log proof. |
-| `26-database-schema.png` | Database schema | MariaDB/DBeaver table schema proof. |
-| `27-mobile-upload-proof.png` | Mobile upload proof | Emulator/device upload proof. |
-| `28-owner-editor-viewer-proof.png` | Role differences proof | Owner/editor/viewer behaviour comparison. |
-| `29-session-limit-proof.png` | Session limit proof | Maximum session warning proof. |
-| `30-logout-session-proof.png` | Logout/session revocation proof | Logout/session revocation behaviour proof. |
+```http
+Refresh-Token: <refresh-token>
+Session-Token: <session-token>
+```
 
 ## Main features
 
-### Authentication and account security
+### Authentication and sessions
 
-- User registration with OTP verification.
-- Forgot-password flow with OTP verification.
-- Password hashing on the backend.
-- JWT access token for protected API calls.
-- Refresh token for issuing new access tokens.
-- Session token for active-session tracking.
-- Logout/session revocation.
-- Maximum active session handling.
-- Refresh-token reuse detection with independently committed revocation.
-- Generic invalid-credential/recovery responses to reduce account enumeration.
-- Protected API routes through Spring Security filter logic.
+- Registration details are validated before registration.
+- OTPs can be sent by email or phone according to request configuration.
+- Registration and forgot-password requests verify an OTP before changing account data.
+- Login accepts username, email, or Vietnamese phone-number form through backend lookup logic.
+- Successful login returns an access token, refresh token, and session token.
+- The frontend stores all three tokens in Expo SecureStore.
+- Axios attaches access/session headers, refreshes an expired access token once, and retries the original request.
+- A normal permission-only `403` does not clear the local session; explicit invalid-session/token responses do.
+- Refresh-token values are HMAC-SHA256 hashed before persistence.
+- Session-token values are BCrypt hashed before persistence.
+- Refresh-token reuse detection revokes the related active token family and session in a separate transaction.
 
 ### Trip planning
 
-- Create, view, update and delete trips.
-- Trip status handling based on start/end dates.
-- Destination CRUD under each trip.
-- Nested activity CRUD under each destination.
-- Date/time validation and overlap warnings.
-- Search and suggestion endpoints for cities, restaurants and accommodations.
+- Create, list, view, update, and delete trips.
+- Filter trips by ownership/status and sort by name/created/modified date.
+- Search or suggest cities, restaurants, and accommodations.
+- Create destinations under a trip.
+- Create activities under a destination.
+- Validate trip, destination, and activity ranges and overlap rules.
+- Store trip/destination/activity scheduling values as `LocalDateTime` in the current backend.
 
 ### Collaboration
 
-- Trip owner/editor/viewer roles.
-- Owner can invite users by username.
-- Owner can generate and manage share codes.
-- Users can join trips using share codes.
-- Owner can accept/reject join requests.
-- Owner can update member roles or remove members.
-- Viewer role is read-only.
-- Frontend hides actions based on permissions.
-- Collaboration summary badges show pending work.
+- The trip creator is inserted as the `OWNER` member.
+- `OWNER` can invite members, manage join requests, generate share codes, update roles, and remove members.
+- `EDITOR` can view and edit trip-plan content where the service uses `assertCanEdit`.
+- `VIEWER` can view accessible content but cannot perform edit or owner-only actions.
+- Users can accept/reject invitations and submit direct or share-code join requests.
+- The collaboration summary endpoint provides pending-work counts for the mobile dashboard.
+- Invalid share-code attempts are counted and can trigger a temporary restriction.
 
 ### Image upload
 
-- Profile avatar upload to Cloudinary.
-- Trip cover image upload to Cloudinary.
-- Image URL and public ID are stored so old Cloudinary assets can be cleaned up when changed.
-- Newly assigned image references must match the authenticated uploader's server-generated Cloudinary folder and public ID pattern.
-- Frontend image picker integrates with backend multipart upload.
-- Backend checks size, declared MIME, file signatures, and decodes PNG/JPEG content before upload.
+- Authenticated multipart upload endpoint.
+- Supported upload categories: `profile-images` and `trip-covers`.
+- Five-megabyte Spring multipart limit.
+- Backend content validation checks declared type, signature/container markers, and PNG/JPEG decoding.
+- Cloudinary public IDs are generated under a per-user folder.
+- Profile/trip updates validate that newly assigned Cloudinary references match the authenticated uploader pattern.
+- Replaced profile and trip-cover images are deleted through the Cloudinary client after a successful update.
 
-## Backend API groups
+## Backend URLs
 
-| Group | Purpose |
+The backend context path is `/Wandermate`.
+
+| Environment | Base URL |
 |---|---|
-| `/api/v1/health` | Health check |
-| `/api/v1/users` | register, login, logout, profile, settings |
-| `/api/v1/otp` | send and verify OTP |
-| `/api/v1/auth` | refresh access token |
-| `/api/v1/uploads` | image upload |
-| `/api/v1/trips` | trip CRUD, search, suggestions, collaboration actions |
-| `/api/v1/trips/{tripId}/destinations` | destination CRUD |
-| `/api/v1/trips/{tripId}/destinations/{destinationId}/activities` | nested activity CRUD |
-| `/api/v1/trips/{tripId}/members` | member role management |
-| `/api/v1/collaboration` | collaboration dashboard summary |
+| IntelliJ/Maven default | `http://localhost:8080/Wandermate` |
+| Docker Compose host | `http://localhost:8082/Wandermate` |
+| Configured Render service | `https://wandermate-fullstack.onrender.com/Wandermate` |
 
-## Local setup
+Local Swagger UI:
+
+```text
+http://localhost:8080/Wandermate/swagger-ui/index.html
+```
+
+The production profile disables Swagger UI and `/v3/api-docs`.
+
+## Environment configuration
+
+A `.env` file does not execute by itself. It is used only by a tool that loads it.
+
+| Runtime | How variables are loaded |
+|---|---|
+| Docker Compose | Automatically reads `backend/.env` beside `docker-compose.yml` |
+| IntelliJ direct run | Add variables to the Run Configuration or configure an env-file loader |
+| Maven direct run | Export/set variables in the shell before starting Spring Boot |
+| Render | Configure/import variables in the Render service environment |
+| Expo | Expo loads `frontend/.env` variables prefixed with `EXPO_PUBLIC_` |
+
+Backend-required runtime values include:
+
+```text
+DB_URL
+DB_USERNAME
+DB_PASSWORD
+JWT_SECRET                    # at least 64 UTF-8 bytes
+REFRESH_TOKEN_HASH_SECRET     # at least 32 UTF-8 bytes
+```
+
+Cloudinary and email variables are required only for the corresponding functionality. Copy the provided templates; never commit real `.env` files.
+
+## Local development
+
+### Option A — Docker Compose backend and database
+
+```bash
+cd backend
+cp .env.example .env
+# Replace placeholders and secrets in .env
+docker compose up --build
+```
+
+Backend: `http://localhost:8082/Wandermate`
+
+### Option B — MariaDB in Docker, backend in IntelliJ
+
+1. Start the database service:
+
+   ```bash
+   cd backend
+   docker compose up -d db
+   ```
+
+2. Configure the IntelliJ Spring Boot run environment. Use a host-accessible database URL:
+
+   ```text
+   DB_URL=jdbc:mariadb://localhost:3307/traveling_app
+   DB_USERNAME=traveling_user
+   DB_PASSWORD=traveling_password
+   JWT_SECRET=<64-or-more-byte-secret>
+   REFRESH_TOKEN_HASH_SECRET=<32-or-more-byte-secret>
+   ```
+
+3. Run `TheProjectApplication`.
+
+### Frontend
+
+```bash
+cd frontend
+cp .env.example .env
+npm ci
+npm run start
+```
+
+For an Android emulator with the IntelliJ backend:
+
+```text
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080/Wandermate
+```
+
+For an Android emulator with Docker:
+
+```text
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8082/Wandermate
+```
+
+For a physical device, use the development computer's LAN IP or the configured production URL. Tunnel mode can help when Expo asset delivery over LAN fails:
+
+```bash
+npx expo start --tunnel -c
+```
+
+## Verification
 
 ### Backend
 
 ```bash
 cd backend
-./mvnw spring-boot:run
+./mvnw test
 ```
 
-The backend context path is:
+The included Surefire reports record:
 
 ```text
-/Wandermate
-```
-
-Local base URL example:
-
-```text
-http://localhost:8080/Wandermate
+438 tests, 0 failures, 0 errors, 0 skipped
 ```
 
 ### Frontend
 
 ```bash
 cd frontend
-npm install
-npm run start
+npm run typecheck
+npm test
 ```
 
-For a real phone when LAN mode has asset-loading issues, use:
+`npm test` runs Vitest followed by Jest. The repository currently declares 10 frontend test cases across API authentication behavior, session lifecycle, auth controls, and the shared button component.
+
+### End-to-end smoke flow
 
 ```bash
-npx expo start --tunnel -c
+cd frontend
+maestro test .maestro/login-smoke.yml
 ```
 
-## Testing proof
+An EAS workflow builds the `e2e-test` Android profile and runs the Maestro login-screen smoke flow on pull requests.
 
-The backend suite currently defines:
+## CI/CD
 
-```text
-438 JUnit test methods
-```
+- `backend-ci-cd.yml` runs backend tests for backend-related pushes/PRs to `main`.
+- A successful backend push to `main` triggers the configured Render deploy hook.
+- `frontend-ci.yml` runs `npm ci`, TypeScript validation, and frontend tests.
+- The production Spring profile disables SQL/debug logging and OpenAPI endpoints.
 
-Screenshot proof:
+## Current implementation notes
 
-![Backend tests passing](docs/screenshots/19-backend-tests.png)
+The following facts are important when evaluating or extending this version:
 
-Frontend TypeScript proof:
+- JPA currently uses `spring.jpa.hibernate.ddl-auto=update`; versioned Flyway/Liquibase migrations are not configured.
+- The Docker SQL seed runs only when MariaDB initializes a new named volume.
+- Public endpoint patterns are read from the database `NON_AUTHENTICATED_REQUEST` configuration and currently include `GET /api/v1/users/check`.
+- OTP records currently store the latest OTP value in `otp_check`; hashing/purpose-binding OTP records is roadmap work.
+- Share-code preview is currently an authenticated `GET /api/v1/trips/share-codes/{code}` endpoint.
+- Share codes currently use a `WM-` prefix plus an eight-character UUID-derived value.
+- Google email OAuth refresh currently creates its own scheduled executor; lifecycle management is a roadmap improvement.
 
-![Frontend typecheck passing](docs/screenshots/20-frontend-typecheck.png)
+## Screenshots and portfolio evidence
 
-## Production proof
+Screenshots are under [`docs/screenshots`](docs/screenshots). The evidence checklist is maintained in [`docs/SCREENSHOT_CHECKLIST.md`](docs/SCREENSHOT_CHECKLIST.md).
 
-Live Render health check (the free service may take about a minute to wake):
-
-[Open the production health endpoint](https://wandermate-fullstack.onrender.com/Wandermate/api/v1/health)
-
-Render logs proof:
-
-![Render logs](docs/screenshots/25-render-logs.png)
-
-## Important security note
-
-Do **not** commit or share real `.env` files, access tokens, refresh tokens, session tokens, email OAuth refresh tokens, Cloudinary secrets, database credentials, or raw production database dumps.
-
-Safe public sharing should include code, sanitized docs, sanitized Postman environments, and sanitized seed data only.
+Do not publish screenshots containing access tokens, refresh tokens, session tokens, OTPs, credentials, or personal data.
 
 ## Documentation
 
+### Root/portfolio
+
+- [Demo script](docs/DEMO_SCRIPT.md)
+- [Project file audit](docs/PROJECT_FILE_AUDIT.md)
+- [Screenshot checklist](docs/SCREENSHOT_CHECKLIST.md)
+
+### Backend
+
 - [Backend README](backend/README.md)
+- [Backend documentation index](backend/docs/README.md)
+- [API guide](backend/docs/API_GUIDE.md)
+- [Architecture](backend/docs/ARCHITECTURE.md)
+- [Authentication flow](backend/docs/AUTH_FLOW.md)
+- [Docker setup](backend/docs/DOCKER_SETUP.md)
+- [Operations](backend/docs/OPERATIONS.md)
+- [Roadmap](backend/docs/ROADMAP.md)
+
+### Frontend
+
 - [Frontend README](frontend/README.md)
-- [Backend docs index](backend/docs/README.md)

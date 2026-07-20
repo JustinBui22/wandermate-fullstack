@@ -1,128 +1,159 @@
 # Authentication, OTP and Session Flow
 
-WanderMate uses a custom authentication flow built around password hashing, OTP verification, JWT access tokens, refresh tokens and session tokens.
+## Stored credentials and tokens
 
-## Main concepts
+| Item | Client receives | Database stores |
+|---|---|---|
+| Password | Never returned | BCrypt hash in `users.password` |
+| Access token | JWT | Not persisted as an access-token row |
+| Refresh token | UUID string | HMAC-SHA256 hash plus session/rotation metadata |
+| Session token | UUID string | BCrypt hash plus username/session ID |
+| OTP | Six-digit value sent to destination | Current OTP value and retry/expiry metadata in `otp_check` |
 
-| Concept | Purpose |
-|---|---|
-| Password hash | Stores password securely instead of plain text |
-| OTP | Verifies registration and forgot-password flows |
-| Access token | Short-lived Bearer token for protected APIs |
-| Refresh token | Used to obtain a new access token |
-| Session token | Tracks active login session and supports logout/revocation |
-| OTP purpose | Separates registration requests from password-reset requests |
+The last row describes the current implementation. OTP hashing and explicit purpose binding in storage are roadmap items.
 
-## Register flow
+## Registration flow
 
-1. User enters username, email, phone and password.
-2. Backend checks active user uniqueness.
-3. User requests OTP.
-4. Backend validates destination, retry, block and cooldown rules.
-5. Backend sends OTP.
-6. User verifies OTP.
-7. Backend consumes/deletes verified OTP record.
-8. User completes registration.
+```text
+POST /users/register/verify
+        ↓ validate username/password/email/phone/DOB availability
+POST /otp/send (purpose REGISTRATION)
+        ↓ send email or phone OTP; store current OTP record
+POST /users/register
+        ↓ verify OTP and destination
+        ↓ delete consumed OTP record
+        ↓ BCrypt password and create user
+```
 
-Screenshot:
+Registration DTO date format is `DD/MM/YYYY`.
 
-![Register OTP](../../docs/screenshots/02-register-otp.png)
+## OTP send behavior
 
-## OTP resend flow
+`OtpServiceImpl`:
 
-1. Existing OTP row is found by username, email or phone depending on request.
-2. If blocked and restriction has not expired, request fails.
-3. If blocked but restriction expired, retry state resets.
-4. If send retry limit is reached, row becomes blocked.
-5. If cooldown has not expired, request fails with cooldown error.
-6. If checks pass, a new OTP is sent and saved.
+- validates request method and destination format;
+- checks whether registration destinations are already used;
+- handles password-reset requests without sending when account/destination does not match;
+- reuses an OTP-check row by username/email/phone where available;
+- enforces cooldown and maximum send attempts;
+- creates a six-digit OTP with `SecureRandom`;
+- records expiry, retry counters and restriction state.
 
-The frontend shows a resend timer so users cannot spam OTP requests.
+Clean-seed defaults:
 
-## Failed OTP accounting
+| Setting | Value |
+|---|---:|
+| OTP expiration | 300,000 ms (5 minutes) |
+| Resend cooldown | 60,000 ms |
+| Max send attempts | 3 |
+| Max verification attempts | 3 |
+| Restriction duration | 900,000 ms (15 minutes) |
 
-An invalid or expired OTP ends the normal service flow by throwing a runtime
-`BusinessException`. If its retry-count update were part of the same database
-transaction, Spring would roll the update back together with the failed
-request. An attacker could then submit unlimited bad values while the database
-counter remained unchanged.
+## OTP verification behavior
 
-`OtpFailureAccountingService` records the retry count in a separate
-`REQUIRES_NEW` transaction with a pessimistic row lock. That inner transaction
-commits before the outer request returns its error. The lock prevents concurrent
-requests from silently overwriting one another. An H2 integration test proves
-the count/block state survives the outer rollback.
+- The username must have an active, non-blocked OTP row.
+- The email/phone in the verification request must match the destination stored in that row.
+- Expired or incorrect values call `OtpFailureAccountingService`.
+- That service uses `REQUIRES_NEW` and a pessimistic lock so the failed-attempt update commits even when verification fails.
+- A successful OTP is deleted to prevent direct reuse.
 
-## Password-reset privacy
-
-1. The frontend requests an OTP with `purpose: PASSWORD_RESET`.
-2. The backend returns the same OTP-sent envelope for matching and non-matching
-   account details, but sends nothing for a non-match.
-3. Weak-password validation is independent of account existence.
-4. The current-password comparison occurs only after successful OTP
-   verification, preventing it from becoming a password oracle.
-5. A successful reset changes the password and revokes every refresh/session
-   record in one transaction.
+`OtpPurpose` currently influences send/recovery behavior but is not stored on `OtpCheckEntity`; therefore the current database record is not purpose-bound.
 
 ## Login flow
 
-1. User submits username/password.
-2. Backend validates credentials.
-3. Backend issues access token, refresh token and session token.
-4. Frontend stores tokens securely.
-5. Frontend sends access token in `Authorization: Bearer` header.
+```text
+POST /users/login
+        ↓ resolve username/email/phone
+        ↓ BCrypt password check
+        ↓ enforce maximum active sessions
+        ↓ create session ID
+        ↓ issue access JWT
+        ↓ create and persist hashed session token
+        ↓ create and persist hashed refresh token
+        ↓ return all three raw tokens once
+```
 
-Screenshot:
+The clean seed allows three active sessions. When `overrideMaxSession=false`, login fails at the limit. When true, the oldest sessions are revoked until a slot is available.
 
-![Login](../../docs/screenshots/01-login.png)
+## Protected request flow
+
+```text
+Authorization: Bearer <accessToken>
+Session-Token: <sessionToken>
+        ↓
+TokenFilter validates JWT signature/expiry/user
+        ↓
+reads username and sessionId claims
+        ↓
+finds matching session row and BCrypt-checks Session-Token
+        ↓
+populates SecurityContext with AuthenticatedUser
+        ↓
+service authorization runs
+```
+
+Missing Bearer authentication is handled by `JsonAuthenticationEntryPoint`. Business token/session failures use the shared API response structure.
+
+## Access token
+
+- Signed with the environment-provided JWT secret.
+- HS512 minimum secret length enforced: 64 UTF-8 bytes.
+- Contains subject, authorities, session ID, issue time and expiry.
+- Clean-seed expiry: 300,000 ms (5 minutes).
 
 ## Refresh flow
 
-1. Frontend calls `/api/v1/auth/refresh`.
-2. Request includes refresh token and session token.
-3. Backend validates the session and refresh token.
-4. Backend returns a fresh access token and refresh token.
+```text
+POST /api/v1/auth/refresh
+Refresh-Token: <refreshToken>
+Session-Token: <sessionToken>
+        ↓
+HMAC-hash presented refresh token and find stored row
+        ↓
+reject/revoke expired or reused token/session
+        ↓
+validate session token
+        ↓
+revoke old refresh token
+        ↓
+issue new access token and refresh token
+        ↓
+record replacement token ID
+```
 
-Refresh tokens are stored as keyed HMAC hashes using
-`REFRESH_TOKEN_HASH_SECRET`; the JWT signing key uses a different
-`JWT_SECRET`. If a rotated/revoked refresh token is reused, a separate
-`REQUIRES_NEW` security service records reuse, revokes its token family, and
-deletes the session before the normal request throws. This prevents the outer
-rollback from undoing the response to a suspected stolen token.
+Refresh-token hash key minimum: 32 UTF-8 bytes. Clean-seed refresh expiry is one month.
 
-## Logout flow
+## Refresh-token reuse
 
-1. Frontend calls logout with access token and session token.
-2. Backend revokes the current session.
-3. Frontend clears stored tokens.
-4. Revoked session cannot refresh or continue authenticated requests.
+When a revoked refresh token is presented:
 
-Screenshot:
+1. `RefreshTokenReuseServiceImpl` starts a `REQUIRES_NEW` transaction.
+2. It marks reuse on the presented token record.
+3. It revokes active refresh tokens with the same session ID.
+4. It removes the related session-token row.
+5. The caller returns `REFRESH_TOKEN_INVALID`.
 
-![Logout session proof](../../docs/screenshots/30-logout-session-proof.png)
+Because the revocation transaction is independent, its changes survive the caller's failure.
 
-## Session limit proof
+## Frontend lifecycle
 
-![Session limit proof](../../docs/screenshots/29-session-limit-proof.png)
+- SecureStore holds the three tokens and username.
+- Axios adds access/session headers.
+- Access-token expiry triggers one shared refresh promise and one retry of the original request.
+- A normal permission `403` is preserved as a resource error.
+- Invalid-session/token responses clear SecureStore and reset auth/theme state.
+- App startup attempts refresh before marking a stored session authenticated.
 
-## Security notes
+## Logout and password reset
 
-- Do not store real tokens in docs or screenshots.
-- Do not export Postman environments after login unless tokens are cleared.
-- OTP and share-code failure counters commit independently from the request that
-  returns an error.
-- Missing authentication is returned using the same JSON response envelope as
-  other token failures.
-- Login uses a generic invalid-credentials response and a dummy password hash
-  when the account is missing to reduce response/timing differences.
-- OTP values should be hashed in a future production-hardening step.
-- IP/device rate limiting should complement account-based counters.
+Logout deletes the current session row and revokes active refresh tokens for that session. Forgot password verifies OTP, updates the BCrypt password, and revokes all active refresh/session records for the user.
 
-## Share-code failed-attempt accounting
+## Current security follow-up
 
-Missing or expired share codes also lead to runtime exceptions. Their attempt
-counter therefore uses `TripShareCodeSecurityEventService` with
-`REQUIRES_NEW`. It pessimistically locks the user, increments or restricts the
-attempt row, and marks an expired active code as expired before the outer join
-request fails. Integration tests verify the attempt/restriction survives the
-outer rollback.
+See [ROADMAP.md](ROADMAP.md) for:
+
+- hashing and purpose-binding OTP records;
+- removing account-enumeration behavior from `/users/check`;
+- method-specific code-owned public-route policy;
+- serialized refresh/share-code rotation;
+- managed scheduler lifecycle.

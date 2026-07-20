@@ -1,53 +1,135 @@
 # Frontend Integration
 
-The React Native Expo frontend talks to the backend through Axios API clients.
+## Base URL
 
-## Frontend API files
+The frontend reads:
 
-| File | Purpose |
+```text
+EXPO_PUBLIC_API_BASE_URL
+```
+
+`src/constants/env.ts` falls back to the configured Render URL.
+
+| Frontend runtime | Backend base URL example |
 |---|---|
-| `src/api/axiosClient.ts` | Shared Axios instance and auth handling |
-| `src/api/authApi.ts` | login/register/logout/OTP auth calls |
-| `src/api/userApi.ts` | profile and settings |
-| `src/api/tripApi.ts` | trips/search/suggestions |
-| `src/api/destinationApi.ts` | destinations |
-| `src/api/activityApi.ts` | nested activities |
-| `src/api/tripCollaborationApi.ts` | invitations, join requests, share codes, members |
-| `src/api/uploadApi.ts` | image upload |
+| Android emulator + IntelliJ | `http://10.0.2.2:8080/Wandermate` |
+| Android emulator + Docker | `http://10.0.2.2:8082/Wandermate` |
+| Physical device + local backend | `http://<computer-lan-ip>:8080/Wandermate` or `:8082` |
+| Production | `https://wandermate-fullstack.onrender.com/Wandermate` |
 
-## Token flow
+## Token storage
 
-1. Login stores access, refresh and session tokens.
-2. Protected API calls use Bearer access token.
-3. Refresh flow uses refresh token and session token.
-4. Logout clears frontend tokens and asks backend to revoke session.
-5. Unrecoverable `401`/invalid-session responses expire the local auth state.
-6. Ordinary permission `403` responses stay local to the request and do not
-   sign the user out.
+`tokenStore.ts` stores these values in Expo SecureStore:
 
-`src/auth/sessionLifecycle.ts` centralizes this state transition so Axios can
-clear secure tokens and the auth store consistently without a circular import.
+```text
+accessToken
+refreshToken
+sessionToken
+username
+```
 
-## Theme flow
+## Axios headers
 
-Frontend loads the user's profile/settings after login/session restore and applies the preferred theme. Screens use `useAppTheme()` and shared UI components.
+`axiosClient.ts` automatically adds:
 
-## Navigation flow
+```http
+Authorization: Bearer <accessToken>
+Session-Token: <sessionToken>
+```
 
-Expo Router handles nested screens. Persistent bottom tabs allow users to jump back to Home, Trips, Collaboration and Profile from deep nested screens.
+`refreshApi.ts` adds:
 
-## Upload flow
+```http
+Refresh-Token: <refreshToken>
+Session-Token: <sessionToken>
+```
 
-1. User picks image using Expo Image Picker.
-2. Frontend sends multipart upload to backend.
-3. Backend uploads image to Cloudinary.
-4. Frontend receives image URL/public ID.
-5. User profile/trip update saves image metadata.
+## Refresh/error behavior
 
-The multipart field is `imageType`, with `profile-images` or `trip-covers`.
+- Access-token expiry (`E016` or matching expiry text) triggers refresh once.
+- Concurrent expired requests share one refresh promise.
+- The original request is retried with the new access token.
+- Failed refresh clears the local session.
+- `401`, explicit invalid-session `E023`, or token-verification `E015` clears local authentication.
+- A normal permission-only `403` remains a resource authorization error and does not log the user out.
 
-## Screenshots
+## Response body
 
-![Mobile upload proof](../../docs/screenshots/27-mobile-upload-proof.png)
+API modules normally return `response.data.body` from the backend's shared wrapper. Screens should use `apiWarningUtils` for consistent error code/message extraction.
 
-![Frontend typecheck](../../docs/screenshots/20-frontend-typecheck.png)
+## Date/time payloads
+
+The current backend DTOs use ISO `LocalDateTime` for:
+
+- trip `startDate` / `endDate`;
+- destination `startDate` / `endDate`;
+- activity `startDateTime` / `endDateTime`.
+
+Example:
+
+```text
+2027-04-05T08:00:00
+```
+
+Frontend date utilities should not send display-formatted values.
+
+## Roles
+
+Backend roles:
+
+```text
+OWNER
+EDITOR
+VIEWER
+```
+
+Frontend helpers map them to:
+
+- view access for all three;
+- editing for owner/editor;
+- trip/member administration for owner only.
+
+Screens may fetch the trip's `currentUserRole` and/or member list. The backend remains authoritative.
+
+## Image upload
+
+```http
+POST /api/v1/uploads/images
+Content-Type: multipart/form-data
+```
+
+```text
+file=<selected image>
+imageType=profile-images | trip-covers
+```
+
+Persist both returned values in the subsequent request:
+
+```json
+{
+  "coverImageUrl": "...",
+  "coverImagePublicId": "..."
+}
+```
+
+The current backend does not provide an endpoint for deleting an uploaded image that the user abandons before saving.
+
+## Collaboration deep link
+
+The clean seed uses:
+
+```text
+wandermate://join-trip?code=
+```
+
+The Expo app scheme is `wandermate`, and `app/join-trip.tsx` handles the join path.
+
+## Development checks
+
+```bash
+cd frontend
+npm run typecheck
+npm test
+```
+
+After changing frontend `.env`, restart Metro/Expo with cache clearing.

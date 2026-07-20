@@ -1,27 +1,55 @@
-// This file contains notes on various commands used in the backend development process. It is intended to serve as a reference for developers working on the project.
+// WanderMate backend command reference.
+// Run commands from backend/ unless the note says otherwise.
 -------------------------------------------------------------------------
-// Identifying files that are part of the project but may not be tracked
-git ls-files | Select-String -Pattern "^backend/\.env$|^backend/target/|^frontend/node_modules/|^\.idea/|^backend/docker/init/full-init\.sql$"
 
+// Maven wrapper (recommended because Maven does not need to be installed globally)
+// macOS/Linux
+./mvnw spring-boot:run
+./mvnw test
+./mvnw clean package
+./mvnw clean package -DskipTests
+./mvnw test -Dtest=TokenServiceImplTest
 
+// Windows PowerShell / Command Prompt
+.\mvnw.cmd spring-boot:run
+.\mvnw.cmd test
+.\mvnw.cmd clean package
 
-// Building the backend using Maven
-mvn clean install -DskipTests
+// Direct IntelliJ/Maven runs do not automatically read backend/.env.
+// Configure DB_URL, DB_USERNAME, DB_PASSWORD, JWT_SECRET and
+// REFRESH_TOKEN_HASH_SECRET in the process environment.
 
-// Building the backend Docker image
-docker compose up: want to start the existing containers again.
-docker compose up --build: changed backend code, pom.xml, Dockerfile and want to rebuild the backend image.
-docker compose down: want to stop and remove the existing containers, networks, volumes, and images created by docker compose up.
-docker compose down -v: including the named (db) volumes.
+// Docker Compose automatically reads backend/.env.
+docker compose up
+docker compose up --build
+docker compose up -d --build
+docker compose ps
+docker compose logs -f backend
+docker compose logs -f db
+docker compose down
 
-// Running the backend tests
-mvn test
+// WARNING: deletes the local MariaDB named volume and all its data.
+docker compose down -v
 
-// Running the backend tests with a specific profile
-mvn test -Ptest-profile
+// Start only the DB for an IntelliJ backend run.
+docker compose up -d db
 
-// Running the backend tests with a specific test class
-mvn test -Dtest=TestClassName
+// Host DB URL when the database container exposes port 3307.
+// DB_URL=jdbc:mariadb://localhost:3307/traveling_app
 
-// View the files in a Git commit immediately after committing
-git show --name-only
+// Container-to-container DB URL used by docker-compose.yml.
+// DB_URL=jdbc:mariadb://db:3306/traveling_app
+
+// Health checks
+curl http://localhost:8080/Wandermate/api/v1/health
+curl http://localhost:8082/Wandermate/api/v1/health
+
+// Git checks from repository root
+git status --short
+git diff --check
+git show --name-only --stat HEAD
+
+git ls-files | Select-String -Pattern "(^|/)\.env$|(^|/)target/|(^|/)node_modules/|(^|/)\.idea/|full-init\.sql$"
+
+// Create a clean archive from committed files instead of zipping the working tree.
+git archive --format=zip --output=wandermate-source.zip HEAD

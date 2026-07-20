@@ -1,74 +1,104 @@
 # Cloudinary Image Storage
 
-WanderMate uses Cloudinary for uploaded user avatars and trip cover images.
-
-## Upload endpoint
-
-```http
-POST /api/v1/uploads/images
-Content-Type: multipart/form-data
-Authorization: Bearer <accessToken>
-```
-
-Form-data fields:
-
-```text
-file: image file
-imageType: profile-images or trip-covers
-```
-
-## Response data
-
-The upload response includes the public image URL and Cloudinary public ID. The frontend stores/uses the image URL for rendering. The backend stores public IDs where needed so older Cloudinary images can be deleted or replaced safely.
-
-## Image types
-
-| Value | Used by |
-|---|---|
-| `profile-images` | User profile avatar upload |
-| `trip-covers` | Trip cover image upload |
-
-## Server-side validation
-
-The service does not trust the client MIME header alone. It enforces the 5 MB
-limit, checks the declared MIME against PNG/JPEG/WebP/HEIF signatures, rejects
-unknown or mismatched content, decodes PNG/JPEG files with ImageIO, and caps
-decoded PNG/JPEG images at 20 million pixels. WebP/HEIF receive container
-signature validation locally and are decoded by Cloudinary.
-
-When an uploaded image is assigned to a profile or trip, the backend also
-validates that the HTTPS URL and public ID match the configured Cloudinary
-account, the requested image type, the authenticated uploader's server-created
-user folder, and the generated UUID filename pattern. Unchanged existing image
-references and explicit image removal remain supported.
-
-## Screenshots
-
-### Trip cover upload
-
-![Trip cover upload](../../docs/screenshots/05-trip-cover-upload.png)
-
-### Profile avatar upload
-
-![Profile avatar settings](../../docs/screenshots/15-profile-avatar-settings.png)
-
-### Cloudinary proof
-
-![Cloudinary upload proof](../../docs/screenshots/22-cloudinary-upload-proof.png)
-
-## Environment variables
+## Configuration
 
 ```text
 CLOUDINARY_CLOUD_NAME
 CLOUDINARY_API_KEY
 CLOUDINARY_API_SECRET
-CLOUDINARY_BASE_FOLDER
+CLOUDINARY_BASE_FOLDER=wandermate
 ```
 
-Do not commit real Cloudinary secrets.
+Spring reads these through `application.properties`. The Cloudinary bean always sets secure HTTPS delivery.
 
-## Future hardening
+## Upload endpoint
 
-- Add upload audit logging.
-- Add a server-side WebP/HEIF decoder if validation must not depend on the
-  Cloudinary decode step.
+```http
+POST /Wandermate/api/v1/uploads/images
+Authorization: Bearer <access-token>
+Session-Token: <session-token>
+Content-Type: multipart/form-data
+```
+
+Fields:
+
+```text
+file=<image>
+imageType=profile-images | trip-covers
+```
+
+## Validation
+
+`ImageContentValidator` performs backend-side validation before upload. The current tests cover:
+
+- missing/empty files;
+- maximum allowed size;
+- supported declared MIME types;
+- signature/container checks;
+- PNG/JPEG decoding;
+- invalid/corrupt content.
+
+Spring's multipart limits are both 5 MB:
+
+```properties
+spring.servlet.multipart.max-file-size=5MB
+spring.servlet.multipart.max-request-size=5MB
+```
+
+## Folder and public-ID structure
+
+```text
+<base-folder>/<imageType>/users/<userId>/<generated-public-id>
+```
+
+Generated ID patterns:
+
+```text
+profile-<userId>-<uuid>
+trip-cover-<userId>-<uuid>
+```
+
+The upload response contains the secure URL and public ID.
+
+## Assigning an image to a user or trip
+
+The frontend first uploads the image, then includes both returned values in the profile/trip request:
+
+```json
+{
+  "profileImageUrl": "https://res.cloudinary.com/...",
+  "profileImagePublicId": "wandermate/profile-images/users/12/profile-12-..."
+}
+```
+
+or:
+
+```json
+{
+  "coverImageUrl": "https://res.cloudinary.com/...",
+  "coverImagePublicId": "wandermate/trip-covers/users/12/trip-cover-12-..."
+}
+```
+
+`ImageReferenceValidator` checks HTTPS Cloudinary host/path, base folder, upload category, authenticated user ID and generated UUID-style suffix before a newly changed reference is accepted.
+
+## Replacement and deletion behavior
+
+- Profile update stores the new reference, then asks the Cloudinary client to delete the old public ID when it changed.
+- Trip update does the same for the previous cover.
+- Trip deletion removes the existing cover after deleting the trip.
+- The upload controller currently has only the POST endpoint; abandoned uploads that are never assigned do not have a dedicated cleanup endpoint.
+
+That last lifecycle gap is documented in the roadmap.
+
+## Frontend integration
+
+`ImageUploadPicker` uses `uploadApi.ts` and lets screens upload profile/trip images. API requests then persist the returned URL/public ID through user or trip endpoints.
+
+## Operational checks
+
+- Never commit Cloudinary credentials.
+- Treat public IDs as identifiers, not secrets.
+- Confirm the Render environment includes all Cloudinary values.
+- Test both upload and replacement cleanup.
+- Monitor for abandoned/unreferenced assets until a cleanup endpoint/job is implemented.

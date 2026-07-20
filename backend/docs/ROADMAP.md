@@ -1,57 +1,70 @@
-# Roadmap
+# Backend Roadmap
 
-## Current V4 scope: complete
+This roadmap starts from the implementation currently present in the repository.
 
-V4 focuses on portfolio proof and interview readiness.
+## Priority 1 — Security and concurrency hardening
 
-Completed areas:
+- Replace plaintext OTP persistence with purpose-bound HMAC hashes.
+- Store OTP purpose with the record and verify it during registration/password reset.
+- Add pessimistic/atomic locking to the main OTP lookup/consume path.
+- Serialize refresh-token rotation by locking the token-hash row.
+- Rework refresh-token reuse revocation so it does not depend on a second unlocked lookup.
+- Generate share codes with `SecureRandom` and a longer unambiguous alphabet.
+- Lock active share-code generation/use to prevent concurrent duplicates or reuse.
+- Change share-code preview from state-sensitive GET semantics if attempt accounting remains attached.
+- Remove or redesign `/api/v1/users/check` to reduce account enumeration.
+- Replace database path-only public-route configuration with a code-owned, method-specific policy shared by Spring Security and `TokenFilter`.
+- Add explicit CORS policy for supported mobile/web environments.
 
-- Secure auth/session/OTP flow.
-- Trip CRUD.
-- Destination CRUD.
-- Nested activity CRUD.
-- Owner/editor/viewer collaboration.
-- Invitations and join requests.
-- Share-code joining.
-- Member role management.
-- Cloudinary profile/trip image upload.
-- Frontend light/dark theme support.
-- Persistent bottom tabs.
-- Backend tests.
-- GitHub Actions CI for backend tests and frontend typecheck/tests.
-- H2 integration tests for transaction-sensitive security events.
-- Explicit OTP purpose for registration and password reset.
-- Image content/signature validation.
-- Docs and screenshot proof.
+## Priority 2 — Database lifecycle
 
-## Do not add before portfolio submission
+- Add Flyway or Liquibase.
+- Convert the current schema into a reviewed baseline migration.
+- Set production Hibernate mode to `validate` rather than `update`.
+- Add migrations for constraints and indexes instead of relying on startup mutation.
+- Document backup/restore and rollback procedures for Render/MariaDB hosting.
 
-Avoid adding large new features before screenshots/demo/CV are done.
+## Priority 3 — Date model consistency
 
-Do not add yet:
+- Decide whether trips/destinations are calendar dates or instants.
+- Prefer `LocalDate` for all-day trip/destination boundaries if time-of-day is not meaningful.
+- Keep activities as `LocalDateTime` and document timezone assumptions.
+- Add end-to-end tests for Australian timezone/date conversion and same-day trips.
 
-- Stripe payments.
-- Real-time collaboration.
-- Chat.
-- Expense splitting.
-- Large refactors.
+## Priority 4 — Image lifecycle
 
-## Suggested V5 features
+- Add authenticated deletion of unreferenced uploads.
+- Clean up replaced/abandoned uploads when a form is cancelled or save fails.
+- Add database uniqueness/pair constraints for URL/public-ID references.
+- Add periodic orphan detection or Cloudinary asset retention policy.
 
-- Trip cost planning and expense splitting.
-- Viewer suggestion workflow.
-- Push notifications.
-- Email invitation links.
-- Better activity maps/geolocation.
-- E2E tests.
-- Testcontainers for backend integration tests.
-- Flyway or Liquibase migrations.
-- Split broad enums into more focused enum types.
+## Priority 5 — Email/OTP operations
 
-## Production hardening later
+- Replace the custom `ScheduledExecutorService` with a Spring-managed scheduler/executor.
+- Add explicit shutdown behavior and refresh-token rotation handling.
+- Separate production email templates and test/dev delivery modes.
+- Implement a real SMS provider or clearly disable phone OTP outside test/demo mode.
 
-- Hash OTP codes in DB.
-- Add IP/device rate limiting.
-- Add centralized audit logging.
-- Add a WebP/HEIF decoder for full local image decoding.
-- Replace `ddl-auto=update` with versioned Flyway migrations.
+## Priority 6 — API and error behavior
+
+- Add method-specific OpenAPI documentation for custom headers and response wrappers.
+- Normalize validation/JSON/type-mismatch exceptions through `GlobalExceptionHandler`.
+- Add pagination for trip/member/request lists.
+- Introduce idempotency protection for sensitive POST/PATCH operations where useful.
+- Review whether profile/account lookup responses leak account existence.
+
+## Priority 7 — Test and quality expansion
+
+- Add frontend integration tests for trip/destination/activity date payloads.
+- Add component tests for role-aware actions and image replacement.
+- Expand Maestro beyond login-screen smoke to login, trip create and collaboration flows.
+- Add Testcontainers MariaDB tests for SQL/locking behavior that H2 cannot reproduce.
+- Add coverage reporting and dependency/security scanning.
+
+## Priority 8 — Product improvements
+
+- Push/deep-link handling for collaboration invitations.
+- Offline/poor-network UX and request retry policy.
+- Trip timeline/calendar view.
+- Activity ordering and richer itinerary metadata.
+- Member audit trail and collaboration notifications.

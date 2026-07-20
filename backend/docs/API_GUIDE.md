@@ -1,162 +1,305 @@
 # API Guide
 
-Base path:
+## Base URLs
 
 ```text
-/Wandermate
+Direct local: http://localhost:8080/Wandermate
+Docker host:  http://localhost:8082/Wandermate
+Configured production: https://wandermate-fullstack.onrender.com/Wandermate
 ```
 
-Local base URL:
+All paths below are relative to the base URL.
 
-```text
-http://localhost:8080/Wandermate
-```
+## Response format
 
-Render base URL:
-
-```text
-https://wandermate-fullstack.onrender.com/Wandermate
-```
-
-## Auth headers
-
-Protected endpoints use:
-
-```http
-Authorization: Bearer <accessToken>
-```
-
-Refresh/logout flows may also use:
-
-```http
-Refresh-Token: <refreshToken>
-Session-Token: <sessionToken>
-```
-
-## Public endpoints
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/api/v1/health` | Backend health check |
-| POST | `/api/v1/users/register/verify` | Validate registration details before registration |
-| POST | `/api/v1/users/register` | Register a user after OTP verification |
-| POST | `/api/v1/users/login` | Login and receive tokens |
-| POST | `/api/v1/users/forgot-password` | Reset password with OTP |
-| POST | `/api/v1/otp/send` | Send email/phone OTP |
-| POST | `/api/v1/otp/verify` | Verify OTP |
-| POST | `/api/v1/auth/refresh` | Refresh access token |
-
-The removed `/api/v1/users/check` endpoint must not be restored: returning a
-different response for an existing account makes account enumeration easier.
-Share-code preview and join endpoints are authenticated and are listed below.
-
-For a password-reset OTP request, add:
+Most application endpoints return the shared response body generated through `CompleteResponse`:
 
 ```json
 {
-  "purpose": "PASSWORD_RESET"
+  "code": "E000",
+  "message": "Operation completed successfully",
+  "flow": "TRIP",
+  "body": {}
 }
 ```
 
-The registration default is `REGISTRATION`. Password-reset OTP requests return
-the same success envelope whether or not the supplied account/destination
-matches; the backend sends mail/SMS only for a valid match.
+The health endpoint returns a plain map instead of the shared wrapper.
 
-## Protected user endpoints
+## Authentication headers
 
-| Method | Path | Purpose |
+Protected request:
+
+```http
+Authorization: Bearer <access-token>
+Session-Token: <session-token>
+```
+
+Refresh request:
+
+```http
+Refresh-Token: <refresh-token>
+Session-Token: <session-token>
+```
+
+The access JWT identifies the username/session ID. `TokenFilter` also checks the presented session token against the stored BCrypt hash before populating Spring Security's context.
+
+## Public routes in the current seed
+
+Public patterns are read from the database `NON_AUTHENTICATED_REQUEST` configuration. The clean Docker seed currently includes:
+
+| Method used by app | Path | Purpose |
 |---|---|---|
-| POST | `/api/v1/users/logout` | Logout and revoke session |
-| GET | `/api/v1/users/me` | Get current user profile |
-| PATCH | `/api/v1/users/me/profile` | Update current user profile |
-| PATCH | `/api/v1/users/me/settings` | Update theme/settings |
+| GET | `/api/v1/health` | Health check |
+| POST | `/api/v1/users/register/verify` | Validate registration data before OTP/final registration |
+| POST | `/api/v1/users/register` | Register after OTP verification |
+| POST | `/api/v1/users/login` | Login and receive three tokens |
+| POST | `/api/v1/users/forgot-password` | Reset password after OTP verification |
+| GET | `/api/v1/users/check?userInput=...` | Check whether username/email/phone resolves to an active user |
+| POST | `/api/v1/otp/send` | Send OTP |
+| POST | `/api/v1/otp/verify` | Verify/consume OTP |
+| POST | `/api/v1/auth/refresh` | Rotate refresh token and issue a new access token |
+| GET | `/swagger-ui/**` | Local Swagger UI assets |
+| GET | `/v3/api-docs/**` | Local OpenAPI JSON/YAML |
+
+The public-route configuration stores paths rather than HTTP-method-specific rules, so a matching path is treated as public by the current filter/security configuration.
+
+## User and authentication endpoints
+
+| Method | Path | Auth | Purpose |
+|---|---|---:|---|
+| POST | `/api/v1/users/register/verify` | No | Validate username/email/phone/password/date fields |
+| POST | `/api/v1/otp/send` | No | Send registration or password-reset OTP |
+| POST | `/api/v1/otp/verify` | No | Verify OTP directly |
+| POST | `/api/v1/users/register` | No | Verify OTP and create account |
+| POST | `/api/v1/users/login` | No | Login by username/email/phone |
+| POST | `/api/v1/auth/refresh` | Refresh/session headers | Rotate refresh token |
+| POST | `/api/v1/users/forgot-password` | No | Verify OTP, change password, revoke active sessions/tokens |
+| POST | `/api/v1/users/logout` | Yes | Revoke current session and its active refresh tokens |
+| GET | `/api/v1/users/check` | No | Resolve whether an account exists |
+| GET | `/api/v1/users/me` | Yes | Current profile |
+| PATCH | `/api/v1/users/me/profile` | Yes | Update display name, phone, DOB and profile image reference |
+| PATCH | `/api/v1/users/me/settings` | Yes | Update preferred theme |
+
+### Login request
+
+```json
+{
+  "username": "user-or-email-or-phone",
+  "password": "Password1!",
+  "overrideMaxSession": false
+}
+```
+
+Successful body:
+
+```json
+{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "sessionToken": "..."
+}
+```
+
+### Send OTP request
+
+Email example:
+
+```json
+{
+  "userName": "sampleuser",
+  "email": "sample@example.com",
+  "otpVerificationMethod": "EMAIL_OTP",
+  "emailEnum": "EMAIL_OTP_REGISTER",
+  "purpose": "REGISTRATION"
+}
+```
+
+`purpose` defaults to `REGISTRATION`; password recovery uses `PASSWORD_RESET`.
+
+### Register request
+
+```json
+{
+  "username": "sampleuser",
+  "password": "Password1!",
+  "email": "sample@example.com",
+  "phoneNumber": null,
+  "dob": "20/07/1999",
+  "referredCode": null,
+  "otp": "123456"
+}
+```
+
+### Refresh request
+
+```http
+POST /api/v1/auth/refresh
+Refresh-Token: <current-refresh-token>
+Session-Token: <current-session-token>
+```
 
 ## Upload endpoint
 
-| Method | Path | Purpose |
-|---|---|---|
-| POST | `/api/v1/uploads/images` | Multipart image upload for profile/trip cover |
+| Method | Path | Auth | Purpose |
+|---|---|---:|---|
+| POST | `/api/v1/uploads/images` | Yes | Upload a profile image or trip cover |
 
-Required form-data:
+Multipart fields:
 
 ```text
-file: image file
-imageType: profile-images or trip-covers
+file=<image>
+imageType=profile-images | trip-covers
 ```
 
-The backend enforces a 5 MB limit, compares MIME and file signatures, decodes
-PNG/JPEG images, and validates WebP/HEIF container signatures before upload.
+The backend returns an image URL and Cloudinary public ID. It does not currently expose a standalone unused-image DELETE endpoint.
 
 ## Trip endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/v1/trips` | Create trip |
-| GET | `/api/v1/trips` | Get current user's accessible trips |
-| GET | `/api/v1/trips/{tripId}` | Get trip detail |
-| PUT | `/api/v1/trips/{tripId}` | Update trip |
-| DELETE | `/api/v1/trips/{tripId}` | Delete trip |
-| GET | `/api/v1/trips/search/cities` | Search cities |
-| GET | `/api/v1/trips/search/restaurants` | Search restaurants |
-| GET | `/api/v1/trips/search/accommodations` | Search accommodations |
-| GET | `/api/v1/trips/suggest/cities` | Suggest cities |
-| GET | `/api/v1/trips/suggest/restaurants` | Suggest restaurants |
-| GET | `/api/v1/trips/suggest/accommodations` | Suggest accommodations |
+| POST | `/api/v1/trips` | Create trip and owner membership |
+| GET | `/api/v1/trips` | List accessible trips |
+| GET | `/api/v1/trips/{tripId}` | Get accessible trip detail |
+| PUT | `/api/v1/trips/{tripId}` | Update as owner/editor |
+| DELETE | `/api/v1/trips/{tripId}` | Delete as owner |
+| GET | `/api/v1/trips/search/cities?keyword=...` | City contains search |
+| GET | `/api/v1/trips/search/restaurants?keyword=...` | Restaurant contains search |
+| GET | `/api/v1/trips/search/accommodations?keyword=...` | Accommodation contains search |
+| GET | `/api/v1/trips/suggest/cities?keyword=...` | Prefix suggestions |
+| GET | `/api/v1/trips/suggest/restaurants?keyword=...` | Prefix suggestions |
+| GET | `/api/v1/trips/suggest/accommodations?keyword=...` | Prefix suggestions |
+
+Trip-list query parameters:
+
+```text
+ownership=ALL | CREATED | JOINED
+status=ALL | PLANNING | ONGOING | FINISHED
+sort=MODIFIED_DATE_DESC | MODIFIED_DATE_ASC | CREATED_DATE_DESC | CREATED_DATE_ASC | NAME_ASC | NAME_DESC
+```
+
+Create/update example:
+
+```json
+{
+  "tripName": "Japan 2027",
+  "destination": "Tokyo",
+  "startDate": "2027-04-01T00:00:00",
+  "endDate": "2027-04-10T23:59:59",
+  "allowOverlap": false,
+  "tripStatus": "PLANNING",
+  "coverImageUrl": null,
+  "coverImagePublicId": null
+}
+```
+
+Trip and destination request fields are `LocalDateTime` in the current backend.
 
 ## Destination endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/v1/trips/{tripId}/destinations` | Create destination |
-| GET | `/api/v1/trips/{tripId}/destinations` | Get destinations for trip |
-| GET | `/api/v1/trips/{tripId}/destinations/{destinationId}` | Get destination detail |
-| PUT | `/api/v1/trips/{tripId}/destinations/{destinationId}` | Update destination |
-| DELETE | `/api/v1/trips/{tripId}/destinations/{destinationId}` | Delete destination |
+| POST | `/api/v1/trips/{tripId}/destinations` | Create as owner/editor |
+| GET | `/api/v1/trips/{tripId}/destinations` | List for any member |
+| GET | `/api/v1/trips/{tripId}/destinations/{destinationId}` | Get detail |
+| PUT | `/api/v1/trips/{tripId}/destinations/{destinationId}` | Update as owner/editor |
+| DELETE | `/api/v1/trips/{tripId}/destinations/{destinationId}` | Delete as owner/editor |
 
-## Nested activity endpoints
+```json
+{
+  "destinationName": "Kyoto",
+  "startDate": "2027-04-04T00:00:00",
+  "endDate": "2027-04-07T23:59:59",
+  "destinationOrder": 2,
+  "notes": "Train from Tokyo",
+  "allowOverlap": false
+}
+```
 
-Activities belong to a destination, not directly to a trip.
+## Activity endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities` | Create activity |
-| GET | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities` | Get activities under destination |
-| GET | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}` | Get activity detail |
-| PUT | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}` | Update activity |
-| DELETE | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}` | Delete activity |
+| POST | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities` | Create as owner/editor |
+| GET | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities` | List for any member |
+| GET | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}` | Get detail |
+| PUT | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}` | Update as owner/editor |
+| DELETE | `/api/v1/trips/{tripId}/destinations/{destinationId}/activities/{activityId}` | Delete as owner/editor |
 
-## Collaboration endpoints
+```json
+{
+  "activityName": "Fushimi Inari",
+  "location": "Kyoto",
+  "description": "Morning visit",
+  "startDateTime": "2027-04-05T08:00:00",
+  "endDateTime": "2027-04-05T11:00:00"
+}
+```
+
+## Collaboration request endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/v1/collaboration/summary` | Get collaboration dashboard summary |
-| POST | `/api/v1/trips/{tripId}/invitations` | Invite member to trip |
-| GET | `/api/v1/trips/invitations/received` | Get received invitations |
+| GET | `/api/v1/collaboration/summary` | Pending collaboration counts |
+| POST | `/api/v1/trips/{tripId}/invitations` | Owner invites username as editor/viewer |
+| GET | `/api/v1/trips/invitations/received` | Current user's pending invitations |
 | PATCH | `/api/v1/trips/invitations/{requestId}/accept` | Accept invitation |
 | PATCH | `/api/v1/trips/invitations/{requestId}/reject` | Reject invitation |
-| POST | `/api/v1/trips/{tripId}/join-requests` | Send join request to trip |
-| GET | `/api/v1/trips/{tripId}/join-requests` | Get trip join requests |
-| GET | `/api/v1/trips/join-requests/owned` | Get join requests for trips the user owns |
-| GET | `/api/v1/trips/join-requests/sent` | Get current user's sent join requests |
-| PATCH | `/api/v1/trips/join-requests/{requestId}/accept` | Accept join request |
-| PATCH | `/api/v1/trips/join-requests/{requestId}/reject` | Reject join request |
-| GET | `/api/v1/trips/{tripId}/my-overlap-warnings` | Get overlap warnings for current user |
+| POST | `/api/v1/trips/{tripId}/join-requests` | Request to join known trip ID |
+| GET | `/api/v1/trips/{tripId}/join-requests` | Owner's pending requests for one trip |
+| GET | `/api/v1/trips/join-requests/owned` | Pending requests across owned trips |
+| GET | `/api/v1/trips/join-requests/sent` | Current user's sent pending requests |
+| PATCH | `/api/v1/trips/join-requests/{requestId}/accept` | Owner accepts |
+| PATCH | `/api/v1/trips/join-requests/{requestId}/reject` | Owner rejects |
+| GET | `/api/v1/trips/{tripId}/my-overlap-warnings` | Member-specific trip overlap warnings |
 
-## Share code endpoints
+Invitation body:
 
-All endpoints in this section require a valid access token and session token.
+```json
+{
+  "username": "anotheruser",
+  "role": "EDITOR"
+}
+```
+
+Direct join-request body:
+
+```json
+{
+  "role": "VIEWER"
+}
+```
+
+## Share-code endpoints
+
+All current share-code endpoints require valid access and session tokens.
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/v1/trips/{tripId}/share-codes/regenerate` | Generate/regenerate active share code |
-| GET | `/api/v1/trips/share-codes/{code}` | Preview share code |
-| POST | `/api/v1/trips/share-codes/{code}/join-requests` | Join-request using share code |
-| GET | `/api/v1/trips/{tripId}/share-codes/active` | Get active share code for trip |
+| POST | `/api/v1/trips/{tripId}/share-codes/regenerate` | Owner generates/replaces current code |
+| GET | `/api/v1/trips/share-codes/{code}` | Authenticated preview |
+| POST | `/api/v1/trips/share-codes/{code}/join-requests` | Submit join request using code |
+| GET | `/api/v1/trips/{tripId}/share-codes/active` | Owner retrieves active code |
+
+Optional generate body:
+
+```json
+{
+  "defaultRole": "VIEWER"
+}
+```
 
 ## Member endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/v1/trips/{tripId}/members` | List trip members |
-| PATCH | `/api/v1/trips/{tripId}/members/{tripMemberId}/role` | Update member role |
-| DELETE | `/api/v1/trips/{tripId}/members/{tripMemberId}` | Remove member |
+| GET | `/api/v1/trips/{tripId}/members` | List members; any trip member |
+| PATCH | `/api/v1/trips/{tripId}/members/{tripMemberId}/role` | Owner changes editor/viewer role |
+| DELETE | `/api/v1/trips/{tripId}/members/{tripMemberId}` | Owner removes non-owner member |
+
+Role body:
+
+```json
+{
+  "role": "EDITOR"
+}
+```

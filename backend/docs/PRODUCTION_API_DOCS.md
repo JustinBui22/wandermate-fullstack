@@ -1,60 +1,70 @@
-# Production API Docs
+# Production API Documentation
 
-Production deployment uses the same context path:
+## OpenAPI configuration
 
-```text
-/Wandermate
-```
-
-Render base URL:
+`OpenApiConfig` defines:
 
 ```text
-https://wandermate-fullstack.onrender.com/Wandermate
+Title: Traveling App API
+Version: v1
+Security scheme: HTTP Bearer JWT (`bearerAuth`)
 ```
 
-## Health check
+Controller interfaces provide the current endpoint mappings.
 
-[Open the production health endpoint](https://wandermate-fullstack.onrender.com/Wandermate/api/v1/health).
-The free Render service may take about a minute to wake after inactivity.
+## Local Swagger
 
-## Render logs proof
-
-![Render logs](../../docs/screenshots/25-render-logs.png)
-
-## Swagger/OpenAPI
-
-Swagger/OpenAPI is useful locally for development and endpoint inspection.
-
-Local Swagger proof:
-
-![Swagger local](../../docs/screenshots/18-swagger-local.png)
-
-In production profile, Swagger may be disabled for security/simplicity depending on configuration.
-
-## Production testing checklist
-
-1. Health endpoint returns success.
-2. Register/login works against production DB/config.
-3. OTP email works.
-4. Access token works on protected endpoint.
-5. Refresh token works.
-6. Logout revokes session.
-7. Cloudinary image upload works.
-8. Trip/destination/activity CRUD works.
-9. Collaboration roles work.
-10. No secrets are exposed in logs or docs.
-
-## Environment warning
-
-Production secrets must live in Render environment variables, not in committed files.
-
-Required security variables include:
+Direct local backend:
 
 ```text
-JWT_SECRET
-REFRESH_TOKEN_HASH_SECRET
+http://localhost:8080/Wandermate/swagger-ui/index.html
 ```
 
-Use independent random values. The JWT value must contain at least 64 UTF-8
-bytes and the refresh-token HMAC value at least 32. Rotating them invalidates
-active tokens; a refresh-HMAC rotation signs out existing sessions.
+Docker backend:
+
+```text
+http://localhost:8082/Wandermate/swagger-ui/index.html
+```
+
+OpenAPI JSON:
+
+```text
+http://localhost:8080/Wandermate/v3/api-docs
+```
+
+## Production behavior
+
+`application-prod.properties` contains:
+
+```properties
+springdoc.swagger-ui.enabled=false
+springdoc.api-docs.enabled=false
+```
+
+Therefore the Render production service is not intended to expose Swagger UI or `/v3/api-docs` while the prod profile is active.
+
+## Authorizing locally
+
+Swagger's Bearer scheme adds:
+
+```http
+Authorization: Bearer <access-token>
+```
+
+The current backend also requires:
+
+```http
+Session-Token: <session-token>
+```
+
+Swagger does not currently define that custom header as a global security scheme, so protected testing may be easier in Postman or by manually adding the header where supported.
+
+Refresh also requires separate `Refresh-Token` and `Session-Token` headers.
+
+## Production documentation policy
+
+- Keep Swagger disabled publicly unless there is a deliberate access-control decision.
+- Use `backend/docs/API_GUIDE.md` as the repository endpoint inventory.
+- Do not publish example tokens or credentials.
+- Keep API examples synchronized with controller interfaces and request DTOs.
+- Treat the configured Render base URL as a deployment target, not proof of current uptime.

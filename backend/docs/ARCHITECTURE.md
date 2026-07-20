@@ -1,90 +1,120 @@
 # Backend Architecture
 
-WanderMate backend follows a layered Spring Boot structure.
-
-## Main layers
+## Request flow
 
 ```text
-Controller interface
+HTTP request
+  ↓
+Spring Security / TokenFilter
+  ↓
+Controller interface mapping
   ↓
 Controller implementation
   ↓
-Service interface
+Service interface / implementation
   ↓
-Service implementation
+Validator + mapper + repository
   ↓
-Repository
-  ↓
-Entity / Database
+MariaDB / Cloudinary / email provider
 ```
 
 ## Package responsibilities
 
 | Package | Responsibility |
 |---|---|
-| `controller` | Public API contracts and request mappings |
-| `controller.impl` | Controller implementations that call services |
-| `service` | Service interfaces |
-| `service.impl` | Business logic and transaction-like orchestration |
-| `repository` | Spring Data JPA database access |
-| `entity` | JPA entities |
-| `dto.request` | Incoming request payloads |
-| `dto.response` | Outgoing response payloads |
-| `validator` | Input validation and business validation helpers |
-| `mapper` | Entity/DTO mapping |
-| `security` | token filter, authenticated user provider, password hashing |
-| `config` | Cloudinary, mail, OpenAPI, security config |
-| `response_template` | Consistent response wrapper |
-| `exception_handler` | Business exception and global exception handling |
+| `config` | Security, mail, Cloudinary, OpenAPI and scheduling beans |
+| `controller` | HTTP contracts and mappings |
+| `controller.impl` | Converts service `CompleteResponse` values to `ResponseEntity` |
+| `dto.request` | Validated incoming payloads |
+| `dto.response` | API response models |
+| `entity` | JPA entities and relationships |
+| `repository` | Spring Data JPA access and custom queries |
+| `service` | Business-service contracts |
+| `service.impl` | Orchestration, authorization and transactions |
+| `validator` | Input and business-rule checks |
+| `mapper` | Entity/DTO conversion |
+| `security` | JWT/session filter, entry point, authenticated principal and secret providers |
+| `response_template` | Shared code/message/flow/body response construction |
+| `exception_handler` | Structured business-exception handling |
+| `util` | Configuration lookup, user lookup and conversion helpers |
 
-## Core design choices
+## Domain model
 
-### Interfaces + implementations
+```text
+User
+ ├─ SessionToken
+ ├─ RefreshToken
+ ├─ OtpCheck
+ └─ TripMember ── Trip
+                   ├─ Destination ── Activity
+                   ├─ CollaborationRequest
+                   └─ ShareCode
+```
 
-Controllers and services are split into interfaces and implementation classes. This makes the public contract clear and keeps implementation logic separate.
+The clean Docker schema contains 18 tables:
 
-### Response wrapper
+```text
+configuration, error_codes, email_contents, sms_contents,
+accommodations, cities, restaurants, users, trips,
+trip_destinations, destination_activities, trip_members,
+trip_collaboration_requests, trip_share_code_attempts,
+trip_share_codes, otp_check, refresh_token, session_token
+```
 
-Responses use `CompleteResponse` / `ResponseBody` so frontend receives a consistent shape with error code, message, flow and body.
 
-### Business exceptions
+## Controller/service split
 
-Business failures throw `BusinessException` with an `ErrorCodeEnum` and flow. `GlobalExceptionHandler` turns those exceptions into structured API responses.
+Each API group has an interface containing Spring mapping annotations and a concrete `@RestController` implementation. Services follow the same interface/implementation split. This keeps endpoint contracts visible while allowing unit tests to mock service contracts.
 
-### Authentication filter
+## Response and exception design
 
-`TokenFilter` validates Bearer access tokens, reads the session context where needed, and loads the authenticated user into Spring Security context.
+Services generally return `CompleteResponse<Object>`. `CompleteResponse` loads configured error/message metadata and creates the shared response body. Business rules throw `BusinessException(ErrorCodeEnum, flow)`, which `GlobalExceptionHandler` converts to the configured HTTP status and body.
 
-### Data access
+## Authentication architecture
 
-Repositories use Spring Data JPA and custom query methods for collaboration lookups, trip ownership/member access and nested content.
+- `SecurityConfig` reads public path patterns from the database.
+- `TokenFilter` repeats the public-path check, validates a Bearer JWT, validates the session token, and inserts `AuthenticatedUser` into the SecurityContext.
+- `AuthenticatedUserProvider` gives services the current username/session ID.
+- `TripAccessService` centralizes view/edit/owner checks.
+- Access JWTs are signed with an environment-provided HS512 key.
+- Refresh tokens are random UUID strings; only an HMAC-SHA256 hash is stored.
+- Session tokens are random UUID strings; only a BCrypt hash is stored.
 
-### Independent security-event transactions
+## Transaction boundaries
 
-Token-reuse revocation, failed OTP verification, and invalid share-code
-accounting use small dedicated Spring services with `REQUIRES_NEW`. Their
-security state commits even when the caller intentionally throws a runtime
-business exception. Pessimistic locks serialize concurrent counter updates.
+Normal write services use `@Transactional` where multiple records must remain consistent. Three security-event services use `REQUIRES_NEW` so counters/revocation can commit even if the caller then returns a failure:
 
-### Managed scheduling
+- failed OTP verification accounting;
+- refresh-token reuse revocation;
+- invalid share-code attempt accounting.
 
-`SchedulingConfig` enables Spring scheduling. `GoogleOAuthHelper` registers its
-fixed-delay task through `ScheduledTaskRegistrar`, so Spring owns executor
-lifecycle and shuts it down with the application context.
+The OTP failure and share-code attempt services use pessimistic entity locking while updating counters. The main token/share-code lookup paths do not consistently use pessimistic locks in this version; concurrency hardening remains roadmap work.
 
-## Key modules
+## Authorization model
 
-| Module | Notes |
-|---|---|
-| User/Auth | Registration, login, forgot password, profile/settings, logout |
-| OTP | Send, verify, cooldown, retry, block/restriction, consume-on-success |
-| Token | Access token, refresh token, session token, revocation |
-| Trips | Trip CRUD, status, search/suggestions |
-| Destinations | Nested under trip |
-| Activities | Nested under destination |
-| Collaboration | Invitations, join requests, share codes, members, summary |
-| Uploads | Cloudinary image upload and image metadata |
+`TripAccessService` implements:
 
-## Screenshot proof
+```text
+Can view: OWNER, EDITOR, VIEWER
+Can edit: OWNER, EDITOR
+Owner only: OWNER
+```
 
-![Database schema](../../docs/screenshots/26-database-schema.png)
+Trip creation also creates the owner membership. Nested destination/activity services call the centralized access checks before querying or changing child records.
+
+## Persistence strategy
+
+The current application uses:
+
+```properties
+spring.jpa.hibernate.ddl-auto=update
+```
+
+The Docker seed creates the initial schema/reference rows on a fresh MariaDB volume. There are no versioned Flyway/Liquibase migrations in the current project.
+
+## External services
+
+- Cloudinary stores profile/trip images.
+- Gmail OAuth2 settings can be read from environment variables with database/default fallback.
+- `GoogleOAuthHelper` schedules access-token refresh using its own single-thread scheduled executor.
+- Render deployment is triggered through a GitHub Actions deploy-hook secret after backend tests pass.
