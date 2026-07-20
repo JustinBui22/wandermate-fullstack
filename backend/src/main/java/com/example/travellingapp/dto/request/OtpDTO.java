@@ -1,6 +1,7 @@
 package com.example.travellingapp.dto.request;
 
 import com.example.travellingapp.enums.EmailEnum;
+import com.example.travellingapp.enums.OtpPurpose;
 import com.example.travellingapp.enums.SmsEnum;
 import jakarta.validation.constraints.NotBlank;
 
@@ -29,6 +30,8 @@ public class OtpDTO {
     private SmsEnum smsEnum;
 
     private EmailEnum emailEnum;
+
+    private OtpPurpose purpose = OtpPurpose.REGISTRATION;
 
     public OtpDTO(String userName, String otp) {
         this.userName = userName;

@@ -14,7 +14,7 @@ The Postman collection should cover auth, OTP, tokens, users, uploads, trips, de
 
 | Variable | Purpose |
 |---|---|
-| `baseUrl` | Backend base URL including `/The-Project` |
+| `baseUrl` | Backend base URL including `/Wandermate` |
 | `username` | Test username |
 | `password` | Test password |
 | `email` | Test email |
@@ -41,7 +41,3 @@ Do not use the older direct trip activity path.
 ## Proof
 
 ![Postman protected API proof](../../docs/screenshots/24-api-postman-proof.png)
-
-## Postman Vault note
-
-Postman may warn about variables named password, token, accessToken, refreshToken or sessionToken. That is expected. For public sharing, keep secret-like values empty or dummy and do not export real tokens after logging in.

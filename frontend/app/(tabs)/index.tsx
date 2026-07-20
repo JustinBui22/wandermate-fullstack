@@ -29,7 +29,7 @@ export default function HomeScreen() {
         try {
             setIsLoggingOut(true);
             await logoutUser();
-            router.replace("/login" as any);
+            router.replace("/login");
         } finally {
             setIsLoggingOut(false);
         }
@@ -53,11 +53,11 @@ export default function HomeScreen() {
     }
 
     function handleOpenTrips() {
-        router.push("/trips" as any);
+        router.push("/trips");
     }
 
     function handleCreateTrip() {
-        router.push("/trips/create" as any);
+        router.push("/trips/create");
     }
 
     return (

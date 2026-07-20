@@ -11,6 +11,7 @@ WanderMate uses a custom authentication flow built around password hashing, OTP 
 | Access token | Short-lived Bearer token for protected APIs |
 | Refresh token | Used to obtain a new access token |
 | Session token | Tracks active login session and supports logout/revocation |
+| OTP purpose | Separates registration requests from password-reset requests |
 
 ## Register flow
 
@@ -38,6 +39,31 @@ Screenshot:
 
 The frontend shows a resend timer so users cannot spam OTP requests.
 
+## Failed OTP accounting
+
+An invalid or expired OTP ends the normal service flow by throwing a runtime
+`BusinessException`. If its retry-count update were part of the same database
+transaction, Spring would roll the update back together with the failed
+request. An attacker could then submit unlimited bad values while the database
+counter remained unchanged.
+
+`OtpFailureAccountingService` records the retry count in a separate
+`REQUIRES_NEW` transaction with a pessimistic row lock. That inner transaction
+commits before the outer request returns its error. The lock prevents concurrent
+requests from silently overwriting one another. An H2 integration test proves
+the count/block state survives the outer rollback.
+
+## Password-reset privacy
+
+1. The frontend requests an OTP with `purpose: PASSWORD_RESET`.
+2. The backend returns the same OTP-sent envelope for matching and non-matching
+   account details, but sends nothing for a non-match.
+3. Weak-password validation is independent of account existence.
+4. The current-password comparison occurs only after successful OTP
+   verification, preventing it from becoming a password oracle.
+5. A successful reset changes the password and revokes every refresh/session
+   record in one transaction.
+
 ## Login flow
 
 1. User submits username/password.
@@ -56,6 +82,13 @@ Screenshot:
 2. Request includes refresh token and session token.
 3. Backend validates the session and refresh token.
 4. Backend returns a fresh access token and refresh token.
+
+Refresh tokens are stored as keyed HMAC hashes using
+`REFRESH_TOKEN_HASH_SECRET`; the JWT signing key uses a different
+`JWT_SECRET`. If a rotated/revoked refresh token is reused, a separate
+`REQUIRES_NEW` security service records reuse, revokes its token family, and
+deletes the session before the normal request throws. This prevents the outer
+rollback from undoing the response to a suspected stolen token.
 
 ## Logout flow
 
@@ -76,5 +109,20 @@ Screenshot:
 
 - Do not store real tokens in docs or screenshots.
 - Do not export Postman environments after login unless tokens are cleared.
-- Consider hashing OTP values in a future production hardening step.
-- Consider explicit OTP purpose values such as `REGISTER`, `FORGOT_PASSWORD`, `CHANGE_EMAIL` in a future version.
+- OTP and share-code failure counters commit independently from the request that
+  returns an error.
+- Missing authentication is returned using the same JSON response envelope as
+  other token failures.
+- Login uses a generic invalid-credentials response and a dummy password hash
+  when the account is missing to reduce response/timing differences.
+- OTP values should be hashed in a future production-hardening step.
+- IP/device rate limiting should complement account-based counters.
+
+## Share-code failed-attempt accounting
+
+Missing or expired share codes also lead to runtime exceptions. Their attempt
+counter therefore uses `TripShareCodeSecurityEventService` with
+`REQUIRES_NEW`. It pessimistically locks the user, increments or restricts the
+attempt row, and marks an expired active code as expired before the outer join
+request fails. Integration tests verify the attempt/restriction survives the
+outer rollback.

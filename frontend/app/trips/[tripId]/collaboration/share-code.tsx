@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Alert, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { Alert, Share, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -9,22 +9,21 @@ import {
     getActiveTripShareCode,
     regenerateTripShareCode,
 } from "@/src/api/tripCollaborationApi";
-import { RoleBadge } from "@/src/components/collaboration/RoleBadge";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
+import {
+    CurrentShareCodeCard,
+    ShareCodeRoleSelector,
+    type InvitableRole,
+} from "@/src/features/collaboration/ShareCodeControls";
 import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { TripShareCode } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
-import { formatDateTime } from "@/src/utils/dateFormat";
-
-type InvitableRole = "EDITOR" | "VIEWER";
-
-const ROLES: InvitableRole[] = ["VIEWER", "EDITOR"];
 
 export default function TripShareCodeScreen() {
     const router = useRouter();
@@ -77,7 +76,7 @@ export default function TripShareCodeScreen() {
             ) {
                 setRole(activeCode.defaultRole);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             setIsOwner(false);
             setAccessError(getApiErrorMessage(error, "Could not load invite code settings."));
             setShareCode(null);
@@ -117,7 +116,7 @@ export default function TripShareCodeScreen() {
                 "Invite code ready",
                 "Share this single-use code with one person. It becomes invalid after successful use."
             );
-        } catch (error: any) {
+        } catch (error: unknown) {
             Alert.alert(
                 "Generate code failed",
                 getApiErrorMessage(error, "Please wait a moment and try again.")
@@ -224,33 +223,7 @@ export default function TripShareCodeScreen() {
             <ErrorMessage message={accessError} title="Invite code warning" />
 
             <AppCard contentStyle={styles.formContent}>
-                <View style={styles.roleSection}>
-                    <Text style={[styles.roleLabel, { color: colors.text }]}>Default role for this code</Text>
-
-                    <View style={styles.roleRow}>
-                        {ROLES.map((item) => (
-                            <Pressable
-                                key={item}
-                                accessibilityRole="button"
-                                onPress={() => setRole(item)}
-                                style={({ pressed }) => [
-                                    styles.roleChip,
-                                    { backgroundColor: colors.surface, borderColor: colors.border },
-                                    role === item && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-                                    pressed && styles.pressed,
-                                ]}
-                            >
-                                <RoleBadge role={item} />
-
-                                <Text style={[styles.roleHelpText, { color: colors.textMuted }]}>
-                                    {item === "VIEWER"
-                                        ? "View-only access"
-                                        : "Can edit trip content"}
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </View>
-                </View>
+                <ShareCodeRoleSelector role={role} onRoleChange={setRole} />
 
                 <AppButton
                     title={shareCode ? "Regenerate Invite Code" : "Generate Invite Code"}
@@ -279,93 +252,15 @@ export default function TripShareCodeScreen() {
             ) : null}
 
             {shareCode ? (
-                <AppCard
-                    title="Current invite"
-                    subtitle="Use the code for manual entry or the link for deep-link opening."
-                    contentStyle={styles.codeCardContent}
-                >
-                    <View style={[styles.codeBox, { backgroundColor: colors.primary }]}>
-                        <Text style={styles.codeLabel}>Invite code</Text>
-
-                        <Text style={[styles.codeText, { color: colors.textLight }]}>{shareCode.code}</Text>
-                    </View>
-
-                    <View style={[styles.expiryBox, { borderColor: colors.warning, backgroundColor: colors.warningSoft }]}>
-                        <Ionicons name="time-outline" size={22} color={colors.warning} />
-
-                        <View style={styles.expiryTextGroup}>
-                            <Text style={[styles.expiryTitle, { color: colors.warning }]}>
-                                Expires {formatDateTime(shareCode.expiresAt)}
-                            </Text>
-
-                            <Text style={[styles.expirySubtitle, { color: colors.warning }]}>
-                                This code is single-use. It also becomes invalid if you regenerate
-                                another code.
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={[styles.linkBox, { backgroundColor: colors.surfaceSoft, borderColor: colors.border }]}>
-                        <Text style={[styles.linkLabel, { color: colors.textMuted }]}>Deep link</Text>
-
-                        <Text style={[styles.linkText, { color: colors.text }]} numberOfLines={2}>
-                            {shareCode.inviteLink}
-                        </Text>
-                    </View>
-
-                    <View style={styles.actionGrid}>
-                        <AppButton
-                            title="Copy Code"
-                            onPress={() => {
-                                void handleCopyCode();
-                            }}
-                            variant="outline"
-                            fullWidth={false}
-                            style={styles.actionButton}
-                        />
-
-                        <AppButton
-                            title="Copy Link"
-                            onPress={() => {
-                                void handleCopyLink();
-                            }}
-                            variant="outline"
-                            fullWidth={false}
-                            style={styles.actionButton}
-                        />
-                    </View>
-
-                    <AppButton
-                        title="Share Invite Message"
-                        onPress={() => {
-                            void handleShareInvite();
-                        }}
-                        loading={isSharing}
-                        variant="outline"
-                        leftIcon={
-                            <Ionicons
-                                name="share-social-outline"
-                                size={19}
-                                color={colors.primary}
-                            />
-                        }
-                    />
-
-                    <AppButton
-                        title="Regenerate Invite Code"
-                        onPress={() => {
-                            void handleGenerateCode();
-                        }}
-                        loading={isGenerating || isLoadingActiveCode}
-                        leftIcon={
-                            <Ionicons
-                                name="refresh-outline"
-                                size={19}
-                                color={colors.textLight}
-                            />
-                        }
-                    />
-                </AppCard>
+                <CurrentShareCodeCard
+                    shareCode={shareCode}
+                    isSharing={isSharing}
+                    isRegenerating={isGenerating || isLoadingActiveCode}
+                    onCopyCode={() => { void handleCopyCode(); }}
+                    onCopyLink={() => { void handleCopyLink(); }}
+                    onShare={() => { void handleShareInvite(); }}
+                    onRegenerate={() => { void handleGenerateCode(); }}
+                />
             ) : null}
         </AppScreen>
     );

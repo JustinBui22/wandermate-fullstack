@@ -136,6 +136,7 @@ export default function LoginScreen() {
                         autoCapitalize="none"
                         autoCorrect={false}
                         textContentType="username"
+                        testID="login-username"
                         leftIcon={<Ionicons name="person-outline" size={20} color={themeColors.textMuted} />}
                     />
 
@@ -146,6 +147,7 @@ export default function LoginScreen() {
                         placeholder="Enter password"
                         secureTextEntry={!isPasswordVisible}
                         textContentType="password"
+                        testID="login-password"
                         leftIcon={<Ionicons name="lock-closed-outline" size={20} color={themeColors.textMuted} />}
                         rightIcon={
                             <Pressable
@@ -175,16 +177,17 @@ export default function LoginScreen() {
                         rightIcon={isLoading ? null :
                             <Ionicons name="arrow-forward" size={19} color={themeColors.textLight}/>}
                         size="lg"
+                        testID="login-submit"
                     />
 
                     <View style={styles.linkRow}>
-                        <Pressable onPress={() => router.push("/(auth)/forgot-password" as any)}>
+                        <Pressable onPress={() => router.push("/forgot-password")}>
                             <Text style={[styles.linkText, { color: themeColors.primary }]}>Forgot password?</Text>
                         </Pressable>
 
                         <Text style={[styles.linkDivider, { color: themeColors.textMuted }]}>•</Text>
 
-                        <Pressable onPress={() => router.push("/(auth)/register" as any)}>
+                        <Pressable onPress={() => router.push("/register")}>
                             <Text style={[styles.linkText, { color: themeColors.primary }]}>Create account</Text>
                         </Pressable>
                     </View>

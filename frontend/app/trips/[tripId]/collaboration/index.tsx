@@ -41,7 +41,7 @@ export default function TripCollaborationMenuScreen() {
 
                     const trip = await getTripById(tripId);
                     setCurrentUserRole(trip.currentUserRole ?? null);
-                } catch (error: any) {
+                } catch (error: unknown) {
                     setError(getApiErrorMessage(error, "Could not load your role for this trip."));
                     setCurrentUserRole(null);
                 } finally {
@@ -53,9 +53,30 @@ export default function TripCollaborationMenuScreen() {
         }, [hasValidTripId, tripId])
     );
 
-    function push(path: string) {
+    function push(path: "invite" | "share-code" | "requests" | "members") {
         if (!hasValidTripId) return;
-        router.push(`/trips/${tripId}/collaboration/${path}` as any);
+
+        if (path === "invite") {
+            router.push({
+                pathname: "/trips/[tripId]/collaboration/invite",
+                params: { tripId },
+            });
+        } else if (path === "share-code") {
+            router.push({
+                pathname: "/trips/[tripId]/collaboration/share-code",
+                params: { tripId },
+            });
+        } else if (path === "requests") {
+            router.push({
+                pathname: "/trips/[tripId]/collaboration/requests",
+                params: { tripId },
+            });
+        } else {
+            router.push({
+                pathname: "/trips/[tripId]/collaboration/members",
+                params: { tripId },
+            });
+        }
     }
 
     if (isLoadingRole) {

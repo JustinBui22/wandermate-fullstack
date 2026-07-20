@@ -45,3 +45,6 @@ jobs:
 
       - name: Run TypeScript check
         run: npm run typecheck
+
+      - name: Run frontend unit and component tests
+        run: npm test

@@ -129,7 +129,7 @@ public class Common {
         return keyword == null ? "" : keyword.trim();
     }
 
-    public static String getEmailConfig(String envKey, String dbConfigCode, String defaultValue, ConfigurationRepository configurationRepository) {
+    public static String getEnvConfig(String envKey, String dbConfigCode, String defaultValue, ConfigurationRepository configurationRepository) {
         String envValue = System.getenv(envKey);
 
         if (envValue != null

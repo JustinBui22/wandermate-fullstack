@@ -13,6 +13,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
@@ -26,6 +27,7 @@ import static com.example.travellingapp.validator.CommonInputValidator.*;
 public class UserValidator {
     private final ConfigurationRepository configurationRepository;
     private final UserRepository userRepository;
+    private final ImageReferenceValidator imageReferenceValidator;
 
     public void validateRegisterInput(CreateUserDTO registerRequest) {
         if (!validateUsername(registerRequest.getUsername(), configurationRepository.findByConfigCode(USERNAME_PATTERN.name()))) {
@@ -53,6 +55,14 @@ public class UserValidator {
         if (updateUserProfileDTO == null || currentUser == null) {
             log.error("Invalid input to update user profile!");
             throw new BusinessException(INVALID_INPUT, COMMON.name());
+        }
+
+        if (hasProfileImageReferenceChanged(updateUserProfileDTO, currentUser)) {
+            imageReferenceValidator.validateProfileImageReference(
+                    updateUserProfileDTO.getProfileImageUrl(),
+                    updateUserProfileDTO.getProfileImagePublicId(),
+                    currentUser.getUserId()
+            );
         }
 
         String phoneNumber = trimToNull(updateUserProfileDTO.getPhoneNumber());
@@ -106,6 +116,24 @@ public class UserValidator {
             log.error("DOB format is invalid!", e);
             throw new BusinessException(INVALID_INPUT, REGISTER.name());
         }
+    }
+
+    private boolean hasProfileImageReferenceChanged(
+            UpdateUserProfileDTO updateUserProfileDTO,
+            User currentUser
+    ) {
+        if (updateUserProfileDTO.getProfileImageUrl() == null
+                && updateUserProfileDTO.getProfileImagePublicId() == null) {
+            return false;
+        }
+
+        String updatedImageUrl = trimToNull(updateUserProfileDTO.getProfileImageUrl());
+        String updatedPublicId = trimToNull(updateUserProfileDTO.getProfileImagePublicId());
+        String currentImageUrl = trimToNull(currentUser.getProfileImageUrl());
+        String currentPublicId = trimToNull(currentUser.getProfileImagePublicId());
+
+        return !Objects.equals(updatedImageUrl, currentImageUrl)
+                || !Objects.equals(updatedPublicId, currentPublicId);
     }
 
     private String trimToNull(String value) {

@@ -9,17 +9,19 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-import { checkUserExisted, forgotPassword, sendOtp } from "@/src/api/authApi";
+import { forgotPassword, sendOtp } from "@/src/api/authApi";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { OtpCooldownBadge, OtpMethodButton } from "@/src/features/auth/AuthFlowControls";
 import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { OtpVerificationMethod } from "@/src/types/auth";
+import { getApiErrorCode, getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 
-const OTP_EXPIRY_SECONDS = 120;
+const OTP_EXPIRY_SECONDS = 300;
 const RESEND_COOLDOWN_SECONDS = 60;
 const OTP_RESTRICTED_MINUTES = 15;
 const OTP_BLOCKED_OR_NOT_FOUND_CODE = "E028";
@@ -31,18 +33,12 @@ function formatTimer(seconds: number) {
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
-function getApiMessage(error: any) {
-    const data = error.response?.data;
-
-    if (typeof data?.body === "string" && data.body.trim()) {
-        return data.body;
-    }
-
-    return data?.message || error.message || "Something went wrong. Please try again.";
+function getApiMessage(error: unknown) {
+    return getApiErrorMessage(error, "Something went wrong. Please try again.");
 }
 
-function isOtpRestricted(error: any) {
-    const code = error.response?.data?.code;
+function isOtpRestricted(error: unknown) {
+    const code = getApiErrorCode(error);
     return code === OTP_BLOCKED_OR_NOT_FOUND_CODE || code === MAX_OTP_RETRY_CODE;
 }
 
@@ -59,7 +55,6 @@ export default function ForgotPasswordScreen() {
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [userInput, setUserInput] = useState("");
-    const [resolvedUsername, setResolvedUsername] = useState<string | null>(null);
     const [email, setEmail] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [otpMethod, setOtpMethod] = useState<OtpVerificationMethod>("EMAIL_OTP");
@@ -85,7 +80,7 @@ export default function ForgotPasswordScreen() {
         return () => clearInterval(timer);
     }, [otpExpiresIn, resendCooldown]);
 
-    async function resolveUsername() {
+    function validateAccountInput() {
         const trimmedUserInput = userInput.trim();
 
         if (!trimmedUserInput) {
@@ -93,9 +88,7 @@ export default function ForgotPasswordScreen() {
             return null;
         }
 
-        const username = await checkUserExisted(trimmedUserInput);
-        setResolvedUsername(username);
-        return username;
+        return trimmedUserInput;
     }
 
     function validateOtpDestination() {
@@ -112,23 +105,10 @@ export default function ForgotPasswordScreen() {
         return true;
     }
 
-    async function handleContinueToOtpMethod() {
+    function handleContinueToOtpMethod() {
         setError(null);
-
-        try {
-            setIsSendingOtp(true);
-
-            const username = await resolveUsername();
-            if (!username) return;
-
-            setStep(2);
-        } catch (error: any) {
-            const message = getApiMessage(error);
-            setError(message);
-            Alert.alert("Account not found", message);
-        } finally {
-            setIsSendingOtp(false);
-        }
+        if (!validateAccountInput()) return;
+        setStep(2);
     }
 
     async function handleSendOtp() {
@@ -146,22 +126,24 @@ export default function ForgotPasswordScreen() {
         try {
             setIsSendingOtp(true);
 
-            const username = resolvedUsername ?? await resolveUsername();
-            if (!username) return;
+            const accountInput = validateAccountInput();
+            if (!accountInput) return;
 
             if (otpMethod === "EMAIL_OTP") {
                 await sendOtp({
-                    userName: username,
+                    userName: accountInput,
                     otpVerificationMethod: "EMAIL_OTP",
                     email: email.trim(),
                     emailEnum: "EMAIL_OTP_REGISTER",
+                    purpose: "PASSWORD_RESET",
                 });
             } else {
                 await sendOtp({
-                    userName: username,
+                    userName: accountInput,
                     otpVerificationMethod: "PHONE_NUM_OTP",
                     phoneNumber: phoneNumber.trim(),
                     smsEnum: "SMS_OTP_REGISTER",
+                    purpose: "PASSWORD_RESET",
                 });
             }
 
@@ -171,10 +153,10 @@ export default function ForgotPasswordScreen() {
             setResendCooldown(RESEND_COOLDOWN_SECONDS);
             setStep(3);
             Alert.alert(
-                "OTP sent",
-                otpMethod === "EMAIL_OTP" ? "Please check your email." : "Please check your phone messages."
+                "Check for your OTP",
+                "If the account details match our records, a verification code has been sent."
             );
-        } catch (error: any) {
+        } catch (error: unknown) {
             const message = getApiMessage(error);
             setError(message);
 
@@ -220,11 +202,11 @@ export default function ForgotPasswordScreen() {
         try {
             setIsResetting(true);
 
-            const username = resolvedUsername ?? await resolveUsername();
-            if (!username) return;
+            const accountInput = validateAccountInput();
+            if (!accountInput) return;
 
             await forgotPassword({
-                username,
+                username: accountInput,
                 newPassword,
                 otp: otp.trim(),
                 email: otpMethod === "EMAIL_OTP" ? email.trim() : undefined,
@@ -234,10 +216,10 @@ export default function ForgotPasswordScreen() {
             Alert.alert("Password updated", "You can now sign in with your new password.", [
                 {
                     text: "Go to login",
-                    onPress: () => router.replace("/login" as any),
+                    onPress: () => router.replace("/login"),
                 },
             ]);
-        } catch (error: any) {
+        } catch (error: unknown) {
             const message = getApiMessage(error);
             setError(message);
             Alert.alert("Reset failed", message);
@@ -248,7 +230,7 @@ export default function ForgotPasswordScreen() {
 
     return (
         <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
-            <Pressable onPress={() => router.replace("/login" as any)} style={styles.backButton}>
+            <Pressable onPress={() => router.replace("/login")} style={styles.backButton}>
                 <Ionicons name="chevron-back" size={20} color={colors.primary} />
                 <Text style={[styles.backText, { color: colors.primary }]}>Back to login</Text>
             </Pressable>
@@ -272,42 +254,36 @@ export default function ForgotPasswordScreen() {
                         <AppInput
                             label="Username, email or phone"
                             value={userInput}
-                            onChangeText={(value) => {
-                                setUserInput(value);
-                                setResolvedUsername(null);
-                            }}
+                            onChangeText={setUserInput}
                             placeholder="Enter account detail"
                             autoCapitalize="none"
                             autoCorrect={false}
                             leftIcon={<Ionicons name="person-outline" size={20} color={colors.textMuted} />}
                         />
 
-                        <ErrorMessage message={error} title="Account check failed" />
-
                         <AppButton
                             title="Continue"
-                            onPress={() => {
-                                void handleContinueToOtpMethod();
-                            }}
-                            loading={isSendingOtp}
+                            onPress={handleContinueToOtpMethod}
                         />
                     </View>
                 ) : null}
 
                 {step === 2 ? (
                     <View style={styles.section}>
-                        <Text style={[styles.helperText, { color: colors.textMuted }]}>Account found: {resolvedUsername}</Text>
+                        <Text style={[styles.helperText, { color: colors.textMuted }]}>
+                            For privacy, WanderMate will not confirm whether an account exists. Enter the destination connected to your account.
+                        </Text>
 
                         <View style={styles.methodSection}>
                             <Text style={[styles.sectionLabel, { color: colors.text }]}>OTP method</Text>
                             <View style={styles.methodRow}>
-                                <MethodButton
+                                <OtpMethodButton
                                     label="Email"
                                     icon="mail-outline"
                                     selected={otpMethod === "EMAIL_OTP"}
                                     onPress={() => setOtpMethod("EMAIL_OTP")}
                                 />
-                                <MethodButton
+                                <OtpMethodButton
                                     label="Phone"
                                     icon="call-outline"
                                     selected={otpMethod === "PHONE_NUM_OTP"}
@@ -456,60 +432,6 @@ export default function ForgotPasswordScreen() {
     );
 }
 
-type MethodButtonProps = Readonly<{
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    selected: boolean;
-    onPress: () => void;
-}>;
-
-function MethodButton({ label, icon, selected, onPress }: MethodButtonProps) {
-    const theme = useAppTheme();
-    const colors = theme.colors;
-
-    return (
-        <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            onPress={onPress}
-            style={({ pressed }) => [
-                styles.methodButton,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                selected && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-                pressed && styles.methodButtonPressed,
-            ]}
-        >
-            <Ionicons name={icon} size={18} color={selected ? colors.primary : colors.textMuted} />
-            <Text style={[styles.methodText, { color: selected ? colors.primary : colors.textMuted }]}>{label}</Text>
-        </Pressable>
-    );
-}
-
-type OtpCooldownBadgeProps = Readonly<{
-    seconds: number;
-}>;
-
-function OtpCooldownBadge({ seconds }: OtpCooldownBadgeProps) {
-    const theme = useAppTheme();
-    const colors = theme.colors;
-
-    if (seconds <= 0) {
-        return null;
-    }
-
-    return (
-        <View
-            style={[
-                styles.cooldownBadge,
-                { backgroundColor: colors.warningSoft, borderColor: colors.warning },
-            ]}
-        >
-            <Ionicons name="time-outline" size={15} color={colors.warning} />
-            <Text style={[styles.cooldownBadgeText, { color: colors.warning }]}>Wait {formatTimer(seconds)}</Text>
-        </View>
-    );
-}
-
 const styles = StyleSheet.create({
     screenContent: {
         paddingTop: spacing.lg,
@@ -584,20 +506,6 @@ const styles = StyleSheet.create({
     otpActionButton: {
         flex: 1,
     },
-    cooldownBadge: {
-        minHeight: 38,
-        borderRadius: radius.pill,
-        borderWidth: 1,
-        paddingHorizontal: spacing.md,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: spacing.xs,
-    },
-    cooldownBadgeText: {
-        fontSize: typography.caption,
-        fontWeight: fontWeight.bold,
-    },
     helperText: {
         color: staticColors.textMuted,
         fontSize: typography.bodySmall,
@@ -615,33 +523,6 @@ const styles = StyleSheet.create({
     methodRow: {
         flexDirection: "row",
         gap: spacing.sm,
-    },
-    methodButton: {
-        flex: 1,
-        minHeight: 48,
-        borderRadius: radius.md,
-        borderWidth: 1,
-        borderColor: staticColors.border,
-        backgroundColor: staticColors.surface,
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "row",
-        gap: spacing.sm,
-    },
-    methodButtonSelected: {
-        borderColor: staticColors.primary,
-        backgroundColor: staticColors.primarySoft,
-    },
-    methodButtonPressed: {
-        opacity: 0.85,
-        transform: [{ scale: 0.99 }],
-    },
-    methodText: {
-        color: staticColors.textMuted,
-        fontWeight: fontWeight.bold,
-    },
-    methodTextSelected: {
-        color: staticColors.primary,
     },
     timerText: {
         color: staticColors.textMuted,

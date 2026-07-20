@@ -14,9 +14,9 @@ This project is designed as a realistic junior/graduate backend/full-stack portf
 | Trip planning | Trips, destinations, nested activities, date validation, role-aware access |
 | Collaboration | Owner/editor/viewer roles, invitations, join requests, share codes, collaboration summary |
 | Image upload | Cloudinary upload for profile avatars and trip cover images |
-| Testing | **404 backend tests, 0 failures, 0 errors, 0 skipped** from included Surefire reports |
+| Testing | 438 backend test methods plus 10 frontend unit/component tests |
 | Docs | Root, backend, frontend and backend docs updated with screenshot proof |
-| Portfolio readiness | Ready for README, screenshots, demo video and interview explanation |
+| Portfolio readiness | Final security, evidence and submission verification in progress |
 
 ## Tech stack
 
@@ -30,6 +30,7 @@ This project is designed as a realistic junior/graduate backend/full-stack portf
 - JWT with access and refresh tokens
 - Session token tracking and revocation
 - OTP verification
+- Transaction-safe OTP/share-code failure accounting
 - Cloudinary image storage
 - Docker / Docker Compose
 - JUnit 5 and Mockito
@@ -44,7 +45,7 @@ This project is designed as a realistic junior/graduate backend/full-stack portf
 - Expo Image Picker
 - Expo Clipboard
 - Zustand-style auth/theme stores
-- React Hook Form / Zod-style validation flow
+- Screen-level TypeScript validation flow
 - Persistent bottom tabs
 - Light/dark theme support
 
@@ -99,7 +100,7 @@ docs/screenshots/
 | `21-github-repo.png` | GitHub repo | Repository/commit history proof. |
 | `22-cloudinary-upload-proof.png` | Cloudinary upload proof | Cloudinary media library proof. |
 | `23-docker-running.png` | Docker running | Docker Desktop / containers proof. |
-| `24-api-postman-proof.png` | Postman protected API proof | JWT protected request proof. |
+| `24-api-postman-proof.png` | Postman protected API proof | Must be replaced: the old image exposed raw tokens and was removed. |
 | `25-render-logs.png` | Render logs | Production startup/deploy log proof. |
 | `26-database-schema.png` | Database schema | MariaDB/DBeaver table schema proof. |
 | `27-mobile-upload-proof.png` | Mobile upload proof | Emulator/device upload proof. |
@@ -119,6 +120,8 @@ docs/screenshots/
 - Session token for active-session tracking.
 - Logout/session revocation.
 - Maximum active session handling.
+- Refresh-token reuse detection with independently committed revocation.
+- Generic invalid-credential/recovery responses to reduce account enumeration.
 - Protected API routes through Spring Security filter logic.
 
 ### Trip planning
@@ -147,7 +150,9 @@ docs/screenshots/
 - Profile avatar upload to Cloudinary.
 - Trip cover image upload to Cloudinary.
 - Image URL and public ID are stored so old Cloudinary assets can be cleaned up when changed.
+- Newly assigned image references must match the authenticated uploader's server-generated Cloudinary folder and public ID pattern.
 - Frontend image picker integrates with backend multipart upload.
+- Backend checks size, declared MIME, file signatures, and decodes PNG/JPEG content before upload.
 
 ## Backend API groups
 
@@ -176,13 +181,13 @@ cd backend
 The backend context path is:
 
 ```text
-/The-Project
+/Wandermate
 ```
 
 Local base URL example:
 
 ```text
-http://localhost:8080/The-Project
+http://localhost:8080/Wandermate
 ```
 
 ### Frontend
@@ -201,10 +206,10 @@ npx expo start --tunnel -c
 
 ## Testing proof
 
-The included backend Surefire reports show:
+The backend suite currently defines:
 
 ```text
-404 tests, 0 failures, 0 errors, 0 skipped
+438 JUnit test methods
 ```
 
 Screenshot proof:
@@ -219,7 +224,7 @@ Frontend TypeScript proof:
 
 Live Render health check (the free service may take about a minute to wake):
 
-[Open the production health endpoint](https://wandermate-fullstack.onrender.com/The-Project/api/v1/health)
+[Open the production health endpoint](https://wandermate-fullstack.onrender.com/Wandermate/api/v1/health)
 
 Render logs proof:
 
@@ -236,6 +241,3 @@ Safe public sharing should include code, sanitized docs, sanitized Postman envir
 - [Backend README](backend/README.md)
 - [Frontend README](frontend/README.md)
 - [Backend docs index](backend/docs/README.md)
-- [Screenshot checklist](docs/SCREENSHOT_CHECKLIST.md)
-- [Demo script](docs/DEMO_SCRIPT.md)
-- [Project file audit](docs/PROJECT_FILE_AUDIT.md)

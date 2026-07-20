@@ -134,7 +134,7 @@ export default function CreateActivityScreen() {
 
             Alert.alert("Activity created", "Activity has been added.");
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
             const message = getApiErrorMessage(
                 error,
                 "Please check the activity time and try again."

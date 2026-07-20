@@ -512,16 +512,18 @@ class UserServiceImplTest {
             );
 
             assertBusinessException(exception, PASSWORD_NOT_QUALIFIED, FORGOT_PASSWORD.name());
+            assertThat(user.getPassword()).isEqualTo("encoded-old-password");
 
             verify(otpServiceImpl, never()).verifyOtp(any(OtpDTO.class));
             verify(passwordEncoder, never()).matches(anyString(), anyString());
             verify(passwordEncoder, never()).encode(anyString());
             verify(userRepository, never()).save(any(User.class));
+            verify(tokenService, never()).revokeAllActiveRefreshTokensForUser(anyString());
         }
     }
 
     @Test
-    void forgotPassword_shouldThrowNewPasswordSameAsOld_beforeOtpVerification() {
+    void forgotPassword_shouldThrowNewPasswordSameAsOld_onlyAfterOtpVerification() {
         ForgotPasswordDTO request = new ForgotPasswordDTO();
         request.setUsername("JustinBo123");
         request.setNewPassword("OldTest123!");
@@ -544,6 +546,8 @@ class UserServiceImplTest {
 
             when(passwordEncoder.matches(request.getNewPassword(), user.getPassword()))
                     .thenReturn(true);
+            when(otpServiceImpl.verifyOtp(any(OtpDTO.class)))
+                    .thenReturn(response(OTP_VERIFICATION_SUCCESS, OTP.name(), null));
 
             BusinessException exception = assertThrows(
                     BusinessException.class,
@@ -551,10 +555,12 @@ class UserServiceImplTest {
             );
 
             assertBusinessException(exception, NEW_PASSWORD_SAME_AS_OLD, FORGOT_PASSWORD.name());
+            assertThat(user.getPassword()).isEqualTo("encoded-old-password");
 
-            verify(otpServiceImpl, never()).verifyOtp(any(OtpDTO.class));
+            verify(otpServiceImpl).verifyOtp(any(OtpDTO.class));
             verify(passwordEncoder, never()).encode(anyString());
             verify(userRepository, never()).save(any(User.class));
+            verify(tokenService, never()).revokeAllActiveRefreshTokensForUser(anyString());
         }
     }
 
@@ -597,6 +603,7 @@ class UserServiceImplTest {
 
             assertThat(user.getPassword()).isEqualTo("encoded-new-password");
             verify(userRepository).save(user);
+            verify(tokenService).revokeAllActiveRefreshTokensForUser("JustinBo123");
 
             ArgumentCaptor<OtpDTO> otpCaptor = ArgumentCaptor.forClass(OtpDTO.class);
             verify(otpServiceImpl).verifyOtp(otpCaptor.capture());
@@ -609,7 +616,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void forgotPassword_shouldThrowUserNotFound_whenUserDoesNotExist() {
+    void forgotPassword_shouldReturnGenericOtpFailure_whenUserDoesNotExist() {
         ForgotPasswordDTO request = new ForgotPasswordDTO();
         request.setUsername("missingUser");
         request.setNewPassword("NewTest123!");
@@ -628,8 +635,9 @@ class UserServiceImplTest {
                     () -> userService.forgotPassword(request)
             );
 
-            assertBusinessException(exception, USER_NOT_FOUND, FORGOT_PASSWORD.name());
+            assertBusinessException(exception, OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
 
+            verify(passwordEncoder).matches(eq(request.getNewPassword()), anyString());
             verify(otpServiceImpl, never()).verifyOtp(any(OtpDTO.class));
             verify(userRepository, never()).save(any(User.class));
         }
@@ -643,6 +651,7 @@ class UserServiceImplTest {
         request.setOtp("999999");
 
         User user = activeUser("JustinBo123");
+        String originalPassword = user.getPassword();
 
         try (MockedStatic<Common> commonMock = mockStatic(Common.class, CALLS_REAL_METHODS)) {
             commonMock.when(() -> Common.findUser(
@@ -653,7 +662,7 @@ class UserServiceImplTest {
                     .thenReturn(Optional.of(user));
 
             when(otpServiceImpl.verifyOtp(any(OtpDTO.class)))
-                    .thenReturn(response(OTP_VERIFICATION_FAIL, OTP.name(), null));
+                    .thenThrow(new BusinessException(OTP_CODE_NOT_CORRECT, OTP.name()));
 
             BusinessException exception = assertThrows(
                     BusinessException.class,
@@ -661,54 +670,10 @@ class UserServiceImplTest {
             );
 
             assertBusinessException(exception, OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
+            assertThat(user.getPassword()).isEqualTo(originalPassword);
 
             verify(userRepository, never()).save(any(User.class));
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // checkUserExisted()
-    // -------------------------------------------------------------------------
-
-    @Test
-    void checkUserExisted_shouldReturnUsername_whenUserExists() {
-        User user = activeUser("JustinBo123");
-
-        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
-
-        try (MockedStatic<Common> commonMock = mockStatic(Common.class, CALLS_REAL_METHODS)) {
-            commonMock.when(() -> Common.findUser(
-                            "justin@example.com",
-                            configurationRepository,
-                            userRepository
-                    ))
-                    .thenReturn(Optional.of(user));
-
-            CompleteResponse<Object> response = userService.checkUserExisted("justin@example.com");
-
-            assertThat(response.getResponseBody().getCode())
-                    .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
-            assertThat(response.getResponseBody().getBody())
-                    .isEqualTo("JustinBo123");
-        }
-    }
-
-    @Test
-    void checkUserExisted_shouldThrowUserNotFound_whenUserDoesNotExist() {
-        try (MockedStatic<Common> commonMock = mockStatic(Common.class, CALLS_REAL_METHODS)) {
-            commonMock.when(() -> Common.findUser(
-                            "missing@example.com",
-                            configurationRepository,
-                            userRepository
-                    ))
-                    .thenReturn(Optional.empty());
-
-            BusinessException exception = assertThrows(
-                    BusinessException.class,
-                    () -> userService.checkUserExisted("missing@example.com")
-            );
-
-            assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
+            verify(tokenService, never()).revokeAllActiveRefreshTokensForUser(anyString());
         }
     }
 
@@ -805,10 +770,12 @@ class UserServiceImplTest {
     }
 
     @Test
-    void login_shouldThrowUserNotFound_whenUserDoesNotExist() {
+    void login_shouldReturnSameInvalidCredentialsResponse_whenUserDoesNotExist() {
         LoginDTO request = new LoginDTO();
         request.setUsername("missingUser");
         request.setPassword("Password123!");
+
+        mockErrorCode(PASSWORD_NOT_CORRECT, LOGIN.name());
 
         try (MockedStatic<Common> commonMock = mockStatic(Common.class, CALLS_REAL_METHODS)) {
             commonMock.when(() -> Common.findUser(
@@ -818,12 +785,13 @@ class UserServiceImplTest {
                     ))
                     .thenReturn(Optional.empty());
 
-            BusinessException exception = assertThrows(
-                    BusinessException.class,
-                    () -> userService.login(request)
-            );
+            CompleteResponse<Object> response = userService.login(request);
 
-            assertBusinessException(exception, USER_NOT_FOUND, LOGIN.name());
+            assertThat(response.getResponseBody().getCode())
+                    .isEqualTo(PASSWORD_NOT_CORRECT.getCode());
+            assertThat(response.getResponseBody().getBody()).isNull();
+            verify(passwordEncoder).matches(eq(request.getPassword()), anyString());
+            verify(tokenService, never()).generateAccessToken(anyString(), anyString());
         }
     }
 

@@ -59,6 +59,19 @@ Business failures throw `BusinessException` with an `ErrorCodeEnum` and flow. `G
 
 Repositories use Spring Data JPA and custom query methods for collaboration lookups, trip ownership/member access and nested content.
 
+### Independent security-event transactions
+
+Token-reuse revocation, failed OTP verification, and invalid share-code
+accounting use small dedicated Spring services with `REQUIRES_NEW`. Their
+security state commits even when the caller intentionally throws a runtime
+business exception. Pessimistic locks serialize concurrent counter updates.
+
+### Managed scheduling
+
+`SchedulingConfig` enables Spring scheduling. `GoogleOAuthHelper` registers its
+fixed-delay task through `ScheduledTaskRegistrar`, so Spring owns executor
+lifecycle and shuts it down with the application context.
+
 ## Key modules
 
 | Module | Notes |

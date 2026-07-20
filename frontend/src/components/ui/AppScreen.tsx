@@ -42,8 +42,7 @@ export function AppScreen({
     const shouldPadForPersistentTabs =
         isAuthenticated &&
         currentRouteGroup !== "(auth)" &&
-        currentRouteGroup !== "(tabs)" &&
-        currentRouteGroup !== "modal";
+        currentRouteGroup !== "(tabs)";
 
     const body = scroll ? (
         <ScrollView

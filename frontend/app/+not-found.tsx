@@ -1,40 +1,59 @@
-import { Link, Stack } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, useRouter } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
 
-import { Text, View } from '@/components/Themed';
+import { AppButton } from "@/src/components/ui/AppButton";
+import { AppScreen } from "@/src/components/ui/AppScreen";
+import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
+import { useAppTheme } from "@/src/hooks/useAppTheme";
 
 export default function NotFoundScreen() {
+  const router = useRouter();
+  const colors = useAppTheme().colors;
+
   return (
     <>
-      <Stack.Screen options={{ title: 'Oops!' }} />
-      <View style={styles.container}>
-        <Text style={styles.title}>This screen doesn't exist.</Text>
-
-        <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Go to home screen!</Text>
-        </Link>
-      </View>
+      <Stack.Screen options={{ title: "Page not found" }} />
+      <AppScreen scroll={false} centerContent>
+        <View style={styles.container}>
+          <View style={[styles.iconBadge, { backgroundColor: colors.primarySoft }]}>
+            <Ionicons name="map-outline" size={34} color={colors.primary} />
+          </View>
+          <Text style={[styles.title, { color: colors.text }]}>This route is not on the map</Text>
+          <Text style={[styles.message, { color: colors.textMuted }]}>
+            The page may have moved, or the link may no longer be valid.
+          </Text>
+          <AppButton title="Return to WanderMate" onPress={() => router.replace("/")} />
+        </View>
+      </AppScreen>
     </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
+    alignItems: "center",
+    gap: spacing.lg,
+    padding: spacing.xl,
+  },
+  iconBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.xl,
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: typography.heading,
+    fontWeight: fontWeight.bold,
+    textAlign: "center",
   },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
-  },
-  linkText: {
-    fontSize: 14,
-    color: '#2e78b7',
+  message: {
+    fontSize: typography.body,
+    lineHeight: 23,
+    textAlign: "center",
   },
 });

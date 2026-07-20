@@ -28,6 +28,7 @@ import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.TripAccessService;
+import com.example.travellingapp.validator.ImageReferenceValidator;
 import com.example.travellingapp.validator.TripValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
@@ -83,6 +85,9 @@ class TripServiceImplTest {
     private CloudinaryImageClient cloudinaryImageClient;
 
     @Mock
+    private ImageReferenceValidator imageReferenceValidator;
+
+    @Mock
     private AuthenticatedUserProvider authenticatedUserProvider;
 
     @Mock
@@ -115,7 +120,8 @@ class TripServiceImplTest {
                 destinationRepository,
                 tripMemberRepository,
                 tripAccessService,
-                cloudinaryImageClient
+                cloudinaryImageClient,
+                imageReferenceValidator
         );
     }
 
@@ -531,6 +537,8 @@ class TripServiceImplTest {
                 .thenReturn(USERNAME);
         when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
                 .thenReturn(existingTrip);
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(activeUser()));
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                 USERNAME,
                 "Updated Trip",
@@ -786,6 +794,8 @@ class TripServiceImplTest {
                 TRIP_ID,
                 request.getEndDate()
         )).thenReturn(false);
+        when(userRepository.findByUsernameAndActive(USERNAME))
+                .thenReturn(Optional.of(activeUser()));
         when(tripMapper.toResponseDTO(existingTrip))
                 .thenReturn(mock(TripResponseDTO.class));
 
@@ -1290,6 +1300,11 @@ class TripServiceImplTest {
                 .thenReturn(USERNAME);
         when(tripAccessService.getTripIfCanEdit(TRIP_ID, USERNAME))
                 .thenReturn(existingTrip);
+        if (!Objects.equals(existingTrip.getCoverImageUrl(), request.getCoverImageUrl())
+                || !Objects.equals(existingTrip.getCoverImagePublicId(), request.getCoverImagePublicId())) {
+            when(userRepository.findByUsernameAndActive(USERNAME))
+                    .thenReturn(Optional.of(activeUser()));
+        }
         when(tripRepository.existsByUser_UsernameAndTripNameIgnoreCaseAndTripIdNot(
                 USERNAME,
                 "Updated Trip",

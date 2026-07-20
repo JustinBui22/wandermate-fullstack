@@ -29,12 +29,14 @@ export type SendOtpRequest =
     otpVerificationMethod: "EMAIL_OTP";
     email: string;
     emailEnum: "EMAIL_OTP_REGISTER";
+    purpose?: "REGISTRATION" | "PASSWORD_RESET";
 }
     | {
     userName: string;
     otpVerificationMethod: "PHONE_NUM_OTP";
     phoneNumber: string;
     smsEnum: "SMS_OTP_REGISTER";
+    purpose?: "REGISTRATION" | "PASSWORD_RESET";
 };
 
 export type ForgotPasswordRequest = {

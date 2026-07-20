@@ -9,6 +9,7 @@ import com.example.travellingapp.entity.SmsEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.enums.EmailEnum;
 import com.example.travellingapp.enums.ErrorCodeEnum;
+import com.example.travellingapp.enums.OtpPurpose;
 import com.example.travellingapp.enums.SmsEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.ConfigurationRepository;
@@ -19,6 +20,7 @@ import com.example.travellingapp.repository.SmsRepository;
 import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.response_template.ResponseBody;
+import com.example.travellingapp.service.OtpFailureAccountingService;
 import com.example.travellingapp.validator.OtpValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,6 +69,9 @@ class OtpServiceImplTest {
     @Mock
     private OtpValidator otpValidator;
 
+    @Mock
+    private OtpFailureAccountingService otpFailureAccountingService;
+
     private OtpServiceImpl otpService;
 
     private static final String USERNAME = "JustinBo123";
@@ -84,8 +89,55 @@ class OtpServiceImplTest {
                 configurationRepository,
                 otpCheckRepository,
                 userRepository,
-                otpValidator
+                otpValidator,
+                otpFailureAccountingService
         );
+    }
+
+    @Test
+    void sendOtp_shouldReturnGenericSuccessWithoutSending_whenPasswordResetAccountDoesNotExist() {
+        OtpDTO request = emailOtpRequest();
+        request.setUserName("missing@example.com");
+        request.setPurpose(OtpPurpose.PASSWORD_RESET);
+
+        mockConfig(PHONE_VN_PATTERN.name(), "^(0|84|\\+84)(3|5|7|8|9)\\d{7,8}$");
+        mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+        mockErrorCode(OTP_SENT_SUCCESS, OTP.name());
+        when(userRepository.findByEmailAndActive("missing@example.com", true))
+                .thenReturn(Optional.empty());
+
+        CompleteResponse<Object> response = otpService.sendOtp(request);
+
+        assertThat(response.getResponseBody().getCode()).isEqualTo(OTP_SENT_SUCCESS.getCode());
+        verify(emailServiceImpl, never()).sendEmail(anyString(), anyString(), anyString(), anyString());
+        verify(otpCheckRepository, never()).save(any());
+    }
+
+    @Test
+    void sendOtp_shouldResolveAccountAndSend_whenPasswordResetDetailsMatch() {
+        OtpDTO request = emailOtpRequest();
+        request.setUserName(EMAIL_ADDRESS);
+        request.setPurpose(OtpPurpose.PASSWORD_RESET);
+        User user = activeUser();
+
+        mockConfig(PHONE_VN_PATTERN.name(), "^(0|84|\\+84)(3|5|7|8|9)\\d{7,8}$");
+        mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+        mockSendRetryConfigs();
+        mockOtpExpirationConfig("120000");
+        mockConfig(EMAIL_ADDRESS_CONFIG.name(), "noreply@wandermate.com");
+        mockErrorCode(OTP_CREATED_SUCCESS, OTP.name());
+        mockErrorCode(OTP_SENT_SUCCESS, OTP.name());
+
+        when(userRepository.findByEmailAndActive(EMAIL_ADDRESS, true)).thenReturn(Optional.of(user));
+        when(otpCheckRepository.findByUsername(USERNAME)).thenReturn(Optional.empty());
+        when(emailRepository.findByEmailEnum(EmailEnum.EMAIL_OTP_REGISTER))
+                .thenReturn(Optional.of(emailContent()));
+
+        CompleteResponse<Object> response = otpService.sendOtp(request);
+
+        assertThat(response.getResponseBody().getCode()).isEqualTo(OTP_SENT_SUCCESS.getCode());
+        assertThat(request.getUserName()).isEqualTo(USERNAME);
+        verify(emailServiceImpl).sendEmail(anyString(), eq(EMAIL_ADDRESS), anyString(), anyString());
     }
 
     // -------------------------------------------------------------------------
@@ -928,10 +980,9 @@ class OtpServiceImplTest {
 
         assertBusinessException(exception, VERIFICATION_OTP_EXPIRED, OTP.name());
 
-        assertThat(otpRecord.getRetryVerifyOtpCount()).isEqualTo(1);
-        assertThat(otpRecord.isBlock()).isFalse();
-
-        verify(otpCheckRepository).save(otpRecord);
+        verify(otpFailureAccountingService)
+                .recordFailedVerification(otpRecord.getOtpCheckId(), 3, 900000L);
+        verify(otpCheckRepository, never()).save(otpRecord);
     }
 
     @Test
@@ -955,10 +1006,9 @@ class OtpServiceImplTest {
 
         assertBusinessException(exception, OTP_CODE_NOT_CORRECT, OTP.name());
 
-        assertThat(otpRecord.getRetryVerifyOtpCount()).isEqualTo(1);
-        assertThat(otpRecord.isBlock()).isFalse();
-
-        verify(otpCheckRepository).save(otpRecord);
+        verify(otpFailureAccountingService)
+                .recordFailedVerification(otpRecord.getOtpCheckId(), 3, 900000L);
+        verify(otpCheckRepository, never()).save(otpRecord);
     }
 
     @Test
@@ -982,11 +1032,9 @@ class OtpServiceImplTest {
 
         assertBusinessException(exception, OTP_CODE_NOT_CORRECT, OTP.name());
 
-        assertThat(otpRecord.getRetryVerifyOtpCount()).isEqualTo(3);
-        assertThat(otpRecord.isBlock()).isTrue();
-        assertThat(otpRecord.getOtpRestrictedTime()).isNotNull();
-
-        verify(otpCheckRepository).save(otpRecord);
+        verify(otpFailureAccountingService)
+                .recordFailedVerification(otpRecord.getOtpCheckId(), 3, 900000L);
+        verify(otpCheckRepository, never()).save(otpRecord);
     }
 
     @Test
@@ -1010,11 +1058,9 @@ class OtpServiceImplTest {
 
         assertBusinessException(exception, VERIFICATION_OTP_EXPIRED, OTP.name());
 
-        assertThat(otpRecord.getRetryVerifyOtpCount()).isEqualTo(3);
-        assertThat(otpRecord.isBlock()).isTrue();
-        assertThat(otpRecord.getOtpRestrictedTime()).isNotNull();
-
-        verify(otpCheckRepository).save(otpRecord);
+        verify(otpFailureAccountingService)
+                .recordFailedVerification(otpRecord.getOtpCheckId(), 3, 900000L);
+        verify(otpCheckRepository, never()).save(otpRecord);
     }
 
     @Test
@@ -1157,6 +1203,7 @@ class OtpServiceImplTest {
 
     private OtpCheckEntity otpRecordForEmail() {
         OtpCheckEntity entity = new OtpCheckEntity();
+        entity.setOtpCheckId(1);
         entity.setUsername(USERNAME);
         entity.setEmail(EMAIL_ADDRESS);
         entity.setPhoneNumber(null);
@@ -1172,6 +1219,7 @@ class OtpServiceImplTest {
 
     private OtpCheckEntity otpRecordForPhone() {
         OtpCheckEntity entity = new OtpCheckEntity();
+        entity.setOtpCheckId(2);
         entity.setUsername(USERNAME);
         entity.setEmail(null);
         entity.setPhoneNumber(PHONE_NUMBER);

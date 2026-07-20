@@ -107,7 +107,7 @@ export default function EditActivityScreen() {
             setDescription(data.description ?? "");
             setStartDateTime(parseDateOrFallback(data.startDateTime, fallbackStart));
             setEndDateTime(parseDateOrFallback(data.endDateTime, fallbackEnd));
-        } catch (error: any) {
+        } catch (error: unknown) {
             setError(getApiErrorMessage(error, "Failed to load activity. Please try again."));
         } finally {
             setIsLoading(false);
@@ -189,7 +189,7 @@ export default function EditActivityScreen() {
 
             Alert.alert("Activity updated", "Activity has been updated.");
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
             const message = getApiErrorMessage(
                 error,
                 "Please check the activity time and try again."

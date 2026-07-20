@@ -58,7 +58,7 @@ export default function InviteMemberScreen() {
                     if (!owner) {
                         setError("Only the trip owner can invite members.");
                     }
-                } catch (error: any) {
+                } catch (error: unknown) {
                     setIsOwner(false);
                     setError(getApiErrorMessage(error, "Could not verify your access for this trip."));
                 } finally {
@@ -98,7 +98,7 @@ export default function InviteMemberScreen() {
                 "Invitation sent",
                 `${targetUsername} has been invited as ${role.toLowerCase()}.`
             );
-        } catch (error: any) {
+        } catch (error: unknown) {
             Alert.alert(
                 "Invitation failed",
                 getApiErrorMessage(error, "Please check the username and try again.")

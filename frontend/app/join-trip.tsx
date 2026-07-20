@@ -57,7 +57,7 @@ export default function JoinTripScreen() {
             const result = await previewTripShareCode(code);
             setInputValue(code);
             setPreview(result);
-        } catch (error: any) {
+        } catch (error: unknown) {
             setPreview(null);
             Alert.alert("Preview failed", getApiErrorMessage(error, "Please check the code and try again."));
         } finally {
@@ -77,9 +77,9 @@ export default function JoinTripScreen() {
             Alert.alert(
                 "Request sent",
                 "Your join request was sent to the trip owner.",
-                [{ text: "OK", onPress: () => router.replace("/(tabs)/collaboration" as any) }]
+                [{ text: "OK", onPress: () => router.replace("/collaboration") }]
             );
-        } catch (error: any) {
+        } catch (error: unknown) {
             Alert.alert("Request failed", getApiErrorMessage(error, "Please try again."));
         } finally {
             setIsRequesting(false);

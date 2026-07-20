@@ -28,14 +28,8 @@ import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
 import { canEditTripPlan, getCurrentUserTripRole } from "@/src/utils/tripRoleUtils";
 
-function getApiMessage(error: any) {
-    const data = error.response?.data;
-
-    if (typeof data?.body === "string" && data.body.trim()) {
-        return data.body;
-    }
-
-    return data?.message || error.message || "Failed to load activity detail.";
+function getApiMessage(error: unknown) {
+    return getApiErrorMessage(error, "Failed to load activity detail.");
 }
 
 export default function ActivityDetailScreen() {
@@ -91,7 +85,7 @@ export default function ActivityDetailScreen() {
 
             setActivity(data);
             setCurrentRole(roleData.role);
-        } catch (error: any) {
+        } catch (error: unknown) {
             setError(getApiMessage(error));
         } finally {
             setIsLoading(false);
@@ -110,9 +104,14 @@ export default function ActivityDetailScreen() {
             return;
         }
 
-        router.push(
-            `/trips/${tripNumberId}/destinations/${destinationNumberId}/activities/${activityNumberId}/edit` as any
-        );
+        router.push({
+            pathname: "/trips/[tripId]/destinations/[destinationId]/activities/[activityId]/edit",
+            params: {
+                tripId: tripNumberId,
+                destinationId: destinationNumberId,
+                activityId: activityNumberId,
+            },
+        });
     }
 
     async function handleConfirmDeleteActivity() {
@@ -127,7 +126,7 @@ export default function ActivityDetailScreen() {
 
             Alert.alert("Activity deleted", "Activity has been deleted.");
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
             Alert.alert(
                 "Delete activity failed",
                 getApiErrorMessage(error, "Please try again.")

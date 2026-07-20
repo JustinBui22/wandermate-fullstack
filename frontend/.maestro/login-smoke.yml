@@ -1,0 +1,11 @@
+appId: com.minhquan.wandermate
+---
+- launchApp:
+    clearState: true
+- assertVisible: "WanderMate"
+- assertVisible:
+    id: "login-username"
+- assertVisible:
+    id: "login-password"
+- assertVisible:
+    id: "login-submit"

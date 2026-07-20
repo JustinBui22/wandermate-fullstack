@@ -37,14 +37,6 @@ export async function register(data: RegisterRequest): Promise<void> {
     await axiosClient.post<ApiResponse<unknown>>("/api/v1/users/register", data);
 }
 
-export async function checkUserExisted(userInput: string): Promise<string> {
-    const response = await axiosClient.get<ApiResponse<string>>(
-        `/api/v1/users/check?userInput=${encodeURIComponent(userInput)}`
-    );
-
-    return response.data.body;
-}
-
 export async function forgotPassword(data: ForgotPasswordRequest): Promise<void> {
     await axiosClient.post<ApiResponse<unknown>>("/api/v1/users/forgot-password", data);
 }

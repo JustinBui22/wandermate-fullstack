@@ -14,7 +14,7 @@ The backend provides authentication, OTP verification, JWT access/refresh/sessio
 | Trip/destination/activity API | Complete for V4 |
 | Collaboration | Owner/editor/viewer, invitations, join requests, share codes, members |
 | Uploads | Cloudinary image upload for avatar and trip cover |
-| Tests | 404 tests, 0 failures, 0 errors, 0 skipped from included Surefire reports |
+| Tests | 438 JUnit test methods, including H2 transaction integration tests |
 | Deployment proof | Render health/log screenshots included |
 
 ## Stack
@@ -37,19 +37,19 @@ The backend provides authentication, OTP verification, JWT access/refresh/sessio
 The backend uses this context path:
 
 ```text
-/The-Project
+/Wandermate
 ```
 
 Local base URL:
 
 ```text
-http://localhost:8080/The-Project
+http://localhost:8080/Wandermate
 ```
 
 Render base URL:
 
 ```text
-https://wandermate-fullstack.onrender.com/The-Project
+https://wandermate-fullstack.onrender.com/Wandermate
 ```
 
 ## API groups
@@ -116,11 +116,13 @@ cd backend
 ./mvnw test
 ```
 
-Included Surefire reports show:
+The suite currently defines:
 
 ```text
-404 tests, 0 failures, 0 errors, 0 skipped
+438 JUnit test methods
 ```
+
+Run `./mvnw test` and replace the test screenshot after a successful local run; the included screenshot shows an older suite count.
 
 Screenshot proof:
 

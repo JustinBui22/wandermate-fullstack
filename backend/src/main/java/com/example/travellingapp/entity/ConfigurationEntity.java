@@ -28,7 +28,7 @@ public class ConfigurationEntity {
     @Column(name = "config_message", nullable = false)
     private String configMessage;
 
-    @Column(name = "created_date", unique = true)
+    @Column(name = "created_date")
     private LocalDateTime createdDate;
 
     @Column(name = "modified_date")

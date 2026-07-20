@@ -1,9 +1,6 @@
-type ApiErrorLike = {
-    response?: {
-        data?: unknown;
-    };
-    message?: string;
-};
+import axios from "axios";
+
+import type { ApiErrorPayload } from "@/src/types/api";
 
 const FRIENDLY_ERROR_MESSAGES: Record<string, string> = {
     E022: "Too many active sessions. Continue only if you want to remove the oldest session.",
@@ -65,23 +62,28 @@ const FRIENDLY_ERROR_TITLES: Record<string, string> = {
     E084: "Too many attempts",
 };
 
-function getResponseData(error: ApiErrorLike) {
-    return error?.response?.data as any;
+export function getApiErrorData(error: unknown): ApiErrorPayload | undefined {
+    if (!axios.isAxiosError<ApiErrorPayload>(error)) {
+        return undefined;
+    }
+
+    return error.response?.data;
 }
 
-function getNestedBody(error: ApiErrorLike) {
-    return getResponseData(error)?.body;
+function getNestedBody(error: unknown) {
+    const body = getApiErrorData(error)?.body;
+    return typeof body === "object" && body !== null ? body : undefined;
 }
 
-export function getApiErrorCode(error: ApiErrorLike) {
-    const responseData = getResponseData(error);
+export function getApiErrorCode(error: unknown) {
+    const responseData = getApiErrorData(error);
     const body = getNestedBody(error);
 
     return responseData?.code || body?.code || null;
 }
 
-export function hasApiWarning(error: ApiErrorLike, warningCode: string) {
-    const responseData = getResponseData(error);
+export function hasApiWarning(error: unknown, warningCode: string) {
+    const responseData = getApiErrorData(error);
 
     if (!responseData) {
         return false;
@@ -107,18 +109,18 @@ export function hasApiWarning(error: ApiErrorLike, warningCode: string) {
         responseText.includes("overlap");
 }
 
-export function getApiErrorMessage(error: ApiErrorLike, fallbackMessage: string) {
+export function getApiErrorMessage(error: unknown, fallbackMessage: string) {
     const code = getApiErrorCode(error);
 
     if (code && FRIENDLY_ERROR_MESSAGES[code]) {
         return FRIENDLY_ERROR_MESSAGES[code];
     }
 
-    const responseData = getResponseData(error);
+    const responseData = getApiErrorData(error);
     const body = getNestedBody(error);
 
-    if (typeof body === "string" && body.trim()) {
-        return body;
+    if (typeof responseData?.body === "string" && responseData.body.trim()) {
+        return responseData.body;
     }
 
     return (
@@ -132,12 +134,12 @@ export function getApiErrorMessage(error: ApiErrorLike, fallbackMessage: string)
         body?.error_message ||
         body?.errorDescription ||
         body?.error_description ||
-        error?.message ||
+        (error instanceof Error ? error.message : undefined) ||
         fallbackMessage
     );
 }
 
-export function getApiErrorTitle(error: ApiErrorLike, fallbackTitle: string) {
+export function getApiErrorTitle(error: unknown, fallbackTitle: string) {
     const code = getApiErrorCode(error);
 
     if (code && FRIENDLY_ERROR_TITLES[code]) {

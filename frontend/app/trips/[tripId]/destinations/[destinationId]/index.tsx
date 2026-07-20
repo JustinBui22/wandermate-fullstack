@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import {
     Alert,
-    Pressable,
     StyleSheet,
     Text,
     View,
@@ -22,6 +21,11 @@ import { AppScreen } from "@/src/components/ui/AppScreen";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
+import {
+    DestinationActivityCard,
+    DestinationHeaderButton,
+    DestinationInfoCard,
+} from "@/src/features/destinations/DestinationDetailSections";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { Activity } from "@/src/types/activity";
@@ -31,14 +35,8 @@ import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
 import { canEditTripPlan, getCurrentUserTripRole } from "@/src/utils/tripRoleUtils";
 
-function getApiMessage(error: any) {
-    const data = error.response?.data;
-
-    if (typeof data?.body === "string" && data.body.trim()) {
-        return data.body;
-    }
-
-    return data?.message || error.message || "Failed to load destination detail.";
+function getApiMessage(error: unknown) {
+    return getApiErrorMessage(error, "Failed to load destination detail.");
 }
 
 export default function DestinationDetailScreen() {
@@ -87,7 +85,7 @@ export default function DestinationDetailScreen() {
             setDestination(destinationData);
             setActivities(Array.isArray(activityData) ? activityData : []);
             setCurrentRole(roleData.role);
-        } catch (error: any) {
+        } catch (error: unknown) {
             setError(getApiMessage(error));
         } finally {
             setIsLoading(false);
@@ -106,7 +104,10 @@ export default function DestinationDetailScreen() {
             return;
         }
 
-        router.push(`/trips/${tripNumberId}/destinations/${destinationNumberId}/edit` as any);
+        router.push({
+            pathname: "/trips/[tripId]/destinations/[destinationId]/edit",
+            params: { tripId: tripNumberId, destinationId: destinationNumberId },
+        });
     }
 
     function handleAddActivity() {
@@ -115,7 +116,10 @@ export default function DestinationDetailScreen() {
             return;
         }
 
-        router.push(`/trips/${tripNumberId}/destinations/${destinationNumberId}/activities/create` as any);
+        router.push({
+            pathname: "/trips/[tripId]/destinations/[destinationId]/activities/create",
+            params: { tripId: tripNumberId, destinationId: destinationNumberId },
+        });
     }
 
     function handleOpenActivity(activityId: number) {
@@ -124,7 +128,14 @@ export default function DestinationDetailScreen() {
             return;
         }
 
-        router.push(`/trips/${tripNumberId}/destinations/${destinationNumberId}/activities/${activityId}` as any);
+        router.push({
+            pathname: "/trips/[tripId]/destinations/[destinationId]/activities/[activityId]",
+            params: {
+                tripId: tripNumberId,
+                destinationId: destinationNumberId,
+                activityId,
+            },
+        });
     }
 
     async function handleConfirmDeleteDestination() {
@@ -135,7 +146,7 @@ export default function DestinationDetailScreen() {
 
             Alert.alert("Destination deleted", "Destination has been deleted.");
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
             Alert.alert(
                 "Delete destination failed",
                 getApiErrorMessage(error, "Please try again.")
@@ -207,14 +218,14 @@ export default function DestinationDetailScreen() {
     return (
         <AppScreen contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
-                <HeaderIconButton
+                <DestinationHeaderButton
                     icon="chevron-back"
                     accessibilityLabel="Go back"
                     onPress={() => router.back()}
                 />
 
                 {canEditPlan ? (
-                    <HeaderIconButton
+                    <DestinationHeaderButton
                         icon="create-outline"
                         accessibilityLabel="Edit destination"
                         onPress={handleEditDestination}
@@ -257,17 +268,17 @@ export default function DestinationDetailScreen() {
             </AppCard>
 
             <View style={styles.infoGrid}>
-                <InfoCard
+                <DestinationInfoCard
                     icon="calendar-outline"
                     label="Start"
                     value={formatDateTime(destination.startDate)}
                 />
-                <InfoCard
+                <DestinationInfoCard
                     icon="flag-outline"
                     label="End"
                     value={formatDateTime(destination.endDate)}
                 />
-                <InfoCard
+                <DestinationInfoCard
                     icon="swap-vertical-outline"
                     label="Order"
                     value={destination.destinationOrder?.toString() ?? "Not set"}
@@ -305,7 +316,7 @@ export default function DestinationDetailScreen() {
             ) : (
                 <View style={styles.activityList}>
                     {activities.map((activity) => (
-                        <ActivityCard
+                        <DestinationActivityCard
                             key={activity.activityId}
                             activity={activity}
                             onPress={() => handleOpenActivity(activity.activityId)}
@@ -325,130 +336,6 @@ export default function DestinationDetailScreen() {
                 />
             ) : null}
         </AppScreen>
-    );
-}
-
-type HeaderIconButtonProps = Readonly<{
-    icon: keyof typeof Ionicons.glyphMap;
-    accessibilityLabel: string;
-    onPress: () => void;
-}>;
-
-function HeaderIconButton({ icon, accessibilityLabel, onPress }: HeaderIconButtonProps) {
-    const theme = useAppTheme();
-    const themeColors = theme.colors;
-
-    return (
-        <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={accessibilityLabel}
-            onPress={onPress}
-            style={({ pressed }) => [
-                styles.headerIconButton,
-                {
-                    backgroundColor: themeColors.surface,
-                    borderColor: themeColors.border,
-                },
-                pressed && styles.pressed,
-            ]}
-        >
-            <Ionicons name={icon} size={23} color={themeColors.text} />
-        </Pressable>
-    );
-}
-
-type InfoCardProps = Readonly<{
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    value: string;
-}>;
-
-function InfoCard({ icon, label, value }: InfoCardProps) {
-    const theme = useAppTheme();
-    const themeColors = theme.colors;
-
-    return (
-        <AppCard variant="soft" contentStyle={styles.infoCardContent}>
-            <View
-                style={[
-                    styles.infoIconBadge,
-                    { backgroundColor: themeColors.primarySoft },
-                ]}
-            >
-                <Ionicons name={icon} size={20} color={themeColors.primary} />
-            </View>
-            <View style={styles.infoTextGroup}>
-                <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>{label}</Text>
-                <Text style={[styles.infoValue, { color: themeColors.text }]}>{value}</Text>
-            </View>
-        </AppCard>
-    );
-}
-
-type ActivityCardProps = Readonly<{
-    activity: Activity;
-    onPress: () => void;
-}>;
-
-function ActivityCard({ activity, onPress }: ActivityCardProps) {
-    const theme = useAppTheme();
-    const themeColors = theme.colors;
-
-    const createdBy = {
-        userId: activity.createdByUserId,
-        username: activity.createdByUsername,
-        displayName: activity.createdByDisplayName,
-        profileImageUrl: activity.createdByProfileImageUrl,
-    };
-
-    const modifiedBy = {
-        userId: activity.modifiedByUserId,
-        username: activity.modifiedByUsername,
-        displayName: activity.modifiedByDisplayName,
-        profileImageUrl: activity.modifiedByProfileImageUrl,
-    };
-
-    return (
-        <AppCard onPress={onPress} contentStyle={styles.activityCardContent}>
-            <View
-                style={[
-                    styles.activityIconBadge,
-                    { backgroundColor: themeColors.primarySoft },
-                ]}
-            >
-                <Ionicons name="walk" size={22} color={themeColors.primary} />
-            </View>
-
-            <View style={styles.activityContent}>
-                <Text style={[styles.activityTitle, { color: themeColors.text }]} numberOfLines={1}>
-                    {activity.activityName || "Untitled activity"}
-                </Text>
-
-                {activity.location ? (
-                    <Text style={[styles.activityLocation, { color: themeColors.textMuted }]} numberOfLines={1}>
-                        {activity.location}
-                    </Text>
-                ) : null}
-
-                <Text style={[styles.activityTime, { color: themeColors.textMuted }]} numberOfLines={2}>
-                    {formatDateTime(activity.startDateTime)} → {formatDateTime(activity.endDateTime)}
-                </Text>
-
-                {activity.description ? (
-                    <Text style={[styles.activityDescription, { color: themeColors.textMuted }]} numberOfLines={2}>
-                        {activity.description}
-                    </Text>
-                ) : null}
-
-                <UserAttribution
-                    itemLabel="activity"
-                    createdBy={createdBy}
-                    modifiedBy={modifiedBy}
-                />
-            </View>
-
-            <Ionicons name="chevron-forward" size={22} color={themeColors.textMuted} />
-        </AppCard>
     );
 }
 

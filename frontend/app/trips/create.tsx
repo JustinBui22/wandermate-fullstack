@@ -120,7 +120,7 @@ export default function CreateTripScreen() {
             );
 
             router.back();
-        } catch (confirmError: any) {
+        } catch (confirmError: unknown) {
             const message = getApiErrorMessage(
                 confirmError,
                 "Please check your input and try again."
@@ -157,7 +157,7 @@ export default function CreateTripScreen() {
 
             Alert.alert("Trip created", "Your trip has been created successfully.");
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (hasApiWarning(error, "TRIP_OVERLAP_WARNING")) {
                 Alert.alert(
                     "Trip dates overlap",

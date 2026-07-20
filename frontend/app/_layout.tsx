@@ -60,8 +60,7 @@ function RootLayoutNav() {
   const shouldShowPersistentTabs =
       isAuthenticated &&
       currentRouteGroup !== "(auth)" &&
-      currentRouteGroup !== "(tabs)" &&
-      currentRouteGroup !== "modal";
+      currentRouteGroup !== "(tabs)";
 
   useEffect(() => {
     let isMounted = true;
@@ -85,12 +84,12 @@ function RootLayoutNav() {
     const isInAuthGroup = currentRouteGroup === "(auth)";
 
     if (!isAuthenticated && !isInAuthGroup) {
-      router.replace("/login" as any);
+      router.replace("/login");
       return;
     }
 
     if (isAuthenticated && isInAuthGroup) {
-      router.replace("/" as any);
+      router.replace("/");
     }
   }, [currentRouteGroup, isAuthenticated, isAuthReady, router]);
 
@@ -112,7 +111,6 @@ function RootLayoutNav() {
           >
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="modal" options={{ presentation: "modal" }} />
           </Stack>
 
           {shouldShowPersistentTabs ? <PersistentBottomTabs /> : null}

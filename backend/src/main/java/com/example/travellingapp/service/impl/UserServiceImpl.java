@@ -42,6 +42,8 @@ import static com.example.travellingapp.validator.CommonInputValidator.validateP
 @Service
 @Log4j2
 public class UserServiceImpl implements UserService {
+    private static final String DUMMY_PASSWORD_HASH =
+            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
     private final UserRepository userRepository;
     private final ConfigurationRepository configurationRepository;
     private final ErrorCodeRepository errorCodeRepository;
@@ -151,42 +153,53 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public CompleteResponse<Object> forgotPassword(ForgotPasswordDTO forgotPasswordDTO) {
-        //Check if email/phone existed
-        String username = forgotPasswordDTO.getUsername();
-        Optional<User> userOptional = findUser(username, configurationRepository, userRepository);
-        if (userOptional.isEmpty()) {
-            log.error("User {} not found to reset password!", username);
-            throw new BusinessException(USER_NOT_FOUND, FORGOT_PASSWORD.name());
-        }
-        User user = userOptional.get();
-        // If user entered email/phone, convert it back to real username.
-        username = user.getUsername();
-
         // Check if the new password matches the required pattern
         if (!validatePassword(forgotPasswordDTO.getNewPassword(), configurationRepository.findByConfigCode(PASSWORD_PATTERN.name()))) {
             log.info("New password is weak!");
             throw new BusinessException(PASSWORD_NOT_QUALIFIED, FORGOT_PASSWORD.name());
         }
+
+        //Check if email/phone existed
+        String username = forgotPasswordDTO.getUsername();
+        Optional<User> userOptional = findUser(username, configurationRepository, userRepository);
+        if (userOptional.isEmpty()) {
+            passwordEncoder.matches(forgotPasswordDTO.getNewPassword(), DUMMY_PASSWORD_HASH);
+            log.error("User {} not found to reset password!", username);
+            throw new BusinessException(OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
+        }
+        User user = userOptional.get();
+        // If user entered email/phone, convert it back to real username.
+        username = user.getUsername();
+
+        //Verify otp
+        OtpDTO verifyOtpDTO = new OtpDTO(username, forgotPasswordDTO.getOtp());
+        verifyOtpDTO.setEmail(forgotPasswordDTO.getEmail());
+        verifyOtpDTO.setPhoneNumber(forgotPasswordDTO.getPhoneNumber());
+        String verifyOtpErrorCode;
+        try {
+            verifyOtpErrorCode = otpServiceImpl.verifyOtp(verifyOtpDTO).getResponseBody().getCode();
+        } catch (BusinessException e) {
+            log.error("Update new password failed for user {}!", username);
+            throw new BusinessException(OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
+        }
+
+        if (!verifyOtpErrorCode.equals(OTP_VERIFICATION_SUCCESS.getCode())) {
+            log.error("Update new password failed for user {}!", username);
+            throw new BusinessException(OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
+        }
+
         // Check if the new password is the same as the old password
         if (passwordEncoder.matches(forgotPasswordDTO.getNewPassword(), user.getPassword())) {
             log.error("New password cannot be the same as the old password for user {}!", username);
             throw new BusinessException(NEW_PASSWORD_SAME_AS_OLD, FORGOT_PASSWORD.name());
         }
 
-        //Verify otp
-        OtpDTO verifyOtpDTO = new OtpDTO(username, forgotPasswordDTO.getOtp());
-        verifyOtpDTO.setEmail(forgotPasswordDTO.getEmail());
-        verifyOtpDTO.setPhoneNumber(forgotPasswordDTO.getPhoneNumber());
-        String verifyOtpErrorCode = otpServiceImpl.verifyOtp(verifyOtpDTO).getResponseBody().getCode();
+        user.setPassword(passwordEncoder.encode(forgotPasswordDTO.getNewPassword()));
+        userRepository.save(user);
+        log.info("User password has been updated!");
 
-        if (verifyOtpErrorCode.equals(OTP_VERIFICATION_SUCCESS.getCode())) {
-            user.setPassword(passwordEncoder.encode(forgotPasswordDTO.getNewPassword()));
-            userRepository.save(user);
-            log.info("User password has been updated!");
-        } else {
-            log.error("Update new password failed for user {}!", username);
-            throw new BusinessException(OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
-        }
+        // Revoke all active refresh tokens for the user to ensure they cannot use old tokens after changing their password
+        tokenService.revokeAllActiveRefreshTokensForUser(username);
         return getCompleteResponse(errorCodeRepository, PASSWORD_UPDATED_SUCCESS, FORGOT_PASSWORD.name(), null);
     }
 
@@ -209,8 +222,9 @@ public class UserServiceImpl implements UserService {
         try {
             Optional<User> userOptional = findUser(username, configurationRepository, userRepository);
             if (userOptional.isEmpty()) {
+                passwordEncoder.matches(loginRequest.getPassword(), DUMMY_PASSWORD_HASH);
                 log.error("User {} not found to login!", username);
-                throw new BusinessException(USER_NOT_FOUND, LOGIN.name());
+                return getCompleteResponse(errorCodeRepository, PASSWORD_NOT_CORRECT, LOGIN.name(), null);
             }
             User user = userOptional.get();
             username = user.getUsername();

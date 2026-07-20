@@ -19,11 +19,14 @@ This folder documents the WanderMate Spring Boot backend.
 
 ## Current backend proof
 
-The included test reports show:
+The current backend suite defines:
 
 ```text
-404 tests, 0 failures, 0 errors, 0 skipped
+438 JUnit test methods
 ```
+
+The screenshot below predates the newest security and transaction tests. Run
+`./mvnw test` and replace it after a green local run.
 
 ![Backend tests](../../docs/screenshots/19-backend-tests.png)
 

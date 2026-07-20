@@ -4,7 +4,7 @@ Use this checklist when testing the backend with a fresh MariaDB container.
 
 ## Before starting
 
-1. Ensure `.env` exists locally but is not committed.
+1. Copy `.env.example` to `.env`, set both independent token secrets.
 2. Ensure Docker Desktop is running.
 3. Ensure only sanitized SQL is in `backend/docker/init/`.
 4. Do not include raw dumps with real runtime data.
@@ -24,12 +24,11 @@ docker compose up --build
 ## Verify health
 
 ```bash
-curl http://localhost:8082/The-Project/api/v1/health
+curl http://localhost:8082/Wandermate/api/v1/health
 ```
 
-Port `8082` is the default host port from `.env.example`; use your configured
-`BACKEND_HOST_PORT` instead if you changed it. The application still listens on port `8080`
-inside the container.
+The backend container still listens on `8080`; Compose maps the default host
+port `8082` to it. Use your configured `BACKEND_HOST_PORT` if different.
 
 ## Verify app flow
 
@@ -45,6 +44,8 @@ inside the container.
 ## Troubleshooting
 
 - If DB init does not run, remove the Docker volume and restart.
+- If the backend fails during startup, verify `JWT_SECRET` is at least 64 UTF-8
+  bytes and `REFRESH_TOKEN_HASH_SECRET` is at least 32 UTF-8 bytes.
 - If port is already used, change the host port in `.env`.
 - If Cloudinary upload fails, check Cloudinary variables.
 - If email OTP fails, check email/OAuth config.

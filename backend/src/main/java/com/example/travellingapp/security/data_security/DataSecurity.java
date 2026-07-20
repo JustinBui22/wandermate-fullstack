@@ -18,33 +18,19 @@ import static com.example.travellingapp.util.Common.getConfigValue;
 @Component
 public class DataSecurity {
 
-    private final ConfigurationRepository configurationRepository;
+    private final TokenSecretProvider tokenSecretProvider;
 
-    public DataSecurity(ConfigurationRepository configurationRepository) {
-        this.configurationRepository = configurationRepository;
+    public DataSecurity(TokenSecretProvider tokenSecretProvider) {
+        this.tokenSecretProvider = tokenSecretProvider;
     }
 
     public String hashData(String data) {
         try {
-            String secret = getConfigValue(
-                    SECRET_KEY_CONFIG,
-                    configurationRepository,
-                    TOKEN.name()
-            );
-
             Mac mac = Mac.getInstance("HmacSHA256");
-
-            SecretKeySpec keySpec = new SecretKeySpec(
-                    secret.getBytes(StandardCharsets.UTF_8),
-                    "HmacSHA256"
-            );
-
-            mac.init(keySpec);
+            mac.init(tokenSecretProvider.getRefreshTokenHashKey());
 
             byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-
             return Base64.getEncoder().encodeToString(hash);
-
         } catch (Exception e) {
             log.error("Failed to hash data!", e);
             throw new BusinessException(INTERNAL_SERVER_ERROR, TOKEN.name());

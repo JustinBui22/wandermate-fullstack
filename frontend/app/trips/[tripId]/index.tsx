@@ -2,7 +2,6 @@ import React, { useCallback, useState } from "react";
 import {
     Alert,
     ImageBackground,
-    Pressable,
     StyleSheet,
     Text,
     View,
@@ -13,30 +12,27 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { getDestinationsByTrip } from "@/src/api/destinationApi";
 import { getCollaborationSummary } from "@/src/api/tripCollaborationApi";
 import { deleteTrip, getTripById } from "@/src/api/tripApi";
-import { UserAttribution } from "@/src/components/collaboration/UserAttribution";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
-import { NotificationBadge } from "@/src/components/ui/NotificationBadge";
+import {
+    TripDestinationCard,
+    TripHeaderButton,
+    TripHeroContent,
+    TripInfoCard,
+} from "@/src/features/trips/TripDetailSections";
 import { colors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
-import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { Destination } from "@/src/types/destination";
 import type { Trip } from "@/src/types/trip";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
 import { normalizeImageUrl } from "@/src/utils/imageUrlUtils";
 
-function getApiMessage(error: any) {
-    const data = error.response?.data;
-
-    if (typeof data?.body === "string" && data.body.trim()) {
-        return data.body;
-    }
-
-    return data?.message || error.message || "Failed to load trip detail.";
+function getApiMessage(error: unknown) {
+    return getApiErrorMessage(error, "Failed to load trip detail.");
 }
 
 export default function TripDetailScreen() {
@@ -74,7 +70,7 @@ export default function TripDetailScreen() {
             setTrip(tripData);
             setCoverImageFailed(false);
             setDestinations(Array.isArray(destinationData) ? destinationData : []);
-        } catch (error: any) {
+        } catch (error: unknown) {
             setError(getApiMessage(error));
         } finally {
             setIsLoading(false);
@@ -116,7 +112,10 @@ export default function TripDetailScreen() {
             return;
         }
 
-        router.push(`/trips/${tripNumberId}/destinations/create` as any);
+        router.push({
+            pathname: "/trips/[tripId]/destinations/create",
+            params: { tripId: tripNumberId },
+        });
     }
 
     function handleOpenDestination(destinationId: number) {
@@ -125,7 +124,10 @@ export default function TripDetailScreen() {
             return;
         }
 
-        router.push(`/trips/${tripNumberId}/destinations/${destinationId}` as any);
+        router.push({
+            pathname: "/trips/[tripId]/destinations/[destinationId]",
+            params: { tripId: tripNumberId, destinationId },
+        });
     }
 
     function handleEditTrip() {
@@ -134,7 +136,10 @@ export default function TripDetailScreen() {
             return;
         }
 
-        router.push(`/trips/${tripNumberId}/edit` as any);
+        router.push({
+            pathname: "/trips/[tripId]/edit",
+            params: { tripId: tripNumberId },
+        });
     }
 
     function handleOpenCollaboration() {
@@ -143,7 +148,10 @@ export default function TripDetailScreen() {
             return;
         }
 
-        router.push(`/trips/${tripNumberId}/collaboration` as any);
+        router.push({
+            pathname: "/trips/[tripId]/collaboration",
+            params: { tripId: tripNumberId },
+        });
     }
 
     async function handleConfirmDeleteTrip() {
@@ -153,7 +161,7 @@ export default function TripDetailScreen() {
 
             Alert.alert("Trip deleted", "Trip has been deleted.");
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
             Alert.alert(
                 "Delete trip failed",
                 getApiErrorMessage(error, "Please try again.")
@@ -230,14 +238,14 @@ export default function TripDetailScreen() {
     return (
         <AppScreen contentContainerStyle={styles.screenContent}>
             <View style={styles.header}>
-                <HeaderIconButton
+                <TripHeaderButton
                     icon="chevron-back"
                     accessibilityLabel="Go back"
                     onPress={() => router.back()}
                 />
 
                 <View style={styles.headerActions}>
-                    <HeaderIconButton
+                    <TripHeaderButton
                         icon="people-outline"
                         accessibilityLabel="Open collaboration"
                         onPress={handleOpenCollaboration}
@@ -245,7 +253,7 @@ export default function TripDetailScreen() {
                     />
 
                     {canEditTrip ? (
-                        <HeaderIconButton
+                        <TripHeaderButton
                             icon="create-outline"
                             accessibilityLabel="Edit trip"
                             onPress={handleEditTrip}
@@ -263,11 +271,11 @@ export default function TripDetailScreen() {
                         onError={() => setCoverImageFailed(true)}
                     >
                         <View style={styles.heroImageOverlay}>
-                            <HeroContent trip={trip} />
+                            <TripHeroContent trip={trip} />
                         </View>
                     </ImageBackground>
                 ) : (
-                    <HeroContent trip={trip} />
+                    <TripHeroContent trip={trip} />
                 )}
             </AppCard>
 
@@ -281,12 +289,12 @@ export default function TripDetailScreen() {
             ) : null}
 
             <View style={styles.infoGrid}>
-                <InfoCard
+                <TripInfoCard
                     icon="calendar-outline"
                     label="Start"
                     value={formatDateTime(trip.startDate)}
                 />
-                <InfoCard
+                <TripInfoCard
                     icon="flag-outline"
                     label="End"
                     value={formatDateTime(trip.endDate)}
@@ -332,7 +340,7 @@ export default function TripDetailScreen() {
             ) : (
                 <View style={styles.destinationList}>
                     {destinations.map((destination) => (
-                        <DestinationCard
+                        <TripDestinationCard
                             key={destination.destinationId}
                             destination={destination}
                             onPress={() => handleOpenDestination(destination.destinationId)}
@@ -352,145 +360,6 @@ export default function TripDetailScreen() {
                 />
             ) : null}
         </AppScreen>
-    );
-}
-
-type HeroContentProps = Readonly<{
-    trip: Trip;
-}>;
-
-function HeroContent({ trip }: HeroContentProps) {
-    return (
-        <>
-            <View style={styles.heroIconBadge}>
-                <Ionicons name="map" size={28} color={colors.textLight} />
-            </View>
-
-            <View style={styles.heroTextGroup}>
-                <Text style={styles.destinationText} numberOfLines={1}>
-                    {trip.destination || "No destination"}
-                </Text>
-                <Text style={styles.tripNameText}>{trip.tripName || "Untitled trip"}</Text>
-            </View>
-        </>
-    );
-}
-
-type HeaderIconButtonProps = Readonly<{
-    icon: keyof typeof Ionicons.glyphMap;
-    accessibilityLabel: string;
-    onPress: () => void;
-    badgeCount?: number;
-}>;
-
-function HeaderIconButton({
-                              icon,
-                              accessibilityLabel,
-                              onPress,
-                              badgeCount = 0,
-                          }: HeaderIconButtonProps) {
-    return (
-        <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={accessibilityLabel}
-            onPress={onPress}
-            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
-        >
-            <View style={styles.headerIconContent}>
-                <Ionicons name={icon} size={23} color={colors.text} />
-                <NotificationBadge count={badgeCount} size="small" />
-            </View>
-        </Pressable>
-    );
-}
-
-type InfoCardProps = Readonly<{
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    value: string;
-}>;
-
-function InfoCard({ icon, label, value }: InfoCardProps) {
-    const theme = useAppTheme();
-    const themeColors = theme.colors;
-
-    return (
-        <AppCard variant="soft" contentStyle={styles.infoCardContent}>
-            <View
-                style={[
-                    styles.infoIconBadge,
-                    { backgroundColor: themeColors.primarySoft },
-                ]}
-            >
-                <Ionicons
-                    name={icon}
-                    size={20}
-                    color={themeColors.primary}
-                />
-            </View>
-
-            <View style={styles.infoTextGroup}>
-                <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>
-                    {label}
-                </Text>
-
-                <Text style={[styles.infoValue, { color: themeColors.text }]}>
-                    {value}
-                </Text>
-            </View>
-        </AppCard>
-    );
-}
-
-type DestinationCardProps = Readonly<{
-    destination: Destination;
-    onPress: () => void;
-}>;
-
-function DestinationCard({ destination, onPress }: DestinationCardProps) {
-    const theme = useAppTheme();
-    const themeColors = theme.colors;
-
-    return (
-        <AppCard onPress={onPress} contentStyle={styles.destinationCardContent}>
-            <View style={[styles.destinationIconBadge, { backgroundColor: themeColors.primarySoft }]}>
-                <Ionicons name="location" size={22} color={themeColors.primary} />
-            </View>
-
-            <View style={styles.destinationContent}>
-                <Text style={[styles.destinationTitle, { color: themeColors.text }]} numberOfLines={1}>
-                    {destination.destinationName || "Untitled destination"}
-                </Text>
-
-                <Text style={[styles.destinationDate, { color: themeColors.textMuted }]}>
-                    {formatDateTime(destination.startDate)} → {formatDateTime(destination.endDate)}
-                </Text>
-
-                {destination.notes ? (
-                    <Text style={[styles.destinationNotes, { color: themeColors.textMuted }]} numberOfLines={2}>
-                        {destination.notes}
-                    </Text>
-                ) : null}
-            </View>
-
-            <UserAttribution
-                itemLabel="destination"
-                createdBy={{
-                    userId: destination.createdByUserId,
-                    username: destination.createdByUsername,
-                    displayName: destination.createdByDisplayName,
-                    profileImageUrl: destination.createdByProfileImageUrl,
-                }}
-                modifiedBy={{
-                    userId: destination.modifiedByUserId,
-                    username: destination.modifiedByUsername,
-                    displayName: destination.modifiedByDisplayName,
-                    profileImageUrl: destination.modifiedByProfileImageUrl,
-                }}
-            />
-
-            <Ionicons name="chevron-forward" size={22} color={themeColors.textMuted} />
-        </AppCard>
     );
 }
 

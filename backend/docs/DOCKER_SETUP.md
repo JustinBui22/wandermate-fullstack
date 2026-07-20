@@ -49,6 +49,8 @@ DB_NAME
 DB_ROOT_PASSWORD
 DB_HOST_PORT
 BACKEND_HOST_PORT
+JWT_SECRET
+REFRESH_TOKEN_HASH_SECRET
 CLOUDINARY_CLOUD_NAME
 CLOUDINARY_API_KEY
 CLOUDINARY_API_SECRET
@@ -62,6 +64,26 @@ EMAIL_ADDRESS_CONFIG
 ```
 
 Do not commit real `.env` values.
+
+Generate independent secrets, for example:
+
+```bash
+openssl rand -base64 64
+openssl rand -base64 32
+```
+
+Put the first value in `JWT_SECRET` and the second in
+`REFRESH_TOKEN_HASH_SECRET`. Compose passes both the direct environment names
+and Spring's explicit `APP_SECURITY_*` property names into the backend
+container. Rotating either secret invalidates the associated active tokens;
+changing the refresh-token HMAC secret requires users to sign in again.
+
+The container listens on port `8080`. The default Compose mapping exposes it
+on host port `8082`, so the Docker health URL is:
+
+```text
+http://localhost:8082/Wandermate/api/v1/health
+```
 
 ## Proof
 

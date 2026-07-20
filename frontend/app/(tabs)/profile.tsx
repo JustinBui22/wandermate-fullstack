@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import {
     Alert,
-    Image,
     Pressable,
     StyleSheet,
     Text,
@@ -18,6 +17,7 @@ import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
 import { LoadingState } from "@/src/components/ui/LoadingState";
+import { ProfileAvatar, ProfileDetailRow } from "@/src/features/profile/ProfileSummary";
 import { fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useAuthStore } from "@/src/stores/authStore";
@@ -85,7 +85,7 @@ export default function ProfileScreen() {
             setProfile(nextProfile);
             syncProfileForm(nextProfile);
             setPreferredTheme(nextProfile.preferredTheme);
-        } catch (error: any) {
+        } catch (error: unknown) {
             setError(getApiErrorMessage(error, "Failed to load your profile."));
         } finally {
             setIsLoading(false);
@@ -127,7 +127,7 @@ export default function ProfileScreen() {
             setProfile(updatedProfile);
             syncProfileForm(updatedProfile);
             setIsEditingProfile(false);
-        } catch (error: any) {
+        } catch (error: unknown) {
             setError(getApiErrorMessage(error, "Failed to update your profile."));
         } finally {
             setIsSavingProfile(false);
@@ -148,7 +148,7 @@ export default function ProfileScreen() {
             setProfile(updatedProfile);
             syncProfileForm(updatedProfile);
             setPreferredTheme(updatedProfile.preferredTheme);
-        } catch (error: any) {
+        } catch (error: unknown) {
             setError(getApiErrorMessage(error, "Failed to update theme setting."));
         } finally {
             setSavingTheme(null);
@@ -167,7 +167,7 @@ export default function ProfileScreen() {
         try {
             setIsLoggingOut(true);
             await logoutUser();
-            router.replace("/login" as any);
+            router.replace("/login");
         } finally {
             setIsLoggingOut(false);
         }
@@ -339,22 +339,22 @@ export default function ProfileScreen() {
                     </View>
                 ) : (
                     <View style={styles.detailList}>
-                        <DetailRow
+                        <ProfileDetailRow
                             icon="person-outline"
                             label="Username"
                             value={profile?.username}
                         />
-                        <DetailRow
+                        <ProfileDetailRow
                             icon="mail-outline"
                             label="Email"
                             value={profile?.email}
                         />
-                        <DetailRow
+                        <ProfileDetailRow
                             icon="call-outline"
                             label="Phone"
                             value={profile?.phoneNumber || "Not added yet"}
                         />
-                        <DetailRow
+                        <ProfileDetailRow
                             icon="calendar-outline"
                             label="Date of birth"
                             value={profile?.dob || "Not added yet"}
@@ -481,102 +481,6 @@ export default function ProfileScreen() {
                 />
             </AppCard>
         </AppScreen>
-    );
-}
-
-type ProfileAvatarProps = Readonly<{
-    profile: UserProfile | null;
-}>;
-
-function ProfileAvatar({ profile }: ProfileAvatarProps) {
-    const theme = useAppTheme();
-    const themedColors = theme.colors;
-    const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
-
-    const imageUrl = normalizeImageUrl(profile?.profileImageUrl);
-    const shouldShowImage = Boolean(imageUrl) && failedImageUrl !== imageUrl;
-    const fallbackInitial = (profile?.displayName || profile?.username || "W")
-        .trim()
-        .charAt(0)
-        .toUpperCase() || "W";
-
-    if (shouldShowImage) {
-        return (
-            <Image
-                source={{ uri: imageUrl as string }}
-                style={[
-                    styles.avatarBadge,
-                    { backgroundColor: themedColors.primary },
-                ]}
-                onError={() => setFailedImageUrl(imageUrl)}
-            />
-        );
-    }
-
-    return (
-        <View
-            style={[
-                styles.avatarBadge,
-                { backgroundColor: themedColors.primary },
-            ]}
-        >
-            <Text
-                style={[
-                    styles.avatarText,
-                    { color: themedColors.textLight },
-                ]}
-            >
-                {fallbackInitial}
-            </Text>
-        </View>
-    );
-}
-
-type DetailRowProps = Readonly<{
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    value?: string | null;
-}>;
-
-function DetailRow({ icon, label, value }: DetailRowProps) {
-    const theme = useAppTheme();
-    const themedColors = theme.colors;
-
-    return (
-        <View style={styles.detailRow}>
-            <View
-                style={[
-                    styles.detailIconBadge,
-                    { backgroundColor: themedColors.primarySoft },
-                ]}
-            >
-                <Ionicons
-                    name={icon}
-                    size={19}
-                    color={themedColors.primary}
-                />
-            </View>
-
-            <View style={styles.detailTextGroup}>
-                <Text
-                    style={[
-                        styles.detailLabel,
-                        { color: themedColors.textMuted },
-                    ]}
-                >
-                    {label}
-                </Text>
-
-                <Text
-                    style={[
-                        styles.detailValue,
-                        { color: themedColors.text },
-                    ]}
-                >
-                    {value || "Not added yet"}
-                </Text>
-            </View>
-        </View>
     );
 }
 

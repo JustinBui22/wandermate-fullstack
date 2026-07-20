@@ -9,6 +9,7 @@ import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.ImageUploadService;
+import com.example.travellingapp.validator.ImageContentValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -26,15 +27,6 @@ import static com.example.travellingapp.response_template.CompleteResponse.getCo
 @Service
 @Log4j2
 public class ImageUploadServiceImpl implements ImageUploadService {
-    private static final long MAX_IMAGE_SIZE_BYTES = 5L * 1024L * 1024L;
-    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
-            "image/jpeg",
-            "image/jpg",
-            "image/png",
-            "image/webp",
-            "image/heic",
-            "image/heif"
-    );
     private static final Set<String> ALLOWED_UPLOAD_FOLDERS = Set.of(
             "profile-images",
             "trip-covers"
@@ -45,19 +37,22 @@ public class ImageUploadServiceImpl implements ImageUploadService {
     private final CloudinaryImageClient cloudinaryImageClient;
     private final String cloudinaryBaseFolder;
     private final UserRepository userRepository;
+    private final ImageContentValidator imageContentValidator;
 
     public ImageUploadServiceImpl(
             ErrorCodeRepository errorCodeRepository,
             AuthenticatedUserProvider authenticatedUserProvider,
             CloudinaryImageClient cloudinaryImageClient,
             @Value("${cloudinary.base-folder:wandermate}") String cloudinaryBaseFolder,
-            UserRepository userRepository
+            UserRepository userRepository,
+            ImageContentValidator imageContentValidator
     ) {
         this.errorCodeRepository = errorCodeRepository;
         this.authenticatedUserProvider = authenticatedUserProvider;
         this.cloudinaryImageClient = cloudinaryImageClient;
         this.cloudinaryBaseFolder = normalizeBaseFolder(cloudinaryBaseFolder);
         this.userRepository = userRepository;
+        this.imageContentValidator = imageContentValidator;
     }
 
     @Override
@@ -68,7 +63,7 @@ public class ImageUploadServiceImpl implements ImageUploadService {
                     .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
 
             String uploadFolder = normalizeUploadFolder(imageType);
-            validateImageFile(file);
+            byte[] imageBytes = imageContentValidator.validateAndRead(file);
 
             String cloudinaryFolder = cloudinaryBaseFolder
                     + "/"
@@ -79,7 +74,7 @@ public class ImageUploadServiceImpl implements ImageUploadService {
             String publicId = buildPublicId(uploadFolder, currentUser.getUserId());
             log.info("Uploading image for user: {}, publicId: {}, cloudinaryFolder: {}", username, publicId, cloudinaryFolder);
             ImageUploadResponseDTO responseDTO = cloudinaryImageClient.uploadImage(
-                    file.getBytes(),
+                    imageBytes,
                     publicId,
                     cloudinaryFolder,
                     uploadFolder
@@ -99,21 +94,6 @@ public class ImageUploadServiceImpl implements ImageUploadService {
         } catch (Exception e) {
             log.error("Unexpected image upload failure.", e);
             throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
-        }
-    }
-
-    private void validateImageFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
-        }
-
-        if (file.getSize() > MAX_IMAGE_SIZE_BYTES) {
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
-        }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
-            throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
     }
 

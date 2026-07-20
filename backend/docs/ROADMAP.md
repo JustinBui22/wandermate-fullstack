@@ -18,6 +18,10 @@ Completed areas:
 - Frontend light/dark theme support.
 - Persistent bottom tabs.
 - Backend tests.
+- GitHub Actions CI for backend tests and frontend typecheck/tests.
+- H2 integration tests for transaction-sensitive security events.
+- Explicit OTP purpose for registration and password reset.
+- Image content/signature validation.
 - Docs and screenshot proof.
 
 ## Do not add before portfolio submission
@@ -47,8 +51,7 @@ Do not add yet:
 ## Production hardening later
 
 - Hash OTP codes in DB.
-- Add explicit OTP purpose field.
 - Add IP/device rate limiting.
 - Add centralized audit logging.
-- Strengthen Cloudinary upload validation.
-- Add CI pipeline for backend tests and frontend typecheck.
+- Add a WebP/HEIF decoder for full local image decoding.
+- Replace `ddl-auto=update` with versioned Flyway migrations.

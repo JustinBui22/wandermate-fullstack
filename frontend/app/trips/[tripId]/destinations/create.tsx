@@ -137,7 +137,7 @@ export default function CreateDestinationScreen() {
             );
 
             router.back();
-        } catch (confirmError: any) {
+        } catch (confirmError: unknown) {
             const message = getApiErrorMessage(
                 confirmError,
                 "Please check your input and try again."
@@ -184,7 +184,7 @@ export default function CreateDestinationScreen() {
 
             Alert.alert("Destination created", "Destination has been added.");
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (hasApiWarning(error, "DESTINATION_OVERLAP_WARNING")) {
                 Alert.alert(
                     "Destination dates overlap",

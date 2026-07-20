@@ -56,7 +56,7 @@ export function ImageUploadPicker({
             );
 
             onChangeImage(uploadedImage.imageUrl, uploadedImage.publicId);
-        } catch (error: any) {
+        } catch (error: unknown) {
             Alert.alert(
                 "Image upload failed",
                 getApiErrorMessage(error, "Please choose a different image and try again.")
@@ -78,7 +78,7 @@ export function ImageUploadPicker({
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ["images"] as any,
+            mediaTypes: ["images"],
             allowsEditing: true,
             aspect: previewShape === "circle" ? [1, 1] : [16, 9],
             quality: 0.82,
@@ -101,7 +101,7 @@ export function ImageUploadPicker({
         }
 
         const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ["images"] as any,
+            mediaTypes: ["images"],
             allowsEditing: true,
             aspect: previewShape === "circle" ? [1, 1] : [16, 9],
             quality: 0.82,

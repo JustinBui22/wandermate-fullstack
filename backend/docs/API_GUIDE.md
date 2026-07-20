@@ -3,19 +3,19 @@
 Base path:
 
 ```text
-/The-Project
+/Wandermate
 ```
 
 Local base URL:
 
 ```text
-http://localhost:8080/The-Project
+http://localhost:8080/Wandermate
 ```
 
 Render base URL:
 
 ```text
-https://wandermate-fullstack.onrender.com/The-Project
+https://wandermate-fullstack.onrender.com/Wandermate
 ```
 
 ## Auth headers
@@ -42,12 +42,25 @@ Session-Token: <sessionToken>
 | POST | `/api/v1/users/register` | Register a user after OTP verification |
 | POST | `/api/v1/users/login` | Login and receive tokens |
 | POST | `/api/v1/users/forgot-password` | Reset password with OTP |
-| GET | `/api/v1/users/check?userInput=` | Check username/email availability |
 | POST | `/api/v1/otp/send` | Send email/phone OTP |
 | POST | `/api/v1/otp/verify` | Verify OTP |
 | POST | `/api/v1/auth/refresh` | Refresh access token |
-| GET | `/api/v1/trips/share-codes/{code}` | Preview share code before join request |
-| POST | `/api/v1/trips/share-codes/{code}/join-requests` | Send join request by share code |
+
+The removed `/api/v1/users/check` endpoint must not be restored: returning a
+different response for an existing account makes account enumeration easier.
+Share-code preview and join endpoints are authenticated and are listed below.
+
+For a password-reset OTP request, add:
+
+```json
+{
+  "purpose": "PASSWORD_RESET"
+}
+```
+
+The registration default is `REGISTRATION`. Password-reset OTP requests return
+the same success envelope whether or not the supplied account/destination
+matches; the backend sends mail/SMS only for a valid match.
 
 ## Protected user endpoints
 
@@ -68,8 +81,11 @@ Required form-data:
 
 ```text
 file: image file
-imagePurpose: PROFILE_AVATAR or TRIP_COVER
+imageType: profile-images or trip-covers
 ```
+
+The backend enforces a 5 MB limit, compares MIME and file signatures, decodes
+PNG/JPEG images, and validates WebP/HEIF container signatures before upload.
 
 ## Trip endpoints
 
@@ -127,6 +143,8 @@ Activities belong to a destination, not directly to a trip.
 | GET | `/api/v1/trips/{tripId}/my-overlap-warnings` | Get overlap warnings for current user |
 
 ## Share code endpoints
+
+All endpoints in this section require a valid access token and session token.
 
 | Method | Path | Purpose |
 |---|---|---|

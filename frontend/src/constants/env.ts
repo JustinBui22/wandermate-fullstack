@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = "https://wandermate-fullstack.onrender.com/The-Project";
+const DEFAULT_API_BASE_URL = "https://wandermate-fullstack.onrender.com/Wandermate";
 
 export const APP_ENV =
     process.env.EXPO_PUBLIC_APP_ENV?.trim() || "production";

@@ -14,6 +14,7 @@ import com.example.travellingapp.repository.SessionTokenRepository;
 import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.DataSecurity;
+import com.example.travellingapp.security.data_security.TokenSecretProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import javax.crypto.SecretKey;
@@ -68,12 +70,27 @@ class TokenServiceImplTest {
     @Mock
     private DataSecurity dataSecurity;
 
-    private TokenServiceImpl tokenService;
+    @Mock
+    private TokenSecretProvider tokenSecretProvider;
 
-    private static final String SECRET = "12345678901234567890123456789012";
+    @Mock
+    private RefreshTokenReuseServiceImpl refreshTokenReuseServiceImpl;
+
+    private TokenServiceImpl tokenService;
+    private SecretKey testJwtSigningKey;
+
+    private static final String SECRET =
+            "test-jwt-secret-that-is-at-least-sixty-four-bytes-long-for-hs512-signing-key";
+
+    private static final String REFRESH_HASH_SECRET =
+            "test-refresh-token-hash-secret-at-least-thirty-two-bytes";
 
     @BeforeEach
     void setUp() {
+        testJwtSigningKey = Keys.hmacShaKeyFor(
+                SECRET.getBytes(StandardCharsets.UTF_8)
+        );
+
         tokenService = new TokenServiceImpl(
                 configurationRepository,
                 errorCodeRepository,
@@ -81,7 +98,9 @@ class TokenServiceImplTest {
                 userRepository,
                 sessionTokenRepository,
                 passwordEncoder,
-                dataSecurity
+                dataSecurity,
+                tokenSecretProvider,
+                refreshTokenReuseServiceImpl
         );
     }
 
@@ -96,13 +115,14 @@ class TokenServiceImplTest {
 
         mockConfig("ACCESS_TOKEN_EXPIRATION_TIME", "300000");
         mockConfig("PHONE_VN_PATTERN", "^(0|\\+84)[0-9]{9,10}$");
-        mockConfig("SECRET_KEY_CONFIG", SECRET);
         mockErrorCode(TOKEN_GENERATE_SUCCESS, TOKEN.name());
+        mockJwtSigningKey();
 
         when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.of(activeUser(username)));
 
-        CompleteResponse<Object> response = tokenService.generateAccessToken(username, sessionId);
+        CompleteResponse<Object> response =
+                tokenService.generateAccessToken(username, sessionId);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TOKEN_GENERATE_SUCCESS.getCode());
@@ -122,12 +142,20 @@ class TokenServiceImplTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.generateAccessToken(username, "session-123")
+                () -> tokenService.generateAccessToken(
+                        username,
+                        "session-123"
+                )
         );
 
-        assertBusinessException(exception, INPUT_FORMAT_INVALID, TOKEN.name());
+        assertBusinessException(
+                exception,
+                INPUT_FORMAT_INVALID,
+                TOKEN.name()
+        );
 
-        verify(userRepository, never()).findByUsernameAndActive(anyString());
+        verify(userRepository, never())
+                .findByUsernameAndActive(anyString());
     }
 
     @Test
@@ -142,29 +170,39 @@ class TokenServiceImplTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.generateAccessToken(username, "session-123")
+                () -> tokenService.generateAccessToken(
+                        username,
+                        "session-123"
+                )
         );
 
-        assertBusinessException(exception, USER_NOT_FOUND, COMMON.name());
+        assertBusinessException(
+                exception,
+                USER_NOT_FOUND,
+                COMMON.name()
+        );
     }
 
     @Test
-    void generateAccessToken_shouldThrowInternalServerError_whenSecretKeyIsTooShort() {
-        String username = "JustinBo123";
-
-        mockConfig("ACCESS_TOKEN_EXPIRATION_TIME", "300000");
-        mockConfig("PHONE_VN_PATTERN", "^(0|\\+84)[0-9]{9,10}$");
-        mockConfig("SECRET_KEY_CONFIG", "short-secret");
-
-        when(userRepository.findByUsernameAndActive(username))
-                .thenReturn(Optional.of(activeUser(username)));
-
-        BusinessException exception = assertThrows(
-                BusinessException.class,
-                () -> tokenService.generateAccessToken(username, "session-123")
+    void tokenSecretProvider_shouldRejectJwtSecretThatIsTooShort() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> new TokenSecretProvider(
+                        "short-secret",
+                        REFRESH_HASH_SECRET
+                )
         );
+    }
 
-        assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());
+    @Test
+    void tokenSecretProvider_shouldRejectRefreshHashSecretThatIsTooShort() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> new TokenSecretProvider(
+                        SECRET,
+                        "short-refresh-secret"
+                )
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -174,6 +212,7 @@ class TokenServiceImplTest {
     @Test
     void generateRefreshToken_shouldSaveHashedRefreshTokenAndReturnRawRefreshToken() {
         mockRefreshTokenSaveAssignsId();
+
         String username = "JustinBo123";
         String sessionId = "session-123";
 
@@ -181,19 +220,26 @@ class TokenServiceImplTest {
         mockErrorCode(TOKEN_GENERATE_SUCCESS, TOKEN.name());
 
         when(dataSecurity.hashData(anyString()))
-                .thenAnswer(invocation -> "hashed-" + invocation.getArgument(0));
+                .thenAnswer(invocation ->
+                        "hashed-" + invocation.getArgument(0)
+                );
 
-        CompleteResponse<Object> response = tokenService.generateRefreshToken(username, sessionId);
+        CompleteResponse<Object> response =
+                tokenService.generateRefreshToken(username, sessionId);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TOKEN_GENERATE_SUCCESS.getCode());
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> body = (Map<String, Object>) response.getResponseBody().getBody();
+        Map<String, Object> body =
+                (Map<String, Object>) response.getResponseBody().getBody();
 
-        assertThat(body.get("refreshToken")).isInstanceOf(String.class);
-        assertThat(body.get("refreshToken").toString()).isNotBlank();
-        assertThat(body.get("refreshTokenId")).isNotNull();
+        assertThat(body.get("refreshToken"))
+                .isInstanceOf(String.class);
+        assertThat(body.get("refreshToken").toString())
+                .isNotBlank();
+        assertThat(body.get("refreshTokenId"))
+                .isNotNull();
 
         ArgumentCaptor<RefreshTokenEntity> tokenCaptor =
                 ArgumentCaptor.forClass(RefreshTokenEntity.class);
@@ -202,11 +248,16 @@ class TokenServiceImplTest {
 
         RefreshTokenEntity savedToken = tokenCaptor.getValue();
 
-        assertThat(savedToken.getUsername()).isEqualTo(username);
-        assertThat(savedToken.getSessionId()).isEqualTo(sessionId);
-        assertThat(savedToken.getTokenHash()).startsWith("hashed-");
-        assertThat(savedToken.isRevoked()).isFalse();
-        assertThat(savedToken.getExpiredDate()).isAfter(LocalDateTime.now());
+        assertThat(savedToken.getUsername())
+                .isEqualTo(username);
+        assertThat(savedToken.getSessionId())
+                .isEqualTo(sessionId);
+        assertThat(savedToken.getTokenHash())
+                .startsWith("hashed-");
+        assertThat(savedToken.isRevoked())
+                .isFalse();
+        assertThat(savedToken.getExpiredDate())
+                .isAfter(LocalDateTime.now());
     }
 
     @Test
@@ -214,14 +265,26 @@ class TokenServiceImplTest {
         mockConfig("REFRESH_TOKEN_EXPIRATION_TIME", "1");
 
         when(dataSecurity.hashData(anyString()))
-                .thenThrow(new RuntimeException("Hash failed"));
+                .thenThrow(
+                        new BusinessException(
+                                INTERNAL_SERVER_ERROR,
+                                TOKEN.name()
+                        )
+                );
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.generateRefreshToken("JustinBo123", "session-123")
+                () -> tokenService.generateRefreshToken(
+                        "JustinBo123",
+                        "session-123"
+                )
         );
 
-        assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());
+        assertBusinessException(
+                exception,
+                INTERNAL_SERVER_ERROR,
+                TOKEN.name()
+        );
 
         verify(refreshTokenRepository, never()).save(any());
     }
@@ -240,40 +303,55 @@ class TokenServiceImplTest {
         when(passwordEncoder.encode(anyString()))
                 .thenReturn("encoded-session-token");
 
-        CompleteResponse<Object> response = tokenService.generateSessionToken(username, sessionId);
+        CompleteResponse<Object> response =
+                tokenService.generateSessionToken(username, sessionId);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TOKEN_GENERATE_SUCCESS.getCode());
 
-        String rawSessionToken = response.getResponseBody().getBody().toString();
+        String rawSessionToken =
+                response.getResponseBody().getBody().toString();
+
         assertThat(rawSessionToken).isNotBlank();
 
         ArgumentCaptor<SessionTokenEntity> sessionCaptor =
                 ArgumentCaptor.forClass(SessionTokenEntity.class);
 
-        verify(sessionTokenRepository).save(sessionCaptor.capture());
+        verify(sessionTokenRepository)
+                .save(sessionCaptor.capture());
 
         SessionTokenEntity savedSession = sessionCaptor.getValue();
 
-        assertThat(savedSession.getUsername()).isEqualTo(username);
-        assertThat(savedSession.getSessionId()).isEqualTo(sessionId);
-        assertThat(savedSession.getSessionToken()).isEqualTo("encoded-session-token");
+        assertThat(savedSession.getUsername())
+                .isEqualTo(username);
+        assertThat(savedSession.getSessionId())
+                .isEqualTo(sessionId);
+        assertThat(savedSession.getSessionToken())
+                .isEqualTo("encoded-session-token");
     }
 
     @Test
     void generateSessionToken_shouldThrowInternalServerError_whenSessionSaveFails() {
         when(passwordEncoder.encode(anyString()))
                 .thenReturn("encoded-session-token");
-        doThrow(new RuntimeException("DB down"))
+
+        doThrow(new DataIntegrityViolationException("DB down"))
                 .when(sessionTokenRepository)
                 .save(any(SessionTokenEntity.class));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.generateSessionToken("JustinBo123", "session-123")
+                () -> tokenService.generateSessionToken(
+                        "JustinBo123",
+                        "session-123"
+                )
         );
 
-        assertBusinessException(exception, INTERNAL_SERVER_ERROR, COMMON.name());
+        assertBusinessException(
+                exception,
+                INTERNAL_SERVER_ERROR,
+                COMMON.name()
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -283,15 +361,19 @@ class TokenServiceImplTest {
     @Test
     void validateAccessToken_shouldReturnTokenVerifySuccess_whenJwtIsValidAndUserExists() {
         String username = "JustinBo123";
-        String token = buildJwt(username, "session-123", 300000);
+        String token = buildJwt(
+                username,
+                "session-123",
+                300000
+        );
 
-        mockConfig("SECRET_KEY_CONFIG", SECRET);
         mockErrorCode(TOKEN_VERIFY_SUCCESS, TOKEN.name());
 
         when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.of(activeUser(username)));
 
-        CompleteResponse<Object> response = tokenService.validateAccessToken(token);
+        CompleteResponse<Object> response =
+                tokenService.validateAccessToken(token);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TOKEN_VERIFY_SUCCESS.getCode());
@@ -299,23 +381,31 @@ class TokenServiceImplTest {
         assertThat(response.getResponseBody().getBody())
                 .isInstanceOf(Claims.class);
 
-        Claims claims = (Claims) response.getResponseBody().getBody();
-        assertThat(claims.getSubject()).isEqualTo(username);
-        assertThat(claims.get("sessionId")).isEqualTo("session-123");
+        Claims claims =
+                (Claims) response.getResponseBody().getBody();
+
+        assertThat(claims.getSubject())
+                .isEqualTo(username);
+        assertThat(claims.get("sessionId"))
+                .isEqualTo("session-123");
     }
 
     @Test
     void validateAccessToken_shouldReturnUserNotFound_whenJwtValidButUserDoesNotExist() {
         String username = "MissingUser";
-        String token = buildJwt(username, "session-123", 300000);
+        String token = buildJwt(
+                username,
+                "session-123",
+                300000
+        );
 
-        mockConfig("SECRET_KEY_CONFIG", SECRET);
         mockErrorCode(USER_NOT_FOUND, TOKEN.name());
 
         when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.empty());
 
-        CompleteResponse<Object> response = tokenService.validateAccessToken(token);
+        CompleteResponse<Object> response =
+                tokenService.validateAccessToken(token);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(USER_NOT_FOUND.getCode());
@@ -323,25 +413,31 @@ class TokenServiceImplTest {
 
     @Test
     void validateAccessToken_shouldReturnTokenExpire_whenJwtIsExpired() {
-        String token = buildJwt("JustinBo123", "session-123", -1000);
+        String token = buildJwt(
+                "JustinBo123",
+                "session-123",
+                -1000
+        );
 
-        mockConfig("SECRET_KEY_CONFIG", SECRET);
         mockErrorCode(TOKEN_EXPIRE, TOKEN.name());
 
-        CompleteResponse<Object> response = tokenService.validateAccessToken(token);
+        CompleteResponse<Object> response =
+                tokenService.validateAccessToken(token);
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TOKEN_EXPIRE.getCode());
 
-        verify(userRepository, never()).findByUsernameAndActive(anyString());
+        verify(userRepository, never())
+                .findByUsernameAndActive(anyString());
     }
 
     @Test
     void validateAccessToken_shouldReturnTokenVerifyFail_whenJwtIsInvalid() {
-        mockConfig("SECRET_KEY_CONFIG", SECRET);
         mockErrorCode(TOKEN_VERIFY_FAIL, TOKEN.name());
+        mockJwtSigningKey();
 
-        CompleteResponse<Object> response = tokenService.validateAccessToken("invalid.jwt.token");
+        CompleteResponse<Object> response =
+                tokenService.validateAccessToken("invalid.jwt.token");
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TOKEN_VERIFY_FAIL.getCode());
@@ -353,8 +449,10 @@ class TokenServiceImplTest {
 
     @Test
     void isSessionTokenInvalid_shouldReturnTrue_whenSessionDoesNotExist() {
-        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
-                .thenReturn(Optional.empty());
+        when(sessionTokenRepository.findByUsernameAndSessionId(
+                "JustinBo123",
+                "session-123"
+        )).thenReturn(Optional.empty());
 
         boolean result = tokenService.isSessionTokenInvalid(
                 "JustinBo123",
@@ -367,12 +465,21 @@ class TokenServiceImplTest {
 
     @Test
     void isSessionTokenInvalid_shouldReturnFalse_whenSessionTokenMatches() {
-        SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
+        SessionTokenEntity session = session(
+                "JustinBo123",
+                "session-123",
+                "encoded-session-token"
+        );
 
-        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
-                .thenReturn(Optional.of(session));
-        when(passwordEncoder.matches("raw-session-token", "encoded-session-token"))
-                .thenReturn(true);
+        when(sessionTokenRepository.findByUsernameAndSessionId(
+                "JustinBo123",
+                "session-123"
+        )).thenReturn(Optional.of(session));
+
+        when(passwordEncoder.matches(
+                "raw-session-token",
+                "encoded-session-token"
+        )).thenReturn(true);
 
         boolean result = tokenService.isSessionTokenInvalid(
                 "JustinBo123",
@@ -385,12 +492,21 @@ class TokenServiceImplTest {
 
     @Test
     void isSessionTokenInvalid_shouldReturnTrue_whenSessionTokenDoesNotMatch() {
-        SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
+        SessionTokenEntity session = session(
+                "JustinBo123",
+                "session-123",
+                "encoded-session-token"
+        );
 
-        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
-                .thenReturn(Optional.of(session));
-        when(passwordEncoder.matches("wrong-token", "encoded-session-token"))
-                .thenReturn(false);
+        when(sessionTokenRepository.findByUsernameAndSessionId(
+                "JustinBo123",
+                "session-123"
+        )).thenReturn(Optional.of(session));
+
+        when(passwordEncoder.matches(
+                "wrong-token",
+                "encoded-session-token"
+        )).thenReturn(false);
 
         boolean result = tokenService.isSessionTokenInvalid(
                 "JustinBo123",
@@ -407,12 +523,21 @@ class TokenServiceImplTest {
 
     @Test
     void revokeSessionTokenBySessionId_shouldDeleteSession_whenTokenMatches() {
-        SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
+        SessionTokenEntity session = session(
+                "JustinBo123",
+                "session-123",
+                "encoded-session-token"
+        );
 
-        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
-                .thenReturn(Optional.of(session));
-        when(passwordEncoder.matches("raw-session-token", "encoded-session-token"))
-                .thenReturn(true);
+        when(sessionTokenRepository.findByUsernameAndSessionId(
+                "JustinBo123",
+                "session-123"
+        )).thenReturn(Optional.of(session));
+
+        when(passwordEncoder.matches(
+                "raw-session-token",
+                "encoded-session-token"
+        )).thenReturn(true);
 
         tokenService.revokeSessionTokenBySessionId(
                 "JustinBo123",
@@ -425,8 +550,10 @@ class TokenServiceImplTest {
 
     @Test
     void revokeSessionTokenBySessionId_shouldThrowSessionTokenInvalid_whenSessionDoesNotExist() {
-        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
-                .thenReturn(Optional.empty());
+        when(sessionTokenRepository.findByUsernameAndSessionId(
+                "JustinBo123",
+                "session-123"
+        )).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -437,19 +564,32 @@ class TokenServiceImplTest {
                 )
         );
 
-        assertBusinessException(exception, SESSION_TOKEN_INVALID, TOKEN.name());
+        assertBusinessException(
+                exception,
+                SESSION_TOKEN_INVALID,
+                TOKEN.name()
+        );
 
         verify(sessionTokenRepository, never()).delete(any());
     }
 
     @Test
     void revokeSessionTokenBySessionId_shouldThrowSessionTokenInvalid_whenTokenDoesNotMatch() {
-        SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
+        SessionTokenEntity session = session(
+                "JustinBo123",
+                "session-123",
+                "encoded-session-token"
+        );
 
-        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
-                .thenReturn(Optional.of(session));
-        when(passwordEncoder.matches("wrong-token", "encoded-session-token"))
-                .thenReturn(false);
+        when(sessionTokenRepository.findByUsernameAndSessionId(
+                "JustinBo123",
+                "session-123"
+        )).thenReturn(Optional.of(session));
+
+        when(passwordEncoder.matches(
+                "wrong-token",
+                "encoded-session-token"
+        )).thenReturn(false);
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -460,7 +600,11 @@ class TokenServiceImplTest {
                 )
         );
 
-        assertBusinessException(exception, SESSION_TOKEN_INVALID, TOKEN.name());
+        assertBusinessException(
+                exception,
+                SESSION_TOKEN_INVALID,
+                TOKEN.name()
+        );
 
         verify(sessionTokenRepository, never()).delete(any());
     }
@@ -471,30 +615,108 @@ class TokenServiceImplTest {
 
     @Test
     void revokeActiveRefreshTokensBySessionId_shouldDoNothing_whenNoActiveRefreshTokensExist() {
-        when(refreshTokenRepository.findAllBySessionIdAndIsRevokedFalse("session-123"))
+        when(refreshTokenRepository
+                .findAllBySessionIdAndIsRevokedFalse("session-123"))
                 .thenReturn(List.of());
 
-        tokenService.revokeActiveRefreshTokensBySessionId("session-123");
+        tokenService.revokeActiveRefreshTokensBySessionId(
+                "session-123"
+        );
 
-        verify(refreshTokenRepository, never()).saveAll(anyList());
+        verify(refreshTokenRepository, never())
+                .saveAll(anyList());
     }
 
     @Test
     void revokeActiveRefreshTokensBySessionId_shouldRevokeAndSaveAllActiveRefreshTokens() {
-        RefreshTokenEntity token1 = refreshToken("JustinBo123", "session-123", false, LocalDateTime.now().plusDays(1));
-        RefreshTokenEntity token2 = refreshToken("JustinBo123", "session-123", false, LocalDateTime.now().plusDays(1));
+        RefreshTokenEntity token1 = refreshToken(
+                "JustinBo123",
+                "session-123",
+                false,
+                LocalDateTime.now().plusDays(1)
+        );
 
-        when(refreshTokenRepository.findAllBySessionIdAndIsRevokedFalse("session-123"))
+        RefreshTokenEntity token2 = refreshToken(
+                "JustinBo123",
+                "session-123",
+                false,
+                LocalDateTime.now().plusDays(1)
+        );
+
+        when(refreshTokenRepository
+                .findAllBySessionIdAndIsRevokedFalse("session-123"))
                 .thenReturn(List.of(token1, token2));
 
-        tokenService.revokeActiveRefreshTokensBySessionId("session-123");
+        tokenService.revokeActiveRefreshTokensBySessionId(
+                "session-123"
+        );
 
         assertThat(token1.isRevoked()).isTrue();
         assertThat(token2.isRevoked()).isTrue();
         assertThat(token1.getRevokedDate()).isNotNull();
         assertThat(token2.getRevokedDate()).isNotNull();
 
-        verify(refreshTokenRepository).saveAll(List.of(token1, token2));
+        verify(refreshTokenRepository)
+                .saveAll(List.of(token1, token2));
+    }
+
+    // -------------------------------------------------------------------------
+    // revokeAllActiveRefreshTokensForUser()
+    // -------------------------------------------------------------------------
+
+    @Test
+    void revokeAllActiveRefreshTokensForUser_shouldRevokeRefreshTokensAndDeleteEverySession() {
+        RefreshTokenEntity token1 = refreshToken(
+                "JustinBo123",
+                "session-1",
+                false,
+                LocalDateTime.now().plusDays(1)
+        );
+
+        RefreshTokenEntity token2 = refreshToken(
+                "JustinBo123",
+                "session-2",
+                false,
+                LocalDateTime.now().plusDays(1)
+        );
+
+        when(refreshTokenRepository
+                .findAllByUsernameAndIsRevokedFalse("JustinBo123"))
+                .thenReturn(List.of(token1, token2));
+
+        tokenService.revokeAllActiveRefreshTokensForUser(
+                "JustinBo123"
+        );
+
+        assertThat(token1.isRevoked()).isTrue();
+        assertThat(token2.isRevoked()).isTrue();
+        assertThat(token1.getModifiedDate()).isNotNull();
+        assertThat(token2.getModifiedDate()).isNotNull();
+        assertThat(token1.getRevokedDate()).isNotNull();
+        assertThat(token2.getRevokedDate()).isNotNull();
+
+        verify(refreshTokenRepository)
+                .saveAll(List.of(token1, token2));
+
+        verify(sessionTokenRepository)
+                .deleteAllByUsername("JustinBo123");
+    }
+
+    @Test
+    void revokeAllActiveRefreshTokensForUser_shouldDeleteSessions_whenNoRefreshTokensExist() {
+        when(refreshTokenRepository
+                .findAllByUsernameAndIsRevokedFalse("JustinBo123"))
+                .thenReturn(List.of());
+
+        tokenService.revokeAllActiveRefreshTokensForUser(
+                "JustinBo123"
+        );
+
+        verify(refreshTokenRepository, never())
+                .saveAll(anyList());
+
+        verify(sessionTokenRepository)
+                .deleteAllByUsername("JustinBo123");
     }
 
     // -------------------------------------------------------------------------
@@ -505,34 +727,64 @@ class TokenServiceImplTest {
     void checkMaxActiveSessions_shouldDoNothing_whenActiveSessionsBelowMax() {
         mockConfig("MAX_ALLOWED_SESSIONS", "3");
 
-        when(sessionTokenRepository.findAllByUsernameOrderByCreatedDateAsc("JustinBo123"))
+        when(sessionTokenRepository
+                .findAllByUsernameOrderByCreatedDateAsc("JustinBo123"))
                 .thenReturn(List.of(
-                        session("JustinBo123", "session-1", "encoded-1"),
-                        session("JustinBo123", "session-2", "encoded-2")
+                        session(
+                                "JustinBo123",
+                                "session-1",
+                                "encoded-1"
+                        ),
+                        session(
+                                "JustinBo123",
+                                "session-2",
+                                "encoded-2"
+                        )
                 ));
 
-        tokenService.checkMaxActiveSessions("JustinBo123", false);
+        tokenService.checkMaxActiveSessions(
+                "JustinBo123",
+                false
+        );
 
         verify(sessionTokenRepository, never()).delete(any());
-        verify(refreshTokenRepository, never()).findAllBySessionIdAndIsRevokedFalse(anyString());
+
+        verify(refreshTokenRepository, never())
+                .findAllBySessionIdAndIsRevokedFalse(anyString());
     }
 
     @Test
     void checkMaxActiveSessions_shouldThrowMaxSessionsReached_whenAtMaxAndOverrideFalse() {
         mockConfig("MAX_ALLOWED_SESSIONS", "2");
 
-        when(sessionTokenRepository.findAllByUsernameOrderByCreatedDateAsc("JustinBo123"))
+        when(sessionTokenRepository
+                .findAllByUsernameOrderByCreatedDateAsc("JustinBo123"))
                 .thenReturn(List.of(
-                        session("JustinBo123", "session-1", "encoded-1"),
-                        session("JustinBo123", "session-2", "encoded-2")
+                        session(
+                                "JustinBo123",
+                                "session-1",
+                                "encoded-1"
+                        ),
+                        session(
+                                "JustinBo123",
+                                "session-2",
+                                "encoded-2"
+                        )
                 ));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.checkMaxActiveSessions("JustinBo123", false)
+                () -> tokenService.checkMaxActiveSessions(
+                        "JustinBo123",
+                        false
+                )
         );
 
-        assertBusinessException(exception, MAX_SESSIONS_REACHED, LOGIN.name());
+        assertBusinessException(
+                exception,
+                MAX_SESSIONS_REACHED,
+                LOGIN.name()
+        );
 
         verify(sessionTokenRepository, never()).delete(any());
     }
@@ -541,8 +793,17 @@ class TokenServiceImplTest {
     void checkMaxActiveSessions_shouldDeleteOldestSessionsUntilBelowMax_whenOverrideTrue() {
         mockConfig("MAX_ALLOWED_SESSIONS", "2");
 
-        SessionTokenEntity oldest = session("JustinBo123", "session-1", "encoded-1");
-        SessionTokenEntity newer = session("JustinBo123", "session-2", "encoded-2");
+        SessionTokenEntity oldest = session(
+                "JustinBo123",
+                "session-1",
+                "encoded-1"
+        );
+
+        SessionTokenEntity newer = session(
+                "JustinBo123",
+                "session-2",
+                "encoded-2"
+        );
 
         RefreshTokenEntity oldRefreshToken = refreshToken(
                 "JustinBo123",
@@ -551,17 +812,25 @@ class TokenServiceImplTest {
                 LocalDateTime.now().plusDays(1)
         );
 
-        when(sessionTokenRepository.findAllByUsernameOrderByCreatedDateAsc("JustinBo123"))
+        when(sessionTokenRepository
+                .findAllByUsernameOrderByCreatedDateAsc("JustinBo123"))
                 .thenReturn(new ArrayList<>(List.of(oldest, newer)));
-        when(refreshTokenRepository.findAllBySessionIdAndIsRevokedFalse("session-1"))
+
+        when(refreshTokenRepository
+                .findAllBySessionIdAndIsRevokedFalse("session-1"))
                 .thenReturn(List.of(oldRefreshToken));
 
-        tokenService.checkMaxActiveSessions("JustinBo123", true);
+        tokenService.checkMaxActiveSessions(
+                "JustinBo123",
+                true
+        );
 
         assertThat(oldRefreshToken.isRevoked()).isTrue();
         assertThat(oldRefreshToken.getRevokedDate()).isNotNull();
 
-        verify(refreshTokenRepository).saveAll(List.of(oldRefreshToken));
+        verify(refreshTokenRepository)
+                .saveAll(List.of(oldRefreshToken));
+
         verify(sessionTokenRepository).delete(oldest);
         verify(sessionTokenRepository, never()).delete(newer);
     }
@@ -572,12 +841,20 @@ class TokenServiceImplTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.checkMaxActiveSessions("JustinBo123", false)
+                () -> tokenService.checkMaxActiveSessions(
+                        "JustinBo123",
+                        false
+                )
         );
 
-        assertBusinessException(exception, INVALID_CONFIG, COMMON.name());
+        assertBusinessException(
+                exception,
+                INVALID_CONFIG,
+                COMMON.name()
+        );
 
-        verify(sessionTokenRepository, never()).findAllByUsernameOrderByCreatedDateAsc(anyString());
+        verify(sessionTokenRepository, never())
+                .findAllByUsernameOrderByCreatedDateAsc(anyString());
     }
 
     @Test
@@ -586,12 +863,20 @@ class TokenServiceImplTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.checkMaxActiveSessions("JustinBo123", false)
+                () -> tokenService.checkMaxActiveSessions(
+                        "JustinBo123",
+                        false
+                )
         );
 
-        assertBusinessException(exception, INPUT_FORMAT_INVALID, COMMON.name());
+        assertBusinessException(
+                exception,
+                INPUT_FORMAT_INVALID,
+                COMMON.name()
+        );
 
-        verify(sessionTokenRepository, never()).findAllByUsernameOrderByCreatedDateAsc(anyString());
+        verify(sessionTokenRepository, never())
+                .findAllByUsernameOrderByCreatedDateAsc(anyString());
     }
 
     // -------------------------------------------------------------------------
@@ -602,39 +887,62 @@ class TokenServiceImplTest {
     void refreshAccessToken_shouldThrowRefreshTokenInvalid_whenRefreshTokenIsBlank() {
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.refreshAccessToken("   ", "session-token")
+                () -> tokenService.refreshAccessToken(
+                        "   ",
+                        "session-token"
+                )
         );
 
-        assertBusinessException(exception, REFRESH_TOKEN_INVALID, TOKEN.name());
+        assertBusinessException(
+                exception,
+                REFRESH_TOKEN_INVALID,
+                TOKEN.name()
+        );
     }
 
     @Test
     void refreshAccessToken_shouldThrowSessionTokenInvalid_whenSessionTokenIsBlank() {
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.refreshAccessToken("refresh-token", "   ")
+                () -> tokenService.refreshAccessToken(
+                        "refresh-token",
+                        "   "
+                )
         );
 
-        assertBusinessException(exception, SESSION_TOKEN_INVALID, TOKEN.name());
+        assertBusinessException(
+                exception,
+                SESSION_TOKEN_INVALID,
+                TOKEN.name()
+        );
     }
 
     @Test
     void refreshAccessToken_shouldThrowRefreshTokenInvalid_whenRefreshTokenHashNotFound() {
         when(dataSecurity.hashData("refresh-token"))
                 .thenReturn("hashed-refresh-token");
-        when(refreshTokenRepository.findByTokenHash("hashed-refresh-token"))
+
+        when(refreshTokenRepository
+                .findByTokenHash("hashed-refresh-token"))
                 .thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.refreshAccessToken("refresh-token", "session-token")
+                () -> tokenService.refreshAccessToken(
+                        "refresh-token",
+                        "session-token"
+                )
         );
 
-        assertBusinessException(exception, REFRESH_TOKEN_INVALID, TOKEN.name());
+        assertBusinessException(
+                exception,
+                REFRESH_TOKEN_INVALID,
+                TOKEN.name()
+        );
     }
 
     @Test
-    void refreshAccessToken_shouldDetectReuseAndRevokeSession_whenRefreshTokenAlreadyRevoked() {
+    void refreshAccessToken_shouldDelegateReuseResponseToIndependentTransaction() {
         RefreshTokenEntity revokedToken = refreshToken(
                 "JustinBo123",
                 "session-123",
@@ -642,39 +950,32 @@ class TokenServiceImplTest {
                 LocalDateTime.now().plusDays(1)
         );
 
-        RefreshTokenEntity activeTokenSameSession = refreshToken(
-                "JustinBo123",
-                "session-123",
-                false,
-                LocalDateTime.now().plusDays(1)
-        );
-
-        SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
-
         when(dataSecurity.hashData("refresh-token"))
                 .thenReturn("hashed-refresh-token");
-        when(refreshTokenRepository.findByTokenHash("hashed-refresh-token"))
+
+        when(refreshTokenRepository
+                .findByTokenHash("hashed-refresh-token"))
                 .thenReturn(Optional.of(revokedToken));
-        when(refreshTokenRepository.findAllBySessionIdAndIsRevokedFalse("session-123"))
-                .thenReturn(List.of(activeTokenSameSession));
-        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
-                .thenReturn(Optional.of(session));
-        when(passwordEncoder.matches("session-token", "encoded-session-token"))
-                .thenReturn(true);
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.refreshAccessToken("refresh-token", "session-token")
+                () -> tokenService.refreshAccessToken(
+                        "refresh-token",
+                        "session-token"
+                )
         );
 
-        assertBusinessException(exception, REFRESH_TOKEN_INVALID, TOKEN.name());
+        assertBusinessException(
+                exception,
+                REFRESH_TOKEN_INVALID,
+                TOKEN.name()
+        );
 
-        assertThat(revokedToken.isReuseDetected()).isTrue();
-        assertThat(activeTokenSameSession.isRevoked()).isTrue();
-
-        verify(refreshTokenRepository).save(revokedToken);
-        verify(refreshTokenRepository).saveAll(List.of(activeTokenSameSession));
-        verify(sessionTokenRepository).delete(session);
+        verify(refreshTokenReuseServiceImpl)
+                .revokeCompromisedSession(
+                        revokedToken.getTokenId(),
+                        "session-token"
+                );
     }
 
     @Test
@@ -686,27 +987,46 @@ class TokenServiceImplTest {
                 LocalDateTime.now().minusMinutes(1)
         );
 
-        SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
+        SessionTokenEntity session = session(
+                "JustinBo123",
+                "session-123",
+                "encoded-session-token"
+        );
 
         mockErrorCode(REFRESH_TOKEN_EXPIRED, TOKEN.name());
 
         when(dataSecurity.hashData("refresh-token"))
                 .thenReturn("hashed-refresh-token");
-        when(refreshTokenRepository.findByTokenHash("hashed-refresh-token"))
-                .thenReturn(Optional.of(expiredToken));
-        when(refreshTokenRepository.findByTokenId(expiredToken.getTokenId()))
-                .thenReturn(Optional.of(expiredToken));
-        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
-                .thenReturn(Optional.of(session));
-        when(passwordEncoder.matches("session-token", "encoded-session-token"))
-                .thenReturn(true);
 
-        CompleteResponse<Object> response = tokenService.refreshAccessToken("refresh-token", "session-token");
+        when(refreshTokenRepository
+                .findByTokenHash("hashed-refresh-token"))
+                .thenReturn(Optional.of(expiredToken));
+
+        when(refreshTokenRepository
+                .findByTokenId(expiredToken.getTokenId()))
+                .thenReturn(Optional.of(expiredToken));
+
+        when(sessionTokenRepository.findByUsernameAndSessionId(
+                "JustinBo123",
+                "session-123"
+        )).thenReturn(Optional.of(session));
+
+        when(passwordEncoder.matches(
+                "session-token",
+                "encoded-session-token"
+        )).thenReturn(true);
+
+        CompleteResponse<Object> response =
+                tokenService.refreshAccessToken(
+                        "refresh-token",
+                        "session-token"
+                );
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(REFRESH_TOKEN_EXPIRED.getCode());
 
         assertThat(expiredToken.isRevoked()).isTrue();
+
         verify(refreshTokenRepository).save(expiredToken);
         verify(sessionTokenRepository).delete(session);
     }
@@ -720,30 +1040,51 @@ class TokenServiceImplTest {
                 LocalDateTime.now().plusDays(1)
         );
 
-        SessionTokenEntity session = session("JustinBo123", "session-123", "encoded-session-token");
+        SessionTokenEntity session = session(
+                "JustinBo123",
+                "session-123",
+                "encoded-session-token"
+        );
 
         when(dataSecurity.hashData("refresh-token"))
                 .thenReturn("hashed-refresh-token");
-        when(refreshTokenRepository.findByTokenHash("hashed-refresh-token"))
+
+        when(refreshTokenRepository
+                .findByTokenHash("hashed-refresh-token"))
                 .thenReturn(Optional.of(activeToken));
-        when(sessionTokenRepository.findByUsernameAndSessionId("JustinBo123", "session-123"))
-                .thenReturn(Optional.of(session));
-        when(passwordEncoder.matches("wrong-session-token", "encoded-session-token"))
-                .thenReturn(false);
+
+        when(sessionTokenRepository.findByUsernameAndSessionId(
+                "JustinBo123",
+                "session-123"
+        )).thenReturn(Optional.of(session));
+
+        when(passwordEncoder.matches(
+                "wrong-session-token",
+                "encoded-session-token"
+        )).thenReturn(false);
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> tokenService.refreshAccessToken("refresh-token", "wrong-session-token")
+                () -> tokenService.refreshAccessToken(
+                        "refresh-token",
+                        "wrong-session-token"
+                )
         );
 
-        assertBusinessException(exception, SESSION_TOKEN_INVALID, TOKEN.name());
+        assertBusinessException(
+                exception,
+                SESSION_TOKEN_INVALID,
+                TOKEN.name()
+        );
 
-        verify(refreshTokenRepository, never()).findByTokenId(any());
+        verify(refreshTokenRepository, never())
+                .findByTokenId(any());
     }
 
     @Test
     void refreshAccessToken_shouldRotateRefreshTokenAndReturnNewAccessAndRefreshToken_whenValid() {
         mockRefreshTokenSaveAssignsId();
+
         String username = "JustinBo123";
         String sessionId = "session-123";
         String oldRefreshTokenRaw = "old-refresh-token";
@@ -756,65 +1097,106 @@ class TokenServiceImplTest {
                 LocalDateTime.now().plusDays(1)
         );
 
-        SessionTokenEntity session = session(username, sessionId, "encoded-session-token");
+        SessionTokenEntity session = session(
+                username,
+                sessionId,
+                "encoded-session-token"
+        );
 
-        mockConfig("SECRET_KEY_CONFIG", SECRET);
-        mockConfig("PHONE_VN_PATTERN", "^(0|\\+84)[0-9]{9,10}$");
-        mockConfig("ACCESS_TOKEN_EXPIRATION_TIME", "300000");
-        mockConfig("REFRESH_TOKEN_EXPIRATION_TIME", "1");
+        mockConfig(
+                "PHONE_VN_PATTERN",
+                "^(0|\\+84)[0-9]{9,10}$"
+        );
+        mockConfig(
+                "ACCESS_TOKEN_EXPIRATION_TIME",
+                "300000"
+        );
+        mockConfig(
+                "REFRESH_TOKEN_EXPIRATION_TIME",
+                "1"
+        );
 
         mockErrorCode(TOKEN_GENERATE_SUCCESS, TOKEN.name());
+        mockJwtSigningKey();
 
         when(dataSecurity.hashData(anyString()))
-                .thenAnswer(invocation -> "hashed-" + invocation.getArgument(0));
+                .thenAnswer(invocation ->
+                        "hashed-" + invocation.getArgument(0)
+                );
 
-        when(refreshTokenRepository.findByTokenHash("hashed-" + oldRefreshTokenRaw))
-                .thenReturn(Optional.of(oldRefreshToken));
-        when(sessionTokenRepository.findByUsernameAndSessionId(username, sessionId))
-                .thenReturn(Optional.of(session));
-        when(passwordEncoder.matches(sessionTokenRaw, "encoded-session-token"))
-                .thenReturn(true);
-        when(refreshTokenRepository.findByTokenId(oldRefreshToken.getTokenId()))
-                .thenReturn(Optional.of(oldRefreshToken));
+        when(refreshTokenRepository.findByTokenHash(
+                "hashed-" + oldRefreshTokenRaw
+        )).thenReturn(Optional.of(oldRefreshToken));
+
+        when(sessionTokenRepository.findByUsernameAndSessionId(
+                username,
+                sessionId
+        )).thenReturn(Optional.of(session));
+
+        when(passwordEncoder.matches(
+                sessionTokenRaw,
+                "encoded-session-token"
+        )).thenReturn(true);
+
+        when(refreshTokenRepository.findByTokenId(
+                oldRefreshToken.getTokenId()
+        )).thenReturn(Optional.of(oldRefreshToken));
+
         when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.of(activeUser(username)));
 
-        CompleteResponse<Object> response = tokenService.refreshAccessToken(
-                oldRefreshTokenRaw,
-                sessionTokenRaw
-        );
+        CompleteResponse<Object> response =
+                tokenService.refreshAccessToken(
+                        oldRefreshTokenRaw,
+                        sessionTokenRaw
+                );
 
         assertThat(response.getResponseBody().getCode())
                 .isEqualTo(TOKEN_GENERATE_SUCCESS.getCode());
 
         @SuppressWarnings("unchecked")
-        Map<String, String> body = (Map<String, String>) response.getResponseBody().getBody();
+        Map<String, String> body =
+                (Map<String, String>) response.getResponseBody().getBody();
 
         assertThat(body.get("accessToken")).isNotBlank();
         assertThat(body.get("refreshToken")).isNotBlank();
-        assertThat(body.get("refreshToken")).isNotEqualTo(oldRefreshTokenRaw);
+        assertThat(body.get("refreshToken"))
+                .isNotEqualTo(oldRefreshTokenRaw);
 
         assertThat(oldRefreshToken.isRevoked()).isTrue();
-        assertThat(oldRefreshToken.getReplacedByTokenId()).isNotNull();
+        assertThat(oldRefreshToken.getReplacedByTokenId())
+                .isNotNull();
 
-        verify(refreshTokenRepository, atLeastOnce()).save(oldRefreshToken);
-        verify(refreshTokenRepository, atLeast(2)).save(any(RefreshTokenEntity.class));
+        verify(refreshTokenRepository, atLeastOnce())
+                .save(oldRefreshToken);
+
+        verify(refreshTokenRepository, atLeast(2))
+                .save(any(RefreshTokenEntity.class));
     }
 
     @Test
-    void refreshAccessToken_shouldReturnTokenVerifyFail_whenUnexpectedExceptionOccurs() {
-        mockErrorCode(TOKEN_VERIFY_FAIL, TOKEN.name());
-
+    void refreshAccessToken_shouldPropagateInternalError_whenRefreshHashingFails() {
         when(dataSecurity.hashData("refresh-token"))
-                .thenThrow(new RuntimeException("Hash failed"));
+                .thenThrow(
+                        new BusinessException(
+                                INTERNAL_SERVER_ERROR,
+                                TOKEN.name()
+                        )
+                );
 
-        CompleteResponse<Object> response = tokenService.refreshAccessToken(
-                "refresh-token",
-                "session-token"
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> tokenService.refreshAccessToken(
+                        "refresh-token",
+                        "session-token"
+                )
         );
 
-        assertThat(response.getResponseBody().getCode())
-                .isEqualTo(TOKEN_VERIFY_FAIL.getCode());
+        assertBusinessException(
+                exception,
+                INTERNAL_SERVER_ERROR,
+                TOKEN.name()
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -831,7 +1213,11 @@ class TokenServiceImplTest {
         return user;
     }
 
-    private SessionTokenEntity session(String username, String sessionId, String encodedToken) {
+    private SessionTokenEntity session(
+            String username,
+            String sessionId,
+            String encodedToken
+    ) {
         SessionTokenEntity session = new SessionTokenEntity();
         session.setUsername(username);
         session.setSessionId(sessionId);
@@ -857,19 +1243,36 @@ class TokenServiceImplTest {
         return token;
     }
 
-    private String buildJwt(String username, String sessionId, long expiryOffsetMillis) {
-        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+    private String buildJwt(
+            String username,
+            String sessionId,
+            long expiryOffsetMillis
+    ) {
+        mockJwtSigningKey();
 
         return Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(new Date())
                 .claim("sessionId", sessionId)
-                .setExpiration(new Date(System.currentTimeMillis() + expiryOffsetMillis))
-                .signWith(key)
+                .setExpiration(
+                        new Date(
+                                System.currentTimeMillis()
+                                        + expiryOffsetMillis
+                        )
+                )
+                .signWith(testJwtSigningKey)
                 .compact();
     }
 
-    private void mockConfig(String configCode, String configValue) {
+    private void mockJwtSigningKey() {
+        when(tokenSecretProvider.getJwtSigningKey())
+                .thenReturn(testJwtSigningKey);
+    }
+
+    private void mockConfig(
+            String configCode,
+            String configValue
+    ) {
         ConfigurationEntity entity = new ConfigurationEntity();
         entity.setConfigCode(configCode);
         entity.setConfigValue(configValue);
@@ -879,7 +1282,10 @@ class TokenServiceImplTest {
                 .thenReturn(Optional.of(entity));
     }
 
-    private void mockErrorCode(ErrorCodeEnum errorCodeEnum, String flow) {
+    private void mockErrorCode(
+            ErrorCodeEnum errorCodeEnum,
+            String flow
+    ) {
         ErrorCodeEntity entity = new ErrorCodeEntity();
         entity.setErrorCode(errorCodeEnum.getCode());
         entity.setErrorMessage(errorCodeEnum.getMessage());
@@ -887,8 +1293,10 @@ class TokenServiceImplTest {
         entity.setFlow(flow);
         entity.setCreatedDate(LocalDateTime.now());
 
-        when(errorCodeRepository.findByErrorEnumAndFlow(errorCodeEnum.name(), flow))
-                .thenReturn(Optional.of(entity));
+        when(errorCodeRepository.findByErrorEnumAndFlow(
+                errorCodeEnum.name(),
+                flow
+        )).thenReturn(Optional.of(entity));
     }
 
     private void assertBusinessException(
@@ -896,20 +1304,24 @@ class TokenServiceImplTest {
             ErrorCodeEnum expectedErrorCode,
             String expectedFlow
     ) {
-        assertThat(exception.getErrorCodeEnum()).isEqualTo(expectedErrorCode);
-        assertThat(exception.getFlow()).isEqualTo(expectedFlow);
+        assertThat(exception.getErrorCodeEnum())
+                .isEqualTo(expectedErrorCode);
+        assertThat(exception.getFlow())
+                .isEqualTo(expectedFlow);
     }
 
     private void mockRefreshTokenSaveAssignsId() {
-        when(refreshTokenRepository.save(any(RefreshTokenEntity.class)))
-                .thenAnswer(invocation -> {
-                    RefreshTokenEntity token = invocation.getArgument(0);
+        when(refreshTokenRepository.save(
+                any(RefreshTokenEntity.class)
+        )).thenAnswer(invocation -> {
+            RefreshTokenEntity token =
+                    invocation.getArgument(0);
 
-                    if (token.getTokenId() == null) {
-                        token.setTokenId(UUID.randomUUID());
-                    }
+            if (token.getTokenId() == null) {
+                token.setTokenId(UUID.randomUUID());
+            }
 
-                    return token;
-                });
+            return token;
+        });
     }
 }

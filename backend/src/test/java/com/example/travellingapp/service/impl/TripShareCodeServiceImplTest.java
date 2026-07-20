@@ -25,6 +25,7 @@ import com.example.travellingapp.repository.collaboration.TripShareCodeRepositor
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.TripAccessService;
+import com.example.travellingapp.service.TripShareCodeSecurityEventService;
 import com.example.travellingapp.validator.TripShareCodeValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -78,6 +79,9 @@ class TripShareCodeServiceImplTest {
     @Mock
     private TripShareCodeValidator tripShareCodeValidator;
 
+    @Mock
+    private TripShareCodeSecurityEventService tripShareCodeSecurityEventService;
+
     private TripShareCodeServiceImpl service;
 
     private static final Long TRIP_ID = 1L;
@@ -105,7 +109,8 @@ class TripShareCodeServiceImplTest {
                 tripAccessService,
                 tripCollaborationRequestMapper,
                 tripShareCodeMapper,
-                tripShareCodeValidator
+                tripShareCodeValidator,
+                tripShareCodeSecurityEventService
         );
     }
 
@@ -343,9 +348,6 @@ class TripShareCodeServiceImplTest {
                 .thenReturn(Optional.empty());
         when(tripShareCodeValidator.normalizeCode(RAW_CODE)).thenReturn(NORMALIZED_CODE);
         when(tripShareCodeRepository.findByCode(NORMALIZED_CODE)).thenReturn(Optional.empty());
-        when(tripShareCodeAttemptRepository.save(any(TripShareCodeAttemptEntity.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> service.previewShareCode(RAW_CODE)
@@ -353,16 +355,8 @@ class TripShareCodeServiceImplTest {
 
         assertBusinessException(exception, TRIP_SHARE_CODE_NOT_FOUND, TRIP_MEMBER.name());
 
-        ArgumentCaptor<TripShareCodeAttemptEntity> attemptCaptor =
-                ArgumentCaptor.forClass(TripShareCodeAttemptEntity.class);
-
-        verify(tripShareCodeAttemptRepository).save(attemptCaptor.capture());
-
-        TripShareCodeAttemptEntity attempt = attemptCaptor.getValue();
-        assertThat(attempt.getUser()).isEqualTo(requester);
-        assertThat(attempt.getRetryCount()).isEqualTo(1);
-        assertThat(attempt.getLastAttemptDate()).isNotNull();
-        assertThat(attempt.getModifiedDate()).isNotNull();
+        verify(tripShareCodeSecurityEventService).recordInvalidAttempt(REQUESTER_USER_ID);
+        verify(tripShareCodeAttemptRepository, never()).save(any());
     }
 
     @Test
@@ -378,9 +372,6 @@ class TripShareCodeServiceImplTest {
                 .thenReturn(Optional.empty());
         when(tripShareCodeValidator.normalizeCode(RAW_CODE)).thenReturn(NORMALIZED_CODE);
         when(tripShareCodeRepository.findByCode(NORMALIZED_CODE)).thenReturn(Optional.of(shareCode));
-        when(tripShareCodeAttemptRepository.save(any(TripShareCodeAttemptEntity.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
         doThrow(new BusinessException(
                 TRIP_SHARE_CODE_EXPIRED,
                 TRIP_MEMBER.name()
@@ -397,9 +388,11 @@ class TripShareCodeServiceImplTest {
 
         assertBusinessException(exception, TRIP_SHARE_CODE_EXPIRED, TRIP_MEMBER.name());
 
-        assertThat(shareCode.getCodeStatus()).isEqualTo(TripEnum.EXPIRED);
-        verify(tripShareCodeRepository).save(shareCode);
-        verify(tripShareCodeAttemptRepository).save(any(TripShareCodeAttemptEntity.class));
+        assertThat(shareCode.getCodeStatus()).isEqualTo(TripEnum.ACTIVE);
+        verify(tripShareCodeSecurityEventService)
+                .recordExpiredCodeAndInvalidAttempt(SHARE_CODE_ID, REQUESTER_USER_ID);
+        verify(tripShareCodeRepository, never()).save(shareCode);
+        verify(tripShareCodeAttemptRepository, never()).save(any());
     }
 
     @Test
@@ -533,6 +526,27 @@ class TripShareCodeServiceImplTest {
 
         verify(tripCollaborationRequestRepository, never()).save(any());
         verify(tripShareCodeRepository, never()).save(shareCode);
+    }
+
+    @Test
+    void requestToJoinByShareCode_shouldPersistSecurityAttemptThroughDedicatedService_whenCodeNotFound() {
+        User requester = user(REQUESTER_USER_ID, REQUESTER_USERNAME);
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(REQUESTER_USERNAME);
+        when(userRepository.findByUsernameAndActive(REQUESTER_USERNAME)).thenReturn(Optional.of(requester));
+        when(tripShareCodeAttemptRepository.findByUser_UserId(REQUESTER_USER_ID))
+                .thenReturn(Optional.empty());
+        when(tripShareCodeValidator.normalizeCode(RAW_CODE)).thenReturn(NORMALIZED_CODE);
+        when(tripShareCodeRepository.findByCode(NORMALIZED_CODE)).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> service.requestToJoinByShareCode(RAW_CODE)
+        );
+
+        assertBusinessException(exception, TRIP_SHARE_CODE_NOT_FOUND, TRIP_MEMBER.name());
+        verify(tripShareCodeSecurityEventService).recordInvalidAttempt(REQUESTER_USER_ID);
+        verify(tripCollaborationRequestRepository, never()).save(any());
     }
 
     @Test

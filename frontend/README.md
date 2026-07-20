@@ -18,6 +18,7 @@ The frontend provides authentication screens, trip planning UI, destination/acti
 | Theme | Light/dark/system theme support |
 | Navigation | Expo Router plus persistent bottom tabs |
 | TypeScript | `npm run typecheck` proof included |
+| Tests | Vitest API tests, React Native component tests, Maestro smoke flow |
 
 ## Stack
 
@@ -73,7 +74,7 @@ Frontend API base URL is configured under:
 src/constants/env.ts
 ```
 
-Make sure it points to the backend base URL including `/The-Project`.
+Make sure it points to the backend base URL including `/Wandermate`.
 
 ## Main folders
 
@@ -131,6 +132,30 @@ The app supports light, dark and system themes. See the
 
 ```bash
 npm run typecheck
+```
+
+## Automated tests
+
+```bash
+npm test
+```
+
+The API-client integration tests cover authentication behavior for `401`,
+permission-only `403`, and explicit invalid-session responses. An ordinary
+authorization failure must not sign the user out.
+
+`npm test` runs both the Vitest API-client suite and Jest/React Native Testing
+Library component suite. The `.maestro/login-smoke.yml` flow provides an
+installable-app smoke test through the `e2e-test` EAS build profile.
+
+The current local suite contains 10 tests covering session expiry,
+permission-only `403` responses, shared authentication controls, and the
+central local-session lifecycle.
+
+Run the local Maestro flow after installing an E2E APK/app on an emulator:
+
+```bash
+maestro test .maestro/login-smoke.yml
 ```
 
 Proof:

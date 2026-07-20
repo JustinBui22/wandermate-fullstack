@@ -52,11 +52,12 @@ export async function uploadImage(
     const mimeType = asset.mimeType || getFallbackMimeType(fileName);
 
     const formData = new FormData();
-    formData.append("file", {
+    const reactNativeFile = {
         uri: asset.uri,
         name: fileName,
         type: mimeType,
-    } as any);
+    } as unknown as Blob;
+    formData.append("file", reactNativeFile);
     formData.append("imageType", imageType);
 
     const response = await axiosClient.post<ApiResponse<ImageUploadResponse>>(

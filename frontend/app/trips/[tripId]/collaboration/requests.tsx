@@ -15,25 +15,23 @@ import { LoadingState } from "@/src/components/ui/LoadingState";
 import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { TripCollaborationRequest } from "@/src/types/tripCollaboration";
-import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
+import { getApiErrorCode, getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
 
 type RequestAction = "ACCEPT" | "REJECT";
 type LoadingAction = { requestId: number; action: RequestAction } | null;
 
 function getRequestUsername(request: TripCollaborationRequest) {
-    const value = request as any;
-    return value.requesterUsername || value.requester || value.requesterUser?.username || value.username || "Unknown user";
+    return request.requesterUsername || "Unknown user";
 }
 
 function isRequestPending(request: TripCollaborationRequest) {
     return request.status === "PENDING";
 }
 
-function isAlreadyHandledError(error: any) {
-    const data = error?.response?.data;
-    const code = data?.code;
-    const message = String(data?.message || data?.body || error?.message || "").toLowerCase();
+function isAlreadyHandledError(error: unknown) {
+    const code = getApiErrorCode(error);
+    const message = getApiErrorMessage(error, "").toLowerCase();
 
     return (
         code === "E073" ||
@@ -99,7 +97,7 @@ export default function TripJoinRequestsScreen() {
 
             const data = await getPendingJoinRequests(tripId);
             setRequests(Array.isArray(data) ? data : []);
-        } catch (error: any) {
+        } catch (error: unknown) {
             setIsOwner(false);
             setRequests([]);
             setError(getApiErrorMessage(error, "Failed to load join requests."));
@@ -143,7 +141,7 @@ export default function TripJoinRequestsScreen() {
             await acceptJoinRequest(request.requestId);
             await loadRequests();
             Alert.alert("Request accepted", `${getRequestUsername(request)} can now access this trip.`);
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (isAlreadyHandledError(error)) {
                 showAlreadyHandledAlert(() => {
                     void loadRequests();
@@ -179,7 +177,7 @@ export default function TripJoinRequestsScreen() {
             await rejectJoinRequest(request.requestId);
             await loadRequests();
             Alert.alert("Request rejected", `You declined ${getRequestUsername(request)}'s request to join this trip.`);
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (isAlreadyHandledError(error)) {
                 showAlreadyHandledAlert(() => {
                     void loadRequests();

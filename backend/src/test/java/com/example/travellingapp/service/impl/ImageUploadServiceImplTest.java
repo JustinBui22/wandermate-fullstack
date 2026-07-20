@@ -10,6 +10,7 @@ import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.CloudinaryImageClient;
+import com.example.travellingapp.validator.ImageContentValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,8 +21,11 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.awt.image.BufferedImage;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import javax.imageio.ImageIO;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
 import static com.example.travellingapp.enums.ErrorCodeEnum.INTERNAL_SERVER_ERROR;
@@ -60,7 +64,8 @@ class ImageUploadServiceImplTest {
                 authenticatedUserProvider,
                 cloudinaryImageClient,
                 "wandermate",
-                userRepository
+                userRepository,
+                new ImageContentValidator()
         );
     }
 
@@ -293,8 +298,24 @@ class ImageUploadServiceImplTest {
                 "file",
                 filename,
                 contentType,
-                "fake-image-content".getBytes()
+                imageBytes(contentType)
         );
+    }
+
+    private byte[] imageBytes(String contentType) {
+        String format = ("image/jpeg".equals(contentType) || "image/jpg".equals(contentType))
+                ? "jpg"
+                : "png";
+        BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            if (!ImageIO.write(image, format, output)) {
+                throw new IllegalStateException("No ImageIO writer for " + format);
+            }
+            return output.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not create test image", e);
+        }
     }
 
     private User activeUser() {

@@ -8,18 +8,18 @@ import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.*;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.DataSecurity;
+import com.example.travellingapp.security.data_security.TokenSecretProvider;
+import com.example.travellingapp.service.RefreshTokenReuseService;
 import com.example.travellingapp.service.TokenService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -42,8 +42,10 @@ public class TokenServiceImpl implements TokenService {
     private final PasswordEncoder passwordEncoder;
     private final DataSecurity dataSecurity;
     private static final String REFRESH_TOKEN_FIELD = "refreshToken";
+    private final TokenSecretProvider tokenSecretProvider;
+    private final RefreshTokenReuseService refreshTokenReuseService;
 
-    public TokenServiceImpl(ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, RefreshTokenRepository refreshTokenRepository, UserRepository userRepository, SessionTokenRepository sessionTokenRepository, PasswordEncoder passwordEncoder, DataSecurity dataSecurity) {
+    public TokenServiceImpl(ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, RefreshTokenRepository refreshTokenRepository, UserRepository userRepository, SessionTokenRepository sessionTokenRepository, PasswordEncoder passwordEncoder, DataSecurity dataSecurity, TokenSecretProvider tokenSecretProvider, RefreshTokenReuseService refreshTokenReuseService) {
         this.configurationRepository = configurationRepository;
         this.errorCodeRepository = errorCodeRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -51,6 +53,8 @@ public class TokenServiceImpl implements TokenService {
         this.sessionTokenRepository = sessionTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.dataSecurity = dataSecurity;
+        this.tokenSecretProvider = tokenSecretProvider;
+        this.refreshTokenReuseService = refreshTokenReuseService;
     }
 
     // Generate a Bearer Token based on the username
@@ -73,7 +77,7 @@ public class TokenServiceImpl implements TokenService {
                     .claim("roles", user.getAuthorities())
                     .claim("sessionId", sessionId)
                     .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
-                    .signWith(getSecretKey()) // Specify the signing algorithm
+                    .signWith(tokenSecretProvider.getJwtSigningKey()) // Specify the signing algorithm
                     .compact();
             ErrorCodeEnum errorCodeEnum = Optional.of(token).filter(t -> !t.isEmpty()) // Check if token is not empty
                     .map(t -> TOKEN_GENERATE_SUCCESS).orElseGet(() -> {
@@ -129,6 +133,24 @@ public class TokenServiceImpl implements TokenService {
         log.info("Active refresh tokens with sessionId {} revoked successfully", sessionId);
     }
 
+    @Transactional
+    @Override
+    public void revokeAllActiveRefreshTokensForUser(String username) {
+        List<RefreshTokenEntity> tokenList = refreshTokenRepository.findAllByUsernameAndIsRevokedFalse(username);
+        if (tokenList.isEmpty()) {
+            log.warn("No active refresh tokens for user {} to revoke", username);
+        } else {
+            for (RefreshTokenEntity token : tokenList) {
+                token.setRevoked(true);
+                token.setModifiedDate(LocalDateTime.now());
+                token.setRevokedDate(LocalDateTime.now());
+            }
+            refreshTokenRepository.saveAll(tokenList);
+        }
+        sessionTokenRepository.deleteAllByUsername(username);
+        log.info("All active refresh tokens for user {} revoked successfully", username);
+    }
+
     private void revokeActiveRefreshTokenByTokenId(UUID tokenId) {
         Optional<RefreshTokenEntity> tokenOptional = refreshTokenRepository.findByTokenId(tokenId);
         if (tokenOptional.isPresent()) {
@@ -171,11 +193,8 @@ public class TokenServiceImpl implements TokenService {
             // Check if the refresh token is revoked and reused
             if (refreshTokenEntity.isRevoked()) {
                 log.error("Refresh token reuse detected for user {} and sessionId {}", userName, sessionId);
-                refreshTokenEntity.setReuseDetected(true);
-                refreshTokenEntity.setModifiedDate(LocalDateTime.now());
-                refreshTokenRepository.save(refreshTokenEntity);
-                revokeActiveRefreshTokensBySessionId(sessionId);
-                revokeSessionTokenBySessionId(userName, sessionId, sessionToken);
+                // Revoke the compromised session and all its active refresh tokens independently before the outer method throws and rolls back
+                refreshTokenReuseService.revokeCompromisedSession(refreshTokenEntity.getTokenId(), sessionToken);
                 throw new BusinessException(REFRESH_TOKEN_INVALID, TOKEN.name());
             }
             // If refresh token expired
@@ -221,7 +240,7 @@ public class TokenServiceImpl implements TokenService {
             throw e;
         } catch (Exception e) {
             log.error("There is an error in refreshing access token!", e);
-            return getCompleteResponse(errorCodeRepository, TOKEN_VERIFY_FAIL, TOKEN.name(), null);
+            return getCompleteResponse(errorCodeRepository, INTERNAL_SERVER_ERROR, TOKEN.name(), null);
         }
     }
 
@@ -229,7 +248,7 @@ public class TokenServiceImpl implements TokenService {
     public CompleteResponse<Object> validateAccessToken(String accessToken) {
         log.info("Start validating access token!");
         try {
-            Claims claims = Jwts.parserBuilder().setSigningKey(getSecretKey()).build().parseClaimsJws(accessToken) // This validates the token
+            Claims claims = Jwts.parserBuilder().setSigningKey(tokenSecretProvider.getJwtSigningKey()).build().parseClaimsJws(accessToken) // This validates the token
                     .getBody();
             String username = claims.getSubject();
             // Validate if the token's user exists
@@ -247,21 +266,13 @@ public class TokenServiceImpl implements TokenService {
                     : "Unknown";
             log.error("Access token expires for user {}!", username);
             return getCompleteResponse(errorCodeRepository, TOKEN_EXPIRE, TOKEN.name(), null);
-        } catch (Exception e) {
+        } catch (JwtException | IllegalArgumentException e) {
             log.error("There is an error in validating access token!", e);
             return getCompleteResponse(errorCodeRepository, TOKEN_VERIFY_FAIL, TOKEN.name(), null);
+        } catch (Exception e) {
+            log.error("There is an error in validating access token!", e);
+            return getCompleteResponse(errorCodeRepository, INTERNAL_SERVER_ERROR, TOKEN.name(), null);
         }
-    }
-
-    // Method to get the SECRET key dynamically
-    private SecretKey getSecretKey() {
-        String secret = getConfigValue(SECRET_KEY_CONFIG, configurationRepository, TOKEN.name());
-        // Ensure the key is at least 256 bits for HS512
-        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
-            log.error("Secret key must be at least 256 bits (32 bytes) for HS512!");
-            throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
-        }
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     private void storeSessionToken(String userName, String token, String sessionId) {

@@ -9,9 +9,11 @@ import { NotificationBadge } from "@/src/components/ui/NotificationBadge";
 import { fontWeight, radius, shadow, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 
+type TabHref = "/" | "/trips" | "/collaboration" | "/profile";
+
 type TabItem = Readonly<{
     label: string;
-    href: string;
+    href: TabHref;
     activeIcon: keyof typeof Ionicons.glyphMap;
     inactiveIcon: keyof typeof Ionicons.glyphMap;
     isActive: (pathname: string) => boolean;
@@ -76,9 +78,9 @@ export function PersistentBottomTabs() {
         [theme.name]
     );
 
-    function handleTabPress(href: string) {
+    function handleTabPress(href: TabHref) {
         // Replace instead of push so the user does not need to press back through many nested screens.
-        router.replace(href as any);
+        router.replace(href);
     }
 
     return (

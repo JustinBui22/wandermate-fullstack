@@ -19,4 +19,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
     List<RefreshTokenEntity> findAllBySessionIdAndIsRevokedFalse(@Param("sessionId") String sessionId);
 
     Optional<RefreshTokenEntity> findByTokenId(UUID tokenId);
+
+    @Query("SELECT r FROM RefreshTokenEntity r WHERE r.username = :username AND r.isRevoked = false")
+    List<RefreshTokenEntity> findAllByUsernameAndIsRevokedFalse(String username);
 }

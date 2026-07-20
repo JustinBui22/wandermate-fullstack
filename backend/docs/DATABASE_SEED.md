@@ -55,6 +55,14 @@ full-init.sql
 
 unless manually sanitized and reviewed.
 
+After this security update, existing non-empty databases also need the generic
+login message and the removed public check URL synchronized with the sanitized
+seed. A completely fresh Docker database receives the correct values from
+`init.sql`.
+
+Changing `REFRESH_TOKEN_HASH_SECRET` means existing refresh-token hashes can no
+longer be matched. Treat the change as a planned global sign-out.
+
 ## Database proof
 
 ![Database schema](../../docs/screenshots/26-database-schema.png)

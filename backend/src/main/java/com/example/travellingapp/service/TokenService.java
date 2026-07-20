@@ -18,4 +18,6 @@ public interface TokenService {
     void checkMaxActiveSessions(String username, boolean overrideMaxSession);
 
     void revokeActiveRefreshTokensBySessionId(String sessionId);
+
+    void revokeAllActiveRefreshTokensForUser(String username);
 }

@@ -1,7 +1,6 @@
 package com.example.travellingapp.security.oauth2;
 
 import com.example.travellingapp.entity.ConfigurationEntity;
-import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.ConfigurationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,9 +20,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
-import static com.example.travellingapp.enums.ErrorCodeEnum.INTERNAL_SERVER_ERROR;
 import static com.example.travellingapp.util.Common.getConfigValue;
-import static com.example.travellingapp.util.Common.getEmailConfig;
+import static com.example.travellingapp.util.Common.getEnvConfig;
 
 @Log4j2
 @Component
@@ -39,19 +37,19 @@ public class GoogleOAuthHelper implements SchedulingConfigurer {
 
     public void refreshOAuthToken() {
         try {
-            String enabled = getEmailConfig(EMAIL_OAUTH_REFRESH_ENABLED.name(), EMAIL_OAUTH_REFRESH_ENABLED.name(), "false", configurationRepository);
+            String enabled = getEnvConfig(EMAIL_OAUTH_REFRESH_ENABLED.name(), EMAIL_OAUTH_REFRESH_ENABLED.name(), "false", configurationRepository);
             if (!Boolean.parseBoolean(enabled)) {
                 log.info("Email OAuth refresh is disabled! Skipping Oauth token refresh.");
                 return;
             }
             //String refreshToken = getConfigValue(EMAIL_REFRESH_TOKEN, configurationRepository, OTP.name());
-            String refreshToken = getEmailConfig(EMAIL_REFRESH_TOKEN.name(), EMAIL_REFRESH_TOKEN.name(), "", configurationRepository);
+            String refreshToken = getEnvConfig(EMAIL_REFRESH_TOKEN.name(), EMAIL_REFRESH_TOKEN.name(), "", configurationRepository);
             RestTemplate restTemplate = new RestTemplate();
             // Prepare request data
             //String clientId = getConfigValue(EMAIL_CLIENT_ID.name(), configurationRepository, OTP.name());
-            String clientId = getEmailConfig(EMAIL_CLIENT_ID.name(), EMAIL_CLIENT_ID.name(), "", configurationRepository);
+            String clientId = getEnvConfig(EMAIL_CLIENT_ID.name(), EMAIL_CLIENT_ID.name(), "", configurationRepository);
             //String clientSecret = getConfigValue(EMAIL_CLIENT_SECRET.name(), configurationRepository, OTP.name());
-            String clientSecret = getEmailConfig(EMAIL_CLIENT_SECRET.name(), EMAIL_CLIENT_SECRET.name(), "", configurationRepository);
+            String clientSecret = getEnvConfig(EMAIL_CLIENT_SECRET.name(), EMAIL_CLIENT_SECRET.name(), "", configurationRepository);
             LinkedMultiValueMap<String, String> requestData = new LinkedMultiValueMap<>();
             requestData.add("client_id", clientId);
             requestData.add("client_secret", clientSecret);
@@ -64,7 +62,7 @@ public class GoogleOAuthHelper implements SchedulingConfigurer {
 
             // Send POST request
             //String tokenUrl = getConfigValue(EMAIL_TOKEN_URL, configurationRepository, "https://oauth2.googleapis.com/token");
-            String tokenUrl = getEmailConfig(EMAIL_TOKEN_URL.name(), EMAIL_TOKEN_URL.name(), "https://oauth2.googleapis.com/token", configurationRepository);
+            String tokenUrl = getEnvConfig(EMAIL_TOKEN_URL.name(), EMAIL_TOKEN_URL.name(), "https://oauth2.googleapis.com/token", configurationRepository);
             ResponseEntity<String> response = restTemplate.postForEntity(tokenUrl, request, String.class);
 
             // Parse JSON response

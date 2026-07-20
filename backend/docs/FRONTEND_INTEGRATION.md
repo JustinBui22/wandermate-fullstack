@@ -21,6 +21,12 @@ The React Native Expo frontend talks to the backend through Axios API clients.
 2. Protected API calls use Bearer access token.
 3. Refresh flow uses refresh token and session token.
 4. Logout clears frontend tokens and asks backend to revoke session.
+5. Unrecoverable `401`/invalid-session responses expire the local auth state.
+6. Ordinary permission `403` responses stay local to the request and do not
+   sign the user out.
+
+`src/auth/sessionLifecycle.ts` centralizes this state transition so Axios can
+clear secure tokens and the auth store consistently without a circular import.
 
 ## Theme flow
 
@@ -37,6 +43,8 @@ Expo Router handles nested screens. Persistent bottom tabs allow users to jump b
 3. Backend uploads image to Cloudinary.
 4. Frontend receives image URL/public ID.
 5. User profile/trip update saves image metadata.
+
+The multipart field is `imageType`, with `profile-images` or `trip-covers`.
 
 ## Screenshots
 

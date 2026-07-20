@@ -3,11 +3,13 @@ package com.example.travellingapp.service.impl;
 import com.example.travellingapp.dto.request.OtpDTO;
 import com.example.travellingapp.entity.*;
 import com.example.travellingapp.enums.EmailEnum;
+import com.example.travellingapp.enums.OtpPurpose;
 import com.example.travellingapp.enums.SmsEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.*;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.service.OtpService;
+import com.example.travellingapp.service.OtpFailureAccountingService;
 import com.example.travellingapp.validator.OtpValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -17,7 +19,8 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static com.example.travellingapp.util.Common.getConfigValue;
-import static com.example.travellingapp.util.Common.getEmailConfig;
+import static com.example.travellingapp.util.Common.getEnvConfig;
+import static com.example.travellingapp.util.Common.findUser;
 import static com.example.travellingapp.util.DataConverter.convertStringToInt;
 import static com.example.travellingapp.util.DataConverter.convertStringToLong;
 import static com.example.travellingapp.enums.CommonEnum.*;
@@ -38,9 +41,10 @@ public class OtpServiceImpl implements OtpService {
     private final UserRepository userRepository;
     private final SecureRandom random = new SecureRandom();
     private final OtpValidator otpValidator;
+    private final OtpFailureAccountingService otpFailureAccountingService;
 
 
-    public OtpServiceImpl(EmailServiceImpl emailServiceImpl, ErrorCodeRepository errorCodeRepository, SmsServiceImpl smsServiceImpl, SmsRepository smsRepository, EmailRepository emailRepository, ConfigurationRepository configurationRepository, OtpCheckRepository otpCheckRepository, UserRepository userRepository, OtpValidator otpValidator) {
+    public OtpServiceImpl(EmailServiceImpl emailServiceImpl, ErrorCodeRepository errorCodeRepository, SmsServiceImpl smsServiceImpl, SmsRepository smsRepository, EmailRepository emailRepository, ConfigurationRepository configurationRepository, OtpCheckRepository otpCheckRepository, UserRepository userRepository, OtpValidator otpValidator, OtpFailureAccountingService otpFailureAccountingService) {
         this.emailServiceImpl = emailServiceImpl;
         this.errorCodeRepository = errorCodeRepository;
         this.smsServiceImpl = smsServiceImpl;
@@ -50,6 +54,7 @@ public class OtpServiceImpl implements OtpService {
         this.otpCheckRepository = otpCheckRepository;
         this.userRepository = userRepository;
         this.otpValidator = otpValidator;
+        this.otpFailureAccountingService = otpFailureAccountingService;
     }
 
     @Override
@@ -57,11 +62,27 @@ public class OtpServiceImpl implements OtpService {
         try {
             // Validate common inputs for sending otp request
             otpValidator.validateOtpRequest(otpDTO);
-            Optional<User> existingUserOptional = userRepository.findByUsernameAndActive(otpDTO.getUserName());
+            boolean passwordReset = otpDTO.getPurpose() == OtpPurpose.PASSWORD_RESET;
+            Optional<User> existingUserOptional = passwordReset
+                    ? findUser(otpDTO.getUserName().trim(), configurationRepository, userRepository)
+                    : userRepository.findByUsernameAndActive(otpDTO.getUserName());
+
+            // Password recovery must not reveal whether an account exists or
+            // whether a supplied destination belongs to it. Return the same
+            // success envelope, but send nothing when the details do not match.
+            if (passwordReset && existingUserOptional.isEmpty()) {
+                log.warn("Password-reset OTP requested for unmatched account details");
+                return getCompleteResponse(errorCodeRepository, OTP_SENT_SUCCESS, OTP.name(), null);
+            }
 
             if (existingUserOptional.isPresent()) {
                 log.info("User {} is found to send OTP for!", otpDTO.getUserName());
+                if (passwordReset && !otpDestinationBelongsToUser(otpDTO, existingUserOptional.get())) {
+                    log.warn("Password-reset OTP destination did not match the account");
+                    return getCompleteResponse(errorCodeRepository, OTP_SENT_SUCCESS, OTP.name(), null);
+                }
                 validateOtpDestinationBelongsToExistingUser(otpDTO, existingUserOptional.get());
+                otpDTO.setUserName(existingUserOptional.get().getUsername());
             } else {
                 log.info("New user with username {} to send OTP for!", otpDTO.getUserName());
                 validateOtpDestinationAvailableForRegistration(otpDTO);
@@ -204,6 +225,22 @@ public class OtpServiceImpl implements OtpService {
         }
     }
 
+    private boolean otpDestinationBelongsToUser(OtpDTO otpDTO, User user) {
+        if (EMAIL_OTP.name().equals(otpDTO.getOtpVerificationMethod())) {
+            return user.getEmail() != null
+                    && otpDTO.getEmail() != null
+                    && user.getEmail().equalsIgnoreCase(otpDTO.getEmail());
+        }
+
+        if (PHONE_NUM_OTP.name().equals(otpDTO.getOtpVerificationMethod())) {
+            return user.getPhoneNumber() != null
+                    && otpDTO.getPhoneNumber() != null
+                    && user.getPhoneNumber().equals(otpDTO.getPhoneNumber());
+        }
+
+        return false;
+    }
+
     private void validateOtpDestinationAvailableForRegistration(OtpDTO otpDTO) {
         if (EMAIL_OTP.name().equals(otpDTO.getOtpVerificationMethod())) {
             // Registration can continue only when the email is not already used by an active user.
@@ -267,7 +304,7 @@ public class OtpServiceImpl implements OtpService {
             }
             String emailSubject = emailContentOptional.get().getEmailSubject();
             String emailContent = emailContentOptional.get().getEmailContent();
-            String emailSender = getEmailConfig(EMAIL_ADDRESS_CONFIG.name(), EMAIL_ADDRESS_CONFIG.name(), "demo@example.com", configurationRepository);
+            String emailSender = getEnvConfig(EMAIL_ADDRESS_CONFIG.name(), EMAIL_ADDRESS_CONFIG.name(), "demo@example.com", configurationRepository);
 
             emailServiceImpl.sendEmail(emailSender, otpDTO.getEmail(), emailSubject.replace("{expire_time}", String.valueOf(emailOtpExpirationTime / 60000)),
                     emailContent.replace("{name}", otpDTO.getUserName())
@@ -318,16 +355,6 @@ public class OtpServiceImpl implements OtpService {
         }
     }
 
-    private void verifyOtpFailed(int maxRetryVerifyOtp, long restrictedOtpDuration, OtpCheckEntity otpCheckEntity) {
-        otpCheckEntity.setRetryVerifyOtpCount((otpCheckEntity.getRetryVerifyOtpCount() + 1));
-        if (otpCheckEntity.getRetryVerifyOtpCount() >= maxRetryVerifyOtp) {
-            otpCheckEntity.setBlock(true);
-            LocalDateTime restrictedOtpTime = LocalDateTime.now().plusSeconds(restrictedOtpDuration / 1000);
-            otpCheckEntity.setOtpRestrictedTime(restrictedOtpTime);
-        }
-        otpCheckRepository.save(otpCheckEntity);
-    }
-
     @Override
     public CompleteResponse<Object> verifyOtp(OtpDTO otpDTO) {
         try {
@@ -364,14 +391,22 @@ public class OtpServiceImpl implements OtpService {
             if (otpCheckEntity.getOtpExpirationTime() != null
                     && LocalDateTime.now().isAfter(otpCheckEntity.getOtpExpirationTime())) {
                 log.warn("Verification OTP has expired!");
-                verifyOtpFailed(maxRetryVerifyOtp, restrictedOtpDuration, otpCheckEntity);
+                otpFailureAccountingService.recordFailedVerification(
+                        otpCheckEntity.getOtpCheckId(),
+                        maxRetryVerifyOtp,
+                        restrictedOtpDuration
+                );
                 throw new BusinessException(VERIFICATION_OTP_EXPIRED, OTP.name());
             }
 
             // Check if OTP code matches
             if (!otpDTO.getOtp().equals(otpCheckEntity.getNewestOtp())) {
                 log.warn("Verification OTP does not match!");
-                verifyOtpFailed(maxRetryVerifyOtp, restrictedOtpDuration, otpCheckEntity);
+                otpFailureAccountingService.recordFailedVerification(
+                        otpCheckEntity.getOtpCheckId(),
+                        maxRetryVerifyOtp,
+                        restrictedOtpDuration
+                );
                 throw new BusinessException(OTP_CODE_NOT_CORRECT, OTP.name());
             }
 

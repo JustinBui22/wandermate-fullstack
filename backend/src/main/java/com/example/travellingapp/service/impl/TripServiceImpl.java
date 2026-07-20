@@ -15,6 +15,7 @@ import com.example.travellingapp.security.data_security.AuthenticatedUserProvide
 import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.TripAccessService;
 import com.example.travellingapp.service.TripService;
+import com.example.travellingapp.validator.ImageReferenceValidator;
 import com.example.travellingapp.validator.TripValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
@@ -48,6 +50,7 @@ public class TripServiceImpl implements TripService {
     private final TripMemberRepository tripMemberRepository;
     private final TripAccessService tripAccessService;
     private final CloudinaryImageClient cloudinaryImageClient;
+    private final ImageReferenceValidator imageReferenceValidator;
 
     public TripServiceImpl(
             ErrorCodeRepository errorCodeRepository,
@@ -62,7 +65,8 @@ public class TripServiceImpl implements TripService {
             TripValidator tripValidator,
             DestinationRepository destinationRepository,
             TripMemberRepository tripMemberRepository,
-            TripAccessService tripAccessService, CloudinaryImageClient cloudinaryImageClient) {
+            TripAccessService tripAccessService, CloudinaryImageClient cloudinaryImageClient,
+            ImageReferenceValidator imageReferenceValidator) {
         this.errorCodeRepository = errorCodeRepository;
         this.cityRepository = cityRepository;
         this.restaurantRepository = restaurantRepository;
@@ -77,6 +81,7 @@ public class TripServiceImpl implements TripService {
         this.tripMemberRepository = tripMemberRepository;
         this.tripAccessService = tripAccessService;
         this.cloudinaryImageClient = cloudinaryImageClient;
+        this.imageReferenceValidator = imageReferenceValidator;
     }
 
     @Transactional
@@ -91,6 +96,14 @@ public class TripServiceImpl implements TripService {
             // Check if authenticated user exists and is active
             User user = userRepository.findByUsernameAndActive(username)
                     .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
+
+            String coverImageUrl = trimToNull(tripDTO.getCoverImageUrl());
+            String coverImagePublicId = trimToNull(tripDTO.getCoverImagePublicId());
+            imageReferenceValidator.validateTripCoverReference(
+                    coverImageUrl,
+                    coverImagePublicId,
+                    user.getUserId()
+            );
 
             // Check if trip name already exists for this user
             if (tripRepository.existsByUser_UsernameAndTripNameIgnoreCase(username, tripName)) {
@@ -133,8 +146,8 @@ public class TripServiceImpl implements TripService {
             refreshTripStatusIfNeeded(trip);
 
             // Set cover image URL and public ID if provided
-            trip.setCoverImageUrl(trimToNull(tripDTO.getCoverImageUrl()));
-            trip.setCoverImagePublicId(trimToNull(tripDTO.getCoverImagePublicId()));
+            trip.setCoverImageUrl(coverImageUrl);
+            trip.setCoverImagePublicId(coverImagePublicId);
 
             // Save trip first so it has tripId for member relation
             TripEntity savedTrip = tripRepository.save(trip);
@@ -317,9 +330,25 @@ public class TripServiceImpl implements TripService {
             trip.setModifiedDate(LocalDateTime.now());
 
             // Update cover image URL if provided
+            String oldCoverImageUrl = trip.getCoverImageUrl();
             String oldCoverImagePublicId = trip.getCoverImagePublicId();
-            trip.setCoverImageUrl(trimToNull(tripDTO.getCoverImageUrl()));
-            trip.setCoverImagePublicId(trimToNull(tripDTO.getCoverImagePublicId()));
+            String newCoverImageUrl = trimToNull(tripDTO.getCoverImageUrl());
+            String newCoverImagePublicId = trimToNull(tripDTO.getCoverImagePublicId());
+
+            if (!Objects.equals(oldCoverImageUrl, newCoverImageUrl)
+                    || !Objects.equals(oldCoverImagePublicId, newCoverImagePublicId)) {
+                User currentUser = userRepository.findByUsernameAndActive(username)
+                        .orElseThrow(() -> new BusinessException(USER_NOT_FOUND, COMMON.name()));
+
+                imageReferenceValidator.validateTripCoverReference(
+                        newCoverImageUrl,
+                        newCoverImagePublicId,
+                        currentUser.getUserId()
+                );
+            }
+
+            trip.setCoverImageUrl(newCoverImageUrl);
+            trip.setCoverImagePublicId(newCoverImagePublicId);
 
 
             // Allow user to set status manually

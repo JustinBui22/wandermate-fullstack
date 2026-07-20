@@ -12,9 +12,8 @@ import java.util.Properties;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
 import static com.example.travellingapp.enums.ErrorCodeEnum.INTERNAL_SERVER_ERROR;
-import static com.example.travellingapp.enums.ErrorCodeEnum.INVALID_INPUT;
 import static com.example.travellingapp.util.Common.getConfigValue;
-import static com.example.travellingapp.util.Common.getEmailConfig;
+import static com.example.travellingapp.util.Common.getEnvConfig;
 
 @Log4j2
 @Configuration
@@ -41,13 +40,13 @@ public class MailConfig {
         mailSender.setHost(getConfigValue(EMAIL_HOST_CONFIG.name(), configurationRepository, "smtp.gmail.com"));
         mailSender.setPort(Integer.parseInt(getConfigValue(EMAIL_PORT_CONFIG.name(), configurationRepository, "587")));
 //        mailSender.setUsername(getConfigValue(EMAIL_ADDRESS_CONFIG.name(), configurationRepository, "needforspeed160899@gmail.com"));
-        mailSender.setUsername(getEmailConfig(EMAIL_ADDRESS_CONFIG.name(), EMAIL_ADDRESS_CONFIG.name(), "demo@example.com", configurationRepository));
+        mailSender.setUsername(getEnvConfig(EMAIL_ADDRESS_CONFIG.name(), EMAIL_ADDRESS_CONFIG.name(), "demo@example.com", configurationRepository));
 
         Properties props = mailSender.getJavaMailProperties();
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.debug", "true");
+        props.put("mail.debug", "false");
 
         // OAuth2 properties
         props.put("mail.smtp.auth.mechanisms", "XOAUTH2");

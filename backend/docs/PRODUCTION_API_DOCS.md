@@ -3,18 +3,18 @@
 Production deployment uses the same context path:
 
 ```text
-/The-Project
+/Wandermate
 ```
 
 Render base URL:
 
 ```text
-https://wandermate-fullstack.onrender.com/The-Project
+https://wandermate-fullstack.onrender.com/Wandermate
 ```
 
 ## Health check
 
-[Open the production health endpoint](https://wandermate-fullstack.onrender.com/The-Project/api/v1/health).
+[Open the production health endpoint](https://wandermate-fullstack.onrender.com/Wandermate/api/v1/health).
 The free Render service may take about a minute to wake after inactivity.
 
 ## Render logs proof
@@ -47,3 +47,14 @@ In production profile, Swagger may be disabled for security/simplicity depending
 ## Environment warning
 
 Production secrets must live in Render environment variables, not in committed files.
+
+Required security variables include:
+
+```text
+JWT_SECRET
+REFRESH_TOKEN_HASH_SECRET
+```
+
+Use independent random values. The JWT value must contain at least 64 UTF-8
+bytes and the refresh-token HMAC value at least 32. Rotating them invalidates
+active tokens; a refresh-HMAC rotation signs out existing sessions.

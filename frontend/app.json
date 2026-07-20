@@ -1,16 +1,18 @@
 {
   "expo": {
-    "name": "traveling-app-mobile",
-    "slug": "traveling-app-mobile",
+    "name": "WanderMate",
+    "slug": "wandermate",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "wandermate",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.minhquan.wandermate"
     },
     "android": {
+      "package": "com.minhquan.wandermate",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

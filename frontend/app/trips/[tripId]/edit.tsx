@@ -90,7 +90,7 @@ export default function EditTripScreen() {
             setCoverImagePublicId(data.coverImagePublicId ?? "");
             setStartDateTime(parseDateOrFallback(data.startDate, fallbackStart));
             setEndDateTime(parseDateOrFallback(data.endDate, fallbackEnd));
-        } catch (error: any) {
+        } catch (error: unknown) {
 
             setError(getApiErrorMessage(error, "Failed to load trip. Please try again."));
         } finally {
@@ -155,7 +155,7 @@ export default function EditTripScreen() {
 
             Alert.alert("Trip updated", "Your trip has been updated.");
             router.back();
-        } catch (confirmError: any) {
+        } catch (confirmError: unknown) {
             const message = getApiErrorMessage(
                 confirmError,
                 "Please check your input and try again."
@@ -197,7 +197,7 @@ export default function EditTripScreen() {
 
             Alert.alert("Trip updated", "Your trip has been updated.");
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
 
             if (hasApiWarning(error, "TRIP_OVERLAP_WARNING")) {
                 Alert.alert(

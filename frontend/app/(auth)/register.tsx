@@ -17,11 +17,13 @@ import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
 import { AppScreen } from "@/src/components/ui/AppScreen";
 import { ErrorMessage } from "@/src/components/ui/ErrorMessage";
+import { OtpCooldownBadge, OtpMethodButton } from "@/src/features/auth/AuthFlowControls";
 import { colors as staticColors, fontWeight, radius, spacing, typography } from "@/src/constants/theme";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { OtpVerificationMethod } from "@/src/types/auth";
+import { getApiErrorCode, getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 
-const OTP_EXPIRY_SECONDS = 120;
+const OTP_EXPIRY_SECONDS = 300;
 const RESEND_COOLDOWN_SECONDS = 60;
 const OTP_RESTRICTED_MINUTES = 15;
 const OTP_BLOCKED_OR_NOT_FOUND_CODE = "E028";
@@ -33,18 +35,12 @@ function formatTimer(seconds: number) {
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
-function getApiMessage(error: any) {
-    const data = error.response?.data;
-
-    if (typeof data?.body === "string" && data.body.trim()) {
-        return data.body;
-    }
-
-    return data?.message || error.message || "Something went wrong. Please try again.";
+function getApiMessage(error: unknown) {
+    return getApiErrorMessage(error, "Something went wrong. Please try again.");
 }
 
-function isOtpRestricted(error: any) {
-    const code = error.response?.data?.code;
+function isOtpRestricted(error: unknown) {
+    const code = getApiErrorCode(error);
     return code === OTP_BLOCKED_OR_NOT_FOUND_CODE || code === MAX_OTP_RETRY_CODE;
 }
 
@@ -175,7 +171,7 @@ export default function RegisterScreen() {
             });
 
             setStep(2);
-        } catch (error: any) {
+        } catch (error: unknown) {
             const message = getApiMessage(error);
             setError(message);
             Alert.alert("Cannot continue", message);
@@ -227,7 +223,7 @@ export default function RegisterScreen() {
                 "OTP sent",
                 otpMethod === "EMAIL_OTP" ? "Please check your email." : "Please check your phone messages."
             );
-        } catch (error: any) {
+        } catch (error: unknown) {
             const message = getApiMessage(error);
             setError(message);
 
@@ -280,10 +276,10 @@ export default function RegisterScreen() {
             Alert.alert("Account created", "You can now sign in.", [
                 {
                     text: "Go to login",
-                    onPress: () => router.replace("/login" as any),
+                    onPress: () => router.replace("/login"),
                 },
             ]);
-        } catch (error: any) {
+        } catch (error: unknown) {
             const message = getApiMessage(error);
             setError(message);
             Alert.alert("Registration failed", message);
@@ -294,7 +290,7 @@ export default function RegisterScreen() {
 
     return (
         <AppScreen keyboardAvoiding contentContainerStyle={styles.screenContent}>
-            <Pressable onPress={() => router.replace("/login" as any)} style={styles.backButton}>
+            <Pressable onPress={() => router.replace("/login")} style={styles.backButton}>
                 <Ionicons name="chevron-back" size={20} color={colors.primary} />
                 <Text style={[styles.backText, { color: colors.primary }]}>Back to login</Text>
             </Pressable>
@@ -459,13 +455,13 @@ export default function RegisterScreen() {
                         <View style={styles.methodSection}>
                             <Text style={[styles.sectionLabel, { color: colors.text }]}>OTP method</Text>
                             <View style={styles.methodRow}>
-                                <MethodButton
+                                <OtpMethodButton
                                     label="Email"
                                     icon="mail-outline"
                                     selected={otpMethod === "EMAIL_OTP"}
                                     onPress={() => setOtpMethod("EMAIL_OTP")}
                                 />
-                                <MethodButton
+                                <OtpMethodButton
                                     label="Phone"
                                     icon="call-outline"
                                     selected={otpMethod === "PHONE_NUM_OTP"}
@@ -527,60 +523,6 @@ export default function RegisterScreen() {
                 ) : null}
             </AppCard>
         </AppScreen>
-    );
-}
-
-type MethodButtonProps = Readonly<{
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    selected: boolean;
-    onPress: () => void;
-}>;
-
-function MethodButton({ label, icon, selected, onPress }: MethodButtonProps) {
-    const theme = useAppTheme();
-    const colors = theme.colors;
-
-    return (
-        <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            onPress={onPress}
-            style={({ pressed }) => [
-                styles.methodButton,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                selected && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-                pressed && styles.methodButtonPressed,
-            ]}
-        >
-            <Ionicons name={icon} size={18} color={selected ? colors.primary : colors.textMuted} />
-            <Text style={[styles.methodText, { color: selected ? colors.primary : colors.textMuted }]}>{label}</Text>
-        </Pressable>
-    );
-}
-
-type OtpCooldownBadgeProps = Readonly<{
-    seconds: number;
-}>;
-
-function OtpCooldownBadge({ seconds }: OtpCooldownBadgeProps) {
-    const theme = useAppTheme();
-    const colors = theme.colors;
-
-    if (seconds <= 0) {
-        return null;
-    }
-
-    return (
-        <View
-            style={[
-                styles.cooldownBadge,
-                { backgroundColor: colors.warningSoft, borderColor: colors.warning },
-            ]}
-        >
-            <Ionicons name="time-outline" size={15} color={colors.warning} />
-            <Text style={[styles.cooldownBadgeText, { color: colors.warning }]}>Wait {formatTimer(seconds)}</Text>
-        </View>
     );
 }
 
@@ -666,20 +608,6 @@ const styles = StyleSheet.create({
     otpActionButton: {
         flex: 1,
     },
-    cooldownBadge: {
-        minHeight: 38,
-        borderRadius: radius.pill,
-        borderWidth: 1,
-        paddingHorizontal: spacing.md,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: spacing.xs,
-    },
-    cooldownBadgeText: {
-        fontSize: typography.caption,
-        fontWeight: fontWeight.bold,
-    },
     label: {
         color: staticColors.text,
         fontSize: typography.bodySmall,
@@ -744,33 +672,6 @@ const styles = StyleSheet.create({
     methodRow: {
         flexDirection: "row",
         gap: spacing.sm,
-    },
-    methodButton: {
-        flex: 1,
-        minHeight: 48,
-        borderRadius: radius.md,
-        borderWidth: 1,
-        borderColor: staticColors.border,
-        backgroundColor: staticColors.surface,
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "row",
-        gap: spacing.sm,
-    },
-    methodButtonSelected: {
-        borderColor: staticColors.primary,
-        backgroundColor: staticColors.primarySoft,
-    },
-    methodButtonPressed: {
-        opacity: 0.85,
-        transform: [{ scale: 0.99 }],
-    },
-    methodText: {
-        color: staticColors.textMuted,
-        fontWeight: fontWeight.bold,
-    },
-    methodTextSelected: {
-        color: staticColors.primary,
     },
     timerText: {
         color: staticColors.textMuted,

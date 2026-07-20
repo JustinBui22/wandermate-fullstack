@@ -14,19 +14,33 @@ Form-data fields:
 
 ```text
 file: image file
-imagePurpose: PROFILE_AVATAR or TRIP_COVER
+imageType: profile-images or trip-covers
 ```
 
 ## Response data
 
 The upload response includes the public image URL and Cloudinary public ID. The frontend stores/uses the image URL for rendering. The backend stores public IDs where needed so older Cloudinary images can be deleted or replaced safely.
 
-## Image purposes
+## Image types
 
-| Purpose | Used by |
+| Value | Used by |
 |---|---|
-| `PROFILE_AVATAR` | User profile avatar upload |
-| `TRIP_COVER` | Trip cover image upload |
+| `profile-images` | User profile avatar upload |
+| `trip-covers` | Trip cover image upload |
+
+## Server-side validation
+
+The service does not trust the client MIME header alone. It enforces the 5 MB
+limit, checks the declared MIME against PNG/JPEG/WebP/HEIF signatures, rejects
+unknown or mismatched content, decodes PNG/JPEG files with ImageIO, and caps
+decoded PNG/JPEG images at 20 million pixels. WebP/HEIF receive container
+signature validation locally and are decoded by Cloudinary.
+
+When an uploaded image is assigned to a profile or trip, the backend also
+validates that the HTTPS URL and public ID match the configured Cloudinary
+account, the requested image type, the authenticated uploader's server-created
+user folder, and the generated UUID filename pattern. Unchanged existing image
+references and explicit image removal remain supported.
 
 ## Screenshots
 
@@ -55,7 +69,6 @@ Do not commit real Cloudinary secrets.
 
 ## Future hardening
 
-- Enforce stricter file type validation.
-- Add image dimension/size checks if needed.
 - Add upload audit logging.
-- Consider folder separation for profile/trip images.
+- Add a server-side WebP/HEIF decoder if validation must not depend on the
+  Cloudinary decode step.

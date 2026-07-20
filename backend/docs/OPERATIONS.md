@@ -26,12 +26,12 @@ npx expo start --tunnel -c
 ## Health check
 
 ```text
-GET /The-Project/api/v1/health
+GET /Wandermate/api/v1/health
 ```
 
 Live Render check (the free service may take about a minute to wake):
 
-[Open the production health endpoint](https://wandermate-fullstack.onrender.com/The-Project/api/v1/health)
+[Open the production health endpoint](https://wandermate-fullstack.onrender.com/Wandermate/api/v1/health)
 
 ## Logs
 
@@ -51,16 +51,10 @@ Render log proof:
 8. Backend tests pass.
 9. Frontend typecheck passes.
 10. Postman protected request works.
+11. Missing authentication returns the documented JSON token-error envelope.
+12. Invalid share-code and OTP counters still increase after error responses.
 
 ## Postman proof
 
 ![Postman proof](../../docs/screenshots/24-api-postman-proof.png)
 
-## Security notes
-
-Before exporting or sharing:
-
-- Clear Postman tokens.
-- Remove real `.env` files.
-- Hide secret values from screenshots.
-- Do not include raw database dumps.

@@ -3,6 +3,7 @@ package com.example.travellingapp.security.filter;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.repository.ConfigurationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
+import com.example.travellingapp.security.JsonAuthenticationEntryPoint;
 import com.example.travellingapp.security.data_security.AuthenticatedUser;
 import com.example.travellingapp.service.impl.TokenServiceImpl;
 import com.example.travellingapp.response_template.CompleteResponse;
@@ -15,6 +16,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -42,12 +44,14 @@ public class TokenFilter extends OncePerRequestFilter {
     private final TokenServiceImpl tokenServiceImpl;
     private final ConfigurationRepository configurationRepository;
     private final ErrorCodeRepository errorCodeRepository;
+    private final JsonAuthenticationEntryPoint authenticationEntryPoint;
     private static final String ROLES_CLAIM = "roles";
 
-    public TokenFilter(TokenServiceImpl tokenServiceImpl, ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository) {
+    public TokenFilter(TokenServiceImpl tokenServiceImpl, ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, JsonAuthenticationEntryPoint authenticationEntryPoint) {
         this.tokenServiceImpl = tokenServiceImpl;
         this.configurationRepository = configurationRepository;
         this.errorCodeRepository = errorCodeRepository;
+        this.authenticationEntryPoint = authenticationEntryPoint;
     }
 
     @Override
@@ -81,13 +85,24 @@ public class TokenFilter extends OncePerRequestFilter {
                 response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             }
         } else {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            authenticationEntryPoint.commence(
+                    request,
+                    response,
+                    new InsufficientAuthenticationException("Bearer access token is required")
+            );
         }
     }
 
     private boolean isNonAuthenticatedRequest(HttpServletRequest request) {
         String requestURI = request.getRequestURI();
-        String normalizedURI = requestURI.replaceFirst("^/The-Project", "").replaceAll("^/+", "").replaceAll("/+$", "");
+        String contextPath = request.getContextPath();
+        String uriWithoutContextPath = requestURI;
+
+        if (contextPath != null && !contextPath.isBlank() && requestURI.startsWith(contextPath)) {
+            uriWithoutContextPath = requestURI.substring(contextPath.length());
+        }
+
+        String normalizedURI = uriWithoutContextPath.replaceAll("^/+", "").replaceAll("/+$", "");
         return Arrays.stream(getNonAuthenticatedUrls(configurationRepository))
                 .map(p -> p.trim().replaceAll("^/+", "").replaceAll("/+$", ""))
                 .anyMatch(pattern -> matchesUrlPattern(pattern, normalizedURI));
@@ -95,7 +110,7 @@ public class TokenFilter extends OncePerRequestFilter {
 
     private boolean matchesUrlPattern(String pattern, String requestURI) {
         String normalizedPattern = pattern.trim().replaceAll("^/+", "").replaceAll("/+$", "");
-        String normalizedURI = requestURI.trim().replaceFirst("^/The-Project", "").replaceAll("^/+", "").replaceAll("/+$", "");
+        String normalizedURI = requestURI.trim().replaceAll("^/+", "").replaceAll("/+$", "");
         if (normalizedPattern.contains("/**")) {
             // "swagger-ui/**" must match both "swagger-ui" AND "swagger-ui/index.html"
             String base = normalizedPattern.replace("/**", "");
@@ -147,4 +162,3 @@ public class TokenFilter extends OncePerRequestFilter {
         response.getWriter().write(new ObjectMapper().writeValueAsString(result.getResponseBody()));
     }
 }
-

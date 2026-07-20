@@ -117,7 +117,7 @@ export default function EditDestinationScreen() {
             setNotes(data.notes ?? "");
             setStartDateTime(parseDateOrFallback(data.startDate, fallbackStart));
             setEndDateTime(parseDateOrFallback(data.endDate, fallbackEnd));
-        } catch (error: any) {
+        } catch (error: unknown) {
             setError(getApiErrorMessage(error, "Failed to load destination. Please try again."));
         } finally {
             setIsLoading(false);
@@ -183,7 +183,7 @@ export default function EditDestinationScreen() {
 
             Alert.alert("Destination updated", "Destination has been updated.");
             router.back();
-        } catch (confirmError: any) {
+        } catch (confirmError: unknown) {
             const message = getApiErrorMessage(
                 confirmError,
                 "Please check your input and try again."
@@ -230,7 +230,7 @@ export default function EditDestinationScreen() {
 
             Alert.alert("Destination updated", "Destination has been updated.");
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (hasApiWarning(error, "DESTINATION_OVERLAP_WARNING")) {
                 Alert.alert(
                     "Destination dates overlap",

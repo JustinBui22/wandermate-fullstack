@@ -22,8 +22,7 @@ type EditableRole = Exclude<TripCollaborationRole, "OWNER">;
 const EDITABLE_ROLES: EditableRole[] = ["VIEWER", "EDITOR"];
 
 function getMemberUsername(member: TripMember) {
-    const value = member as any;
-    return value.username || value.memberUsername || value.userUsername || value.user?.username || "Unknown user";
+    return member.username || "Unknown user";
 }
 
 export default function TripMembersListScreen() {
@@ -63,7 +62,7 @@ export default function TripMembersListScreen() {
 
             setCurrentUserRole(trip.currentUserRole ?? null);
             setMembers(Array.isArray(data) ? data : []);
-        } catch (error: any) {
+        } catch (error: unknown) {
             setError(getApiErrorMessage(error, "Failed to load trip members."));
             setCurrentUserRole(null);
         } finally {
@@ -97,7 +96,7 @@ export default function TripMembersListScreen() {
             setUpdatingMemberId(member.tripMemberId);
             await updateTripMemberRole(tripId, member.tripMemberId, {role});
             await loadMembers();
-        } catch (error: any) {
+        } catch (error: unknown) {
             Alert.alert("Update role failed", getApiErrorMessage(error, "Please try again."));
         } finally {
             setUpdatingMemberId(null);
@@ -109,7 +108,7 @@ export default function TripMembersListScreen() {
             setUpdatingMemberId(member.tripMemberId);
             await removeTripMember(tripId, member.tripMemberId);
             await loadMembers();
-        } catch (error: any) {
+        } catch (error: unknown) {
             Alert.alert("Remove failed", getApiErrorMessage(error, "Please try again."));
         } finally {
             setUpdatingMemberId(null);

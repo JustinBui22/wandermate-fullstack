@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { login, logout } from "../api/authApi";
+import { registerSessionExpiredHandler } from "@/src/auth/sessionLifecycle";
 import { getMyProfile } from "@/src/api/userApi";
 import { refreshAccessToken } from "@/src/refreshApi";
 import {
@@ -14,16 +15,14 @@ import {
 import { useThemeStore } from "@/src/stores/themeStore";
 import type { LoginRequest } from "../types/auth";
 import { logger } from "../utils/logger";
+import { getApiErrorCode, getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 
 async function syncPreferredThemeFromProfile() {
     try {
         const profile = await getMyProfile();
         useThemeStore.getState().setPreferredTheme(profile.preferredTheme ?? "SYSTEM");
-    } catch (error: any) {
-        logger.error(
-            "Failed to sync theme preference:",
-            error.response?.data || error.message
-        );
+    } catch (error: unknown) {
+        logger.error("Failed to sync theme preference:", getApiErrorMessage(error, "Unknown error"));
     }
 }
 
@@ -74,13 +73,12 @@ export const useAuthStore = create<AuthState>((set) => ({
             });
 
             return true;
-        } catch (error: any) {
-            const errorMessage =
-                error.response?.data?.message ||
-                error.message ||
-                "Login failed. Please try again.";
-
-            const errorCode = error.response?.data?.code || null;
+        } catch (error: unknown) {
+            const errorMessage = getApiErrorMessage(
+                error,
+                "Login failed. Please try again."
+            );
+            const errorCode = getApiErrorCode(error);
 
             set({
                 isAuthenticated: false,
@@ -97,8 +95,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     logoutUser: async () => {
         try {
             await logout();
-        } catch (error: any) {
-            logger.error("Logout API failed:", error.response?.data || error.message);
+        } catch (error: unknown) {
+            logger.error("Logout API failed:", getApiErrorMessage(error, "Unknown error"));
         } finally {
             await clearTokens();
             useThemeStore.getState().resetPreferredTheme();
@@ -155,11 +153,8 @@ export const useAuthStore = create<AuthState>((set) => ({
                 errorCode: null,
                 username: storedUsername,
             });
-        } catch (error: any) {
-            logger.error(
-                "Restore session failed:",
-                error.response?.data || error.message
-            );
+        } catch (error: unknown) {
+            logger.error("Restore session failed:", getApiErrorMessage(error, "Unknown error"));
 
             await clearTokens();
             useThemeStore.getState().resetPreferredTheme();
@@ -178,3 +173,14 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ error: null, errorCode: null });
     },
 }));
+
+registerSessionExpiredHandler(() => {
+    useThemeStore.getState().resetPreferredTheme();
+    useAuthStore.setState({
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+        errorCode: null,
+        username: null,
+    });
+});

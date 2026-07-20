@@ -1,11 +1,12 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "../constants/env";
 import {
-    clearTokens,
     getAccessToken,
     getSessionToken,
 } from "../stores/tokenStore";
+import { expireLocalSession } from "@/src/auth/sessionLifecycle";
 import { refreshAccessToken } from "@/src/refreshApi";
+import type { ApiErrorPayload } from "@/src/types/api";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
     _retry?: boolean;
@@ -36,7 +37,7 @@ axiosClient.interceptors.request.use(async (config) => {
 
 axiosClient.interceptors.response.use(
     (response) => response,
-    async (error: AxiosError<any>) => {
+    async (error: AxiosError<ApiErrorPayload>) => {
         const originalRequest = error.config as RetryableRequestConfig | undefined;
 
         const status = error.response?.status;
@@ -81,13 +82,16 @@ axiosClient.interceptors.response.use(
 
                 return axiosClient(originalRequest);
             } catch (refreshError) {
-                await clearTokens();
+                await expireLocalSession();
                 return Promise.reject(refreshError);
             }
         }
 
-        if (status === 401 || status === 403 || isSessionInvalid || isTokenInvalid) {
-            await clearTokens();
+        // A 403 commonly means the authenticated user lacks permission for one
+        // resource. Keep the session unless the backend explicitly reports an
+        // authentication/session failure.
+        if (status === 401 || isSessionInvalid || isTokenInvalid) {
+            await expireLocalSession();
         }
 
         return Promise.reject(error);
