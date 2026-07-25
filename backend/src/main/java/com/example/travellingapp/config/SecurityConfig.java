@@ -67,7 +67,8 @@ public class SecurityConfig {
                 HttpHeaders.AUTHORIZATION,
                 HttpHeaders.CONTENT_TYPE,
                 HttpHeaders.ACCEPT,
-                "Session-Token"
+                "Session-Token",
+                "Refresh-Token"
         ));
         configuration.setAllowCredentials(true);
 
