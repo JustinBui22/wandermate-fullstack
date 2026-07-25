@@ -36,4 +36,6 @@ When documentation and code differ, use these files to verify current behavior:
 - JPA schema mode: `ddl-auto=update`.
 - Database migrations: not configured.
 - Production Swagger: disabled.
-- Backend test evidence: 438 passing tests in the included Surefire reports.
+- Backend test evidence: 443 passing tests, 0 failures, 0 errors and 0 skipped in the included Surefire reports.
+- Public-route policy: code-owned, HTTP-method-specific and shared by `SecurityConfig` and `TokenFilter`.
+- CORS: configured through `app.security.cors.allowed-origins` / `CORS_ALLOWED_ORIGINS`.

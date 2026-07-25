@@ -72,8 +72,10 @@ Services generally return `CompleteResponse<Object>`. `CompleteResponse` loads c
 
 ## Authentication architecture
 
-- `SecurityConfig` reads public path patterns from the database.
-- `TokenFilter` repeats the public-path check, validates a Bearer JWT, validates the session token, and inserts `AuthenticatedUser` into the SecurityContext.
+- `PublicEndpointMatcher` owns the HTTP-method-specific public-route policy.
+- `SecurityConfig` and `TokenFilter` both use the same matcher, preventing their public/protected decisions from drifting apart.
+- `TokenFilter` skips matching public requests, validates a Bearer JWT and session token for protected requests, and inserts `AuthenticatedUser` into the SecurityContext.
+- `SecurityConfig` applies the configured CORS origin policy and allows the frontend authentication headers.
 - `AuthenticatedUserProvider` gives services the current username/session ID.
 - `TripAccessService` centralizes view/edit/owner checks.
 - Access JWTs are signed with an environment-provided HS512 key.

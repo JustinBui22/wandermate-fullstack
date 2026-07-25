@@ -43,11 +43,11 @@ Session-Token: <session-token>
 
 The access JWT identifies the username/session ID. `TokenFilter` also checks the presented session token against the stored BCrypt hash before populating Spring Security's context.
 
-## Public routes in the current seed
+## Public routes
 
-Public patterns are read from the database `NON_AUTHENTICATED_REQUEST` configuration. The clean Docker seed currently includes:
+Public access is defined in code by `PublicEndpointMatcher`. The matcher is shared by `SecurityConfig` and `TokenFilter`, so both layers use the same HTTP-method-specific policy.
 
-| Method used by app | Path | Purpose |
+| Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/v1/health` | Health check |
 | POST | `/api/v1/users/register/verify` | Validate registration data before OTP/final registration |
@@ -59,9 +59,11 @@ Public patterns are read from the database `NON_AUTHENTICATED_REQUEST` configura
 | POST | `/api/v1/otp/verify` | Verify/consume OTP |
 | POST | `/api/v1/auth/refresh` | Rotate refresh token and issue a new access token |
 | GET | `/swagger-ui/**` | Local Swagger UI assets |
+| GET | `/swagger-ui.html` | Local Swagger entry point |
 | GET | `/v3/api-docs/**` | Local OpenAPI JSON/YAML |
+| OPTIONS | `/**` | Browser CORS preflight |
 
-The public-route configuration stores paths rather than HTTP-method-specific rules, so a matching path is treated as public by the current filter/security configuration.
+A path is not made public for every HTTP method. For example, `POST /api/v1/users/login` is public, while another method on the same path is not automatically permitted.
 
 ## User and authentication endpoints
 

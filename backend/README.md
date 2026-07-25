@@ -82,6 +82,7 @@ CLOUDINARY_CLOUD_NAME
 CLOUDINARY_API_KEY
 CLOUDINARY_API_SECRET
 CLOUDINARY_BASE_FOLDER
+CORS_ALLOWED_ORIGINS
 EMAIL_OAUTH_REFRESH_ENABLED
 EMAIL_CLIENT_ID
 EMAIL_CLIENT_SECRET
@@ -201,10 +202,10 @@ The service layer is authoritative; frontend visibility rules are only a usabili
 The included Surefire reports cover 38 test classes and record:
 
 ```text
-438 tests, 0 failures, 0 errors, 0 skipped
+443 tests, 0 failures, 0 errors, 0 skipped
 ```
 
-Coverage areas include controllers, services, validators, security filtering, token hashing, and transaction behavior for OTP failures, password reset, refresh-token reuse, share-code attempts, and token revocation.
+Coverage areas include controllers, services, validators, public-endpoint matching, security filtering, token hashing, and transaction behavior for OTP failures, password reset, refresh-token reuse, share-code attempts, and token revocation.
 
 ## Production profile
 
@@ -223,15 +224,15 @@ SPRING_PROFILES_ACTIVE=prod
 
 ## Documentation
 
-- [Documentation index](docs/README.md)
-- [API guide](docs/API_GUIDE.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Authentication flow](docs/AUTH_FLOW.md)
+- [Documentation index](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/README.md)
+- [API guide](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/API_GUIDE.md)
+- [Architecture](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/ARCHITECTURE.md)
+- [Authentication flow](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/AUTH_FLOW.md)
 - [Cloudinary image storage](docs/CLOUDINARY_IMAGE_STORAGE.md)
-- [Database seed](docs/DATABASE_SEED.md)
+- [Database seed](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/DATABASE_SEED.md)
 - [Docker setup](docs/DOCKER_SETUP.md)
 - [Frontend integration](docs/FRONTEND_INTEGRATION.md)
 - [Operations](docs/OPERATIONS.md)
 - [Postman guide](docs/POSTMAN_GUIDE.md)
 - [Production API documentation](docs/PRODUCTION_API_DOCS.md)
-- [Roadmap](docs/ROADMAP.md)
+- [Roadmap](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/ROADMAP.md)

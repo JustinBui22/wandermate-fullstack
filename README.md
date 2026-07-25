@@ -17,7 +17,7 @@ This README describes the implementation contained in this repository. Planned h
 | Media | Authenticated Cloudinary upload for profile images and trip covers |
 | Mobile app | Expo Router screens, SecureStore token persistence, automatic access-token refresh, themes |
 | Automation | Backend and frontend GitHub Actions workflows; Render deploy hook after backend tests |
-| Tests in repository | 438 backend tests reported passing; 10 frontend unit/component test cases |
+| Tests in repository | 443 backend tests passing; 10 frontend unit/component test cases declared |
 
 ## Technology stack
 
@@ -249,7 +249,7 @@ cd backend
 The included Surefire reports record:
 
 ```text
-438 tests, 0 failures, 0 errors, 0 skipped
+443 tests, 0 failures, 0 errors, 0 skipped
 ```
 
 ### Frontend
@@ -284,7 +284,8 @@ The following facts are important when evaluating or extending this version:
 
 - JPA currently uses `spring.jpa.hibernate.ddl-auto=update`; versioned Flyway/Liquibase migrations are not configured.
 - The Docker SQL seed runs only when MariaDB initializes a new named volume.
-- Public endpoint patterns are read from the database `NON_AUTHENTICATED_REQUEST` configuration and currently include `GET /api/v1/users/check`.
+- Public endpoints are defined in code through a shared, HTTP-method-specific `PublicEndpointMatcher` used by both Spring Security and `TokenFilter`.
+- CORS origins are configured through `CORS_ALLOWED_ORIGINS`; allowed request headers include `Authorization`, `Session-Token`, and `Refresh-Token`.
 - OTP records currently store the latest OTP value in `otp_check`; hashing/purpose-binding OTP records is roadmap work.
 - Share-code preview is currently an authenticated `GET /api/v1/trips/share-codes/{code}` endpoint.
 - Share codes currently use a `WM-` prefix plus an eight-character UUID-derived value.
@@ -306,15 +307,15 @@ Do not publish screenshots containing access tokens, refresh tokens, session tok
 
 ### Backend
 
-- [Backend README](backend/README.md)
-- [Backend documentation index](backend/docs/README.md)
-- [API guide](backend/docs/API_GUIDE.md)
-- [Architecture](backend/docs/ARCHITECTURE.md)
-- [Authentication flow](backend/docs/AUTH_FLOW.md)
+- [Backend README](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/README.md)
+- [Backend documentation index](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/README.md)
+- [API guide](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/API_GUIDE.md)
+- [Architecture](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/ARCHITECTURE.md)
+- [Authentication flow](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/AUTH_FLOW.md)
 - [Docker setup](backend/docs/DOCKER_SETUP.md)
 - [Operations](backend/docs/OPERATIONS.md)
-- [Roadmap](backend/docs/ROADMAP.md)
+- [Roadmap](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/ROADMAP.md)
 
 ### Frontend
 
-- [Frontend README](frontend/README.md)
+- [Frontend README](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/frontend/README.md)

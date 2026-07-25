@@ -146,6 +146,7 @@ npx expo start --tunnel -c
 5. The new access/refresh values are stored and the original request is retried once.
 6. Unrecoverable `401`, token-verification failure, or explicit invalid-session responses clear local tokens through `sessionLifecycle.ts`.
 7. A resource-permission `403` does not automatically log the user out.
+8. Browser builds rely on the backend CORS policy allowing the frontend origin plus `Authorization`, `Session-Token`, and `Refresh-Token` headers.
 
 ## Role-aware UI
 
@@ -197,7 +198,7 @@ Test scripts:
 - `npm run test:unit` → Vitest.
 - `npm run test:components` → Jest in-band.
 
-The repository currently declares 10 test cases across four files:
+The repository declares 10 test cases across four files:
 
 - Axios authentication-response behavior.
 - Central session-expiration behavior.

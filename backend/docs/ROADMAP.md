@@ -2,6 +2,14 @@
 
 This roadmap starts from the implementation currently present in the repository.
 
+## Recently completed security work
+
+- Replaced database-controlled path-only public routes with a code-owned, HTTP-method-specific `PublicEndpointMatcher`.
+- Shared the matcher between `SecurityConfig` and `TokenFilter`.
+- Added explicit configurable CORS handling for supported frontend origins and authentication headers.
+- Standardized unexpected `TokenFilter` failures through the existing JSON response structure.
+- Verified the backend with 443 passing tests, 0 failures, 0 errors and 0 skipped.
+
 ## Priority 1 — Security and concurrency hardening
 
 - Replace plaintext OTP persistence with purpose-bound HMAC hashes.
@@ -13,8 +21,6 @@ This roadmap starts from the implementation currently present in the repository.
 - Lock active share-code generation/use to prevent concurrent duplicates or reuse.
 - Change share-code preview from state-sensitive GET semantics if attempt accounting remains attached.
 - Remove or redesign `/api/v1/users/check` to reduce account enumeration.
-- Replace database path-only public-route configuration with a code-owned, method-specific policy shared by Spring Security and `TokenFilter`.
-- Add explicit CORS policy for supported mobile/web environments.
 
 ## Priority 2 — Database lifecycle
 

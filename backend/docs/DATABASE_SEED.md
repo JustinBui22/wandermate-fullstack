@@ -57,7 +57,7 @@ session_token
 | `INVITE_LINK_PREFIX` | `wandermate://join-trip?code=` |
 | `EMAIL_OAUTH_REFRESH_ENABLED` | `false` |
 
-The `NON_AUTHENTICATED_REQUEST` row is also operationally important because both `SecurityConfig` and `TokenFilter` read it at runtime.
+The legacy `NON_AUTHENTICATED_REQUEST` row may remain in an existing seed for compatibility/history, but it is no longer used to determine public access. Public routes are owned by the code-level `PublicEndpointMatcher`.
 
 ## Fresh-volume behavior
 

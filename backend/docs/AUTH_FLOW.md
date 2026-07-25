@@ -154,6 +154,6 @@ See [ROADMAP.md](ROADMAP.md) for:
 
 - hashing and purpose-binding OTP records;
 - removing account-enumeration behavior from `/users/check`;
-- method-specific code-owned public-route policy;
+- further account-enumeration reduction and security-policy review;
 - serialized refresh/share-code rotation;
 - managed scheduler lifecycle.
