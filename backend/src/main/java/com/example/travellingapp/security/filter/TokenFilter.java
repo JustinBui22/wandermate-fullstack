@@ -1,9 +1,9 @@
 package com.example.travellingapp.security.filter;
 
 import com.example.travellingapp.exception_handler.exception.BusinessException;
-import com.example.travellingapp.repository.ConfigurationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.security.JsonAuthenticationEntryPoint;
+import com.example.travellingapp.security.PublicEndpointMatcher;
 import com.example.travellingapp.security.data_security.AuthenticatedUser;
 import com.example.travellingapp.service.impl.TokenServiceImpl;
 import com.example.travellingapp.response_template.CompleteResponse;
@@ -26,7 +26,6 @@ import org.springframework.stereotype.Component;
 
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,23 +34,22 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import static com.example.travellingapp.enums.CommonEnum.*;
 import static com.example.travellingapp.enums.ErrorCodeEnum.*;
 import static com.example.travellingapp.response_template.CompleteResponse.getCompleteResponse;
-import static com.example.travellingapp.util.Common.getNonAuthenticatedUrls;
 
 @Log4j2
 @Component
 public class TokenFilter extends OncePerRequestFilter {
 
     private final TokenServiceImpl tokenServiceImpl;
-    private final ConfigurationRepository configurationRepository;
     private final ErrorCodeRepository errorCodeRepository;
     private final JsonAuthenticationEntryPoint authenticationEntryPoint;
+    private final PublicEndpointMatcher publicEndpointMatcher;
     private static final String ROLES_CLAIM = "roles";
 
-    public TokenFilter(TokenServiceImpl tokenServiceImpl, ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, JsonAuthenticationEntryPoint authenticationEntryPoint) {
+    public TokenFilter(TokenServiceImpl tokenServiceImpl, ErrorCodeRepository errorCodeRepository, JsonAuthenticationEntryPoint authenticationEntryPoint, PublicEndpointMatcher publicEndpointMatcher) {
         this.tokenServiceImpl = tokenServiceImpl;
-        this.configurationRepository = configurationRepository;
         this.errorCodeRepository = errorCodeRepository;
         this.authenticationEntryPoint = authenticationEntryPoint;
+        this.publicEndpointMatcher = publicEndpointMatcher;
     }
 
     @Override
@@ -59,7 +57,7 @@ public class TokenFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         // Skip token validation for non-required-authenticated URLs
-        if (isNonAuthenticatedRequest(request)) {
+        if (publicEndpointMatcher.matches(request)) {
             log.info("Skipping token validation for public URL: {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
@@ -67,10 +65,10 @@ public class TokenFilter extends OncePerRequestFilter {
         // Token validation for required-authenticated URLs
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            CompleteResponse<Object> validateTokenResponse = tokenServiceImpl.validateAccessToken(token);
-            String responseCode = validateTokenResponse.getResponseBody().getCode();
             try {
+                String token = authHeader.substring(7);
+                CompleteResponse<Object> validateTokenResponse = tokenServiceImpl.validateAccessToken(token);
+                String responseCode = validateTokenResponse.getResponseBody().getCode();
                 if (responseCode.equals(TOKEN_VERIFY_SUCCESS.getCode())) {
                     handleSuccessfulTokenValidation(request, response, filterChain, validateTokenResponse);
                 } else {
@@ -82,7 +80,7 @@ public class TokenFilter extends OncePerRequestFilter {
                 handleBusinessException(response, e);
             } catch (Exception e) {
                 log.error("There has been an error in {}!", this.getClass(), e);
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                handleBusinessException(response, new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name()));
             }
         } else {
             authenticationEntryPoint.commence(
@@ -91,35 +89,6 @@ public class TokenFilter extends OncePerRequestFilter {
                     new InsufficientAuthenticationException("Bearer access token is required")
             );
         }
-    }
-
-    private boolean isNonAuthenticatedRequest(HttpServletRequest request) {
-        String requestURI = request.getRequestURI();
-        String contextPath = request.getContextPath();
-        String uriWithoutContextPath = requestURI;
-
-        if (contextPath != null && !contextPath.isBlank() && requestURI.startsWith(contextPath)) {
-            uriWithoutContextPath = requestURI.substring(contextPath.length());
-        }
-
-        String normalizedURI = uriWithoutContextPath.replaceAll("^/+", "").replaceAll("/+$", "");
-        return Arrays.stream(getNonAuthenticatedUrls(configurationRepository))
-                .map(p -> p.trim().replaceAll("^/+", "").replaceAll("/+$", ""))
-                .anyMatch(pattern -> matchesUrlPattern(pattern, normalizedURI));
-    }
-
-    private boolean matchesUrlPattern(String pattern, String requestURI) {
-        String normalizedPattern = pattern.trim().replaceAll("^/+", "").replaceAll("/+$", "");
-        String normalizedURI = requestURI.trim().replaceAll("^/+", "").replaceAll("/+$", "");
-        if (normalizedPattern.contains("/**")) {
-            // "swagger-ui/**" must match both "swagger-ui" AND "swagger-ui/index.html"
-            String base = normalizedPattern.replace("/**", "");
-            return normalizedURI.equals(base) || normalizedURI.startsWith(base + "/");
-        }
-        if (normalizedPattern.contains("**")) {
-            return normalizedURI.matches(normalizedPattern.replace("**", ".*"));
-        }
-        return normalizedPattern.equals(normalizedURI);
     }
 
     private void handleSuccessfulTokenValidation(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, CompleteResponse<Object> validateTokenResponse)
