@@ -278,7 +278,7 @@ All current share-code endpoints require valid access and session tokens.
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/v1/trips/{tripId}/share-codes/regenerate` | Owner generates/replaces current code |
-| GET | `/api/v1/trips/share-codes/{code}` | Authenticated preview |
+| POST | `/api/v1/trips/share-codes/preview` | Authenticated preview and attempt accounting |
 | POST | `/api/v1/trips/share-codes/{code}/join-requests` | Submit join request using code |
 | GET | `/api/v1/trips/{tripId}/share-codes/active` | Owner retrieves active code |
 
@@ -287,6 +287,14 @@ Optional generate body:
 ```json
 {
   "defaultRole": "VIEWER"
+}
+```
+
+Preview body:
+
+```json
+{
+  "code": "WM-ABCDEFGHJKLM"
 }
 ```
 

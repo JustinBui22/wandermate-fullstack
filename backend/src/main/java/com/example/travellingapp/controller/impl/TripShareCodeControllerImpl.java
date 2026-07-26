@@ -1,6 +1,7 @@
 package com.example.travellingapp.controller.impl;
 
 import com.example.travellingapp.controller.TripShareCodeController;
+import com.example.travellingapp.dto.request.PreviewTripShareCodeRequest;
 import com.example.travellingapp.dto.request.create.GenerateTripShareCodeRequest;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.response_template.ResponseBody;
@@ -26,8 +27,8 @@ public class TripShareCodeControllerImpl implements TripShareCodeController {
     }
 
     @Override
-    public ResponseEntity<ResponseBody<Object>> previewShareCode(String code) {
-        CompleteResponse<Object> response = tripShareCodeService.previewShareCode(code);
+    public ResponseEntity<ResponseBody<Object>> previewShareCode(PreviewTripShareCodeRequest request) {
+        CompleteResponse<Object> response = tripShareCodeService.previewShareCode(request.getCode());
         return new ResponseEntity<>(response.getResponseBody(), HttpStatus.valueOf(response.getHttpCode()));
     }
 

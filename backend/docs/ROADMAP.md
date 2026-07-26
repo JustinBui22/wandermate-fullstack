@@ -9,6 +9,9 @@ This roadmap starts from the implementation currently present in the repository.
 - Added explicit configurable CORS handling for supported frontend origins and authentication headers.
 - Standardized unexpected `TokenFilter` failures through the existing JSON response structure.
 - Verified the backend with 443 passing tests, 0 failures, 0 errors and 0 skipped.
+- Replaced UUID-substring share codes with longer `SecureRandom` codes using an unambiguous alphabet.
+- Serialized active-code generation and redemption with pessimistic database locks.
+- Changed state-sensitive share-code preview from GET to POST.
 
 ## Priority 1 — Security and concurrency hardening
 
@@ -17,9 +20,6 @@ This roadmap starts from the implementation currently present in the repository.
 - Add pessimistic/atomic locking to the main OTP lookup/consume path.
 - Serialize refresh-token rotation by locking the token-hash row.
 - Rework refresh-token reuse revocation so it does not depend on a second unlocked lookup.
-- Generate share codes with `SecureRandom` and a longer unambiguous alphabet.
-- Lock active share-code generation/use to prevent concurrent duplicates or reuse.
-- Change share-code preview from state-sensitive GET semantics if attempt accounting remains attached.
 - Remove or redesign `/api/v1/users/check` to reduce account enumeration.
 
 ## Priority 2 — Database lifecycle

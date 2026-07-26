@@ -18,6 +18,7 @@ import com.example.travellingapp.mapper.TripCollaborationRequestMapper;
 import com.example.travellingapp.mapper.TripShareCodeMapper;
 import com.example.travellingapp.repository.ConfigurationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
+import com.example.travellingapp.repository.TripRepository;
 import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.repository.collaboration.TripCollaborationRequestRepository;
 import com.example.travellingapp.repository.collaboration.TripShareCodeAttemptRepository;
@@ -48,6 +49,9 @@ class TripShareCodeServiceImplTest {
 
     @Mock
     private TripShareCodeRepository tripShareCodeRepository;
+
+    @Mock
+    private TripRepository tripRepository;
 
     @Mock
     private ConfigurationRepository configurationRepository;
@@ -92,14 +96,15 @@ class TripShareCodeServiceImplTest {
 
     private static final String OWNER_USERNAME = "owner";
     private static final String REQUESTER_USERNAME = "requester";
-    private static final String RAW_CODE = "wm-abc12345";
-    private static final String NORMALIZED_CODE = "WM-ABC12345";
+    private static final String RAW_CODE = "wm-abcdefghjklm";
+    private static final String NORMALIZED_CODE = "WM-ABCDEFGHJKLM";
     private static final String INVITE_LINK_PREFIX_VALUE = "wandermate://join-trip?code=";
 
     @BeforeEach
     void setUp() {
         service = new TripShareCodeServiceImpl(
                 tripShareCodeRepository,
+                tripRepository,
                 configurationRepository,
                 tripShareCodeAttemptRepository,
                 tripCollaborationRequestRepository,
@@ -127,7 +132,7 @@ class TripShareCodeServiceImplTest {
         mockInviteLinkPrefix();
 
         when(authenticatedUserProvider.getUsername()).thenReturn(OWNER_USERNAME);
-        when(tripAccessService.getTripIfOwner(TRIP_ID, OWNER_USERNAME)).thenReturn(trip);
+        when(tripRepository.findByTripIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
         when(userRepository.findByUsernameAndActive(OWNER_USERNAME)).thenReturn(Optional.of(owner));
         when(tripShareCodeValidator.resolveDefaultRole(request)).thenReturn(TripEnum.VIEWER);
         when(tripShareCodeRepository.findFirstByTrip_TripIdAndCodeStatusOrderByCreatedDateDesc(
@@ -155,9 +160,62 @@ class TripShareCodeServiceImplTest {
         assertThat(response.getResponseBody().getBody()).isEqualTo(responseDTO);
 
         verify(tripShareCodeValidator).validateTripId(TRIP_ID);
-        verify(tripAccessService).getTripIfOwner(TRIP_ID, OWNER_USERNAME);
+        verify(tripAccessService).assertIsOwner(TRIP_ID, OWNER_USERNAME);
+        verify(tripRepository).findByTripIdForUpdate(TRIP_ID);
         verify(tripShareCodeRepository).save(newShareCode);
         verify(tripShareCodeMapper).toResponseDTO(newShareCode, INVITE_LINK_PREFIX_VALUE);
+
+        ArgumentCaptor<String> generatedCodeCaptor =
+                ArgumentCaptor.forClass(String.class);
+        verify(tripShareCodeMapper).toNewShareCodeEntity(
+                eq(trip),
+                generatedCodeCaptor.capture(),
+                eq(owner),
+                eq(TripEnum.VIEWER),
+                any(LocalDateTime.class),
+                eq(24L)
+        );
+        assertThat(generatedCodeCaptor.getValue())
+                .matches("WM-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}");
+    }
+
+    @Test
+    void regenerateShareCode_shouldRetry_whenGeneratedCodeCollides() {
+        User owner = user(OWNER_USER_ID, OWNER_USERNAME);
+        TripEntity trip = trip(owner);
+        GenerateTripShareCodeRequest request = generateRequest(TripEnum.VIEWER);
+        TripShareCodeEntity newShareCode = activeShareCode(trip, owner);
+        TripShareCodeResponseDTO responseDTO = shareCodeResponseDTO();
+
+        mockErrorCode(TRIP_SHARE_CODE_CREATED_SUCCESS, TRIP_MEMBER.name());
+        mockInviteLinkPrefix();
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(OWNER_USERNAME);
+        when(tripRepository.findByTripIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(userRepository.findByUsernameAndActive(OWNER_USERNAME)).thenReturn(Optional.of(owner));
+        when(tripShareCodeValidator.resolveDefaultRole(request)).thenReturn(TripEnum.VIEWER);
+        when(tripShareCodeRepository.findFirstByTrip_TripIdAndCodeStatusOrderByCreatedDateDesc(
+                TRIP_ID,
+                TripEnum.ACTIVE
+        )).thenReturn(Optional.empty());
+        when(tripShareCodeRepository.existsByCode(anyString()))
+                .thenReturn(true, false);
+        when(tripShareCodeMapper.toNewShareCodeEntity(
+                eq(trip),
+                anyString(),
+                eq(owner),
+                eq(TripEnum.VIEWER),
+                any(LocalDateTime.class),
+                eq(24L)
+        )).thenReturn(newShareCode);
+        when(tripShareCodeRepository.save(newShareCode)).thenReturn(newShareCode);
+        when(tripShareCodeMapper.toResponseDTO(newShareCode, INVITE_LINK_PREFIX_VALUE))
+                .thenReturn(responseDTO);
+
+        service.regenerateShareCode(TRIP_ID, request);
+
+        verify(tripShareCodeRepository, times(2)).existsByCode(anyString());
+        verify(tripShareCodeRepository).save(newShareCode);
     }
 
     @Test
@@ -171,7 +229,7 @@ class TripShareCodeServiceImplTest {
         oldActiveCode.setExpiresAt(LocalDateTime.now().plusHours(1));
 
         TripShareCodeEntity newShareCode = activeShareCode(trip, owner);
-        newShareCode.setCode("WM-NEW12345");
+        newShareCode.setCode("WM-NPQRSTUVWXYZ");
 
         TripShareCodeResponseDTO responseDTO = shareCodeResponseDTO();
 
@@ -179,7 +237,7 @@ class TripShareCodeServiceImplTest {
         mockInviteLinkPrefix();
 
         when(authenticatedUserProvider.getUsername()).thenReturn(OWNER_USERNAME);
-        when(tripAccessService.getTripIfOwner(TRIP_ID, OWNER_USERNAME)).thenReturn(trip);
+        when(tripRepository.findByTripIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
         when(userRepository.findByUsernameAndActive(OWNER_USERNAME)).thenReturn(Optional.of(owner));
         when(tripShareCodeValidator.resolveDefaultRole(request)).thenReturn(TripEnum.EDITOR);
         when(tripShareCodeRepository.findFirstByTrip_TripIdAndCodeStatusOrderByCreatedDateDesc(
@@ -197,6 +255,8 @@ class TripShareCodeServiceImplTest {
         )).thenReturn(newShareCode);
         when(tripShareCodeRepository.save(any(TripShareCodeEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        when(tripShareCodeRepository.saveAndFlush(oldActiveCode))
+                .thenReturn(oldActiveCode);
         when(tripShareCodeMapper.toResponseDTO(newShareCode, INVITE_LINK_PREFIX_VALUE))
                 .thenReturn(responseDTO);
 
@@ -210,7 +270,8 @@ class TripShareCodeServiceImplTest {
                 any(LocalDateTime.class),
                 eq(60L)
         );
-        verify(tripShareCodeRepository, times(2)).save(any(TripShareCodeEntity.class));
+        verify(tripShareCodeRepository).saveAndFlush(oldActiveCode);
+        verify(tripShareCodeRepository).save(newShareCode);
     }
 
     @Test
@@ -223,7 +284,7 @@ class TripShareCodeServiceImplTest {
         oldActiveCode.setExpiresAt(LocalDateTime.now().minusMinutes(1));
 
         TripShareCodeEntity newShareCode = activeShareCode(trip, owner);
-        newShareCode.setCode("WM-NEW12345");
+        newShareCode.setCode("WM-NPQRSTUVWXYZ");
 
         TripShareCodeResponseDTO responseDTO = shareCodeResponseDTO();
 
@@ -231,7 +292,7 @@ class TripShareCodeServiceImplTest {
         mockInviteLinkPrefix();
 
         when(authenticatedUserProvider.getUsername()).thenReturn(OWNER_USERNAME);
-        when(tripAccessService.getTripIfOwner(TRIP_ID, OWNER_USERNAME)).thenReturn(trip);
+        when(tripRepository.findByTripIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
         when(userRepository.findByUsernameAndActive(OWNER_USERNAME)).thenReturn(Optional.of(owner));
         when(tripShareCodeValidator.resolveDefaultRole(request)).thenReturn(TripEnum.VIEWER);
         when(tripShareCodeRepository.findFirstByTrip_TripIdAndCodeStatusOrderByCreatedDateDesc(
@@ -249,6 +310,8 @@ class TripShareCodeServiceImplTest {
         )).thenReturn(newShareCode);
         when(tripShareCodeRepository.save(any(TripShareCodeEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        when(tripShareCodeRepository.saveAndFlush(oldActiveCode))
+                .thenReturn(oldActiveCode);
         when(tripShareCodeMapper.toResponseDTO(newShareCode, INVITE_LINK_PREFIX_VALUE))
                 .thenReturn(responseDTO);
 
@@ -257,7 +320,8 @@ class TripShareCodeServiceImplTest {
         assertThat(oldActiveCode.getCodeStatus()).isEqualTo(TripEnum.EXPIRED);
         assertThat(oldActiveCode.getModifiedDate()).isNotNull();
 
-        verify(tripShareCodeRepository, times(2)).save(any(TripShareCodeEntity.class));
+        verify(tripShareCodeRepository).saveAndFlush(oldActiveCode);
+        verify(tripShareCodeRepository).save(newShareCode);
     }
 
     @Test
@@ -268,7 +332,7 @@ class TripShareCodeServiceImplTest {
         TripShareCodeEntity activeCode = activeShareCode(trip, owner);
 
         when(authenticatedUserProvider.getUsername()).thenReturn(OWNER_USERNAME);
-        when(tripAccessService.getTripIfOwner(TRIP_ID, OWNER_USERNAME)).thenReturn(trip);
+        when(tripRepository.findByTripIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
         when(userRepository.findByUsernameAndActive(OWNER_USERNAME)).thenReturn(Optional.of(owner));
         when(tripShareCodeValidator.resolveDefaultRole(request)).thenReturn(TripEnum.VIEWER);
         when(tripShareCodeRepository.findFirstByTrip_TripIdAndCodeStatusOrderByCreatedDateDesc(
@@ -454,7 +518,7 @@ class TripShareCodeServiceImplTest {
         when(tripShareCodeAttemptRepository.findByUser_UserId(REQUESTER_USER_ID))
                 .thenReturn(Optional.empty());
         when(tripShareCodeValidator.normalizeCode(RAW_CODE)).thenReturn(NORMALIZED_CODE);
-        when(tripShareCodeRepository.findByCode(NORMALIZED_CODE)).thenReturn(Optional.of(shareCode));
+        when(tripShareCodeRepository.findByCodeForUpdate(NORMALIZED_CODE)).thenReturn(Optional.of(shareCode));
         when(tripShareCodeMapper.toJoinRequestEntity(
                 eq(shareCode),
                 eq(requester),
@@ -471,6 +535,7 @@ class TripShareCodeServiceImplTest {
                 .isEqualTo(TRIP_SHARE_CODE_JOIN_REQUEST_SENT_SUCCESS.getCode());
         assertThat(response.getResponseBody().getBody()).isEqualTo(responseDTO);
 
+        verify(tripShareCodeRepository).findByCodeForUpdate(NORMALIZED_CODE);
         verify(tripShareCodeValidator).validateRequesterCanRequestToJoinByShareCode(
                 shareCode,
                 requester
@@ -498,7 +563,7 @@ class TripShareCodeServiceImplTest {
         when(tripShareCodeAttemptRepository.findByUser_UserId(REQUESTER_USER_ID))
                 .thenReturn(Optional.empty());
         when(tripShareCodeValidator.normalizeCode(RAW_CODE)).thenReturn(NORMALIZED_CODE);
-        when(tripShareCodeRepository.findByCode(NORMALIZED_CODE)).thenReturn(Optional.of(shareCode));
+        when(tripShareCodeRepository.findByCodeForUpdate(NORMALIZED_CODE)).thenReturn(Optional.of(shareCode));
 
         doThrow(new BusinessException(
                 TRIP_COLLABORATION_REQUEST_ALREADY_EXISTS,
@@ -537,7 +602,7 @@ class TripShareCodeServiceImplTest {
         when(tripShareCodeAttemptRepository.findByUser_UserId(REQUESTER_USER_ID))
                 .thenReturn(Optional.empty());
         when(tripShareCodeValidator.normalizeCode(RAW_CODE)).thenReturn(NORMALIZED_CODE);
-        when(tripShareCodeRepository.findByCode(NORMALIZED_CODE)).thenReturn(Optional.empty());
+        when(tripShareCodeRepository.findByCodeForUpdate(NORMALIZED_CODE)).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -547,6 +612,49 @@ class TripShareCodeServiceImplTest {
         assertBusinessException(exception, TRIP_SHARE_CODE_NOT_FOUND, TRIP_MEMBER.name());
         verify(tripShareCodeSecurityEventService).recordInvalidAttempt(REQUESTER_USER_ID);
         verify(tripCollaborationRequestRepository, never()).save(any());
+    }
+
+    @Test
+    void requestToJoinByShareCode_shouldPersistExpiredStatusAndAttempt_whenLockedCodeExpires() {
+        User owner = user(OWNER_USER_ID, OWNER_USERNAME);
+        User requester = user(REQUESTER_USER_ID, REQUESTER_USERNAME);
+        TripEntity trip = trip(owner);
+        TripShareCodeEntity shareCode = activeShareCode(trip, owner);
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(REQUESTER_USERNAME);
+        when(userRepository.findByUsernameAndActive(REQUESTER_USERNAME)).thenReturn(Optional.of(requester));
+        when(tripShareCodeAttemptRepository.findByUser_UserId(REQUESTER_USER_ID))
+                .thenReturn(Optional.empty());
+        when(tripShareCodeValidator.normalizeCode(RAW_CODE)).thenReturn(NORMALIZED_CODE);
+        when(tripShareCodeRepository.findByCodeForUpdate(NORMALIZED_CODE))
+                .thenReturn(Optional.of(shareCode));
+        doThrow(new BusinessException(
+                TRIP_SHARE_CODE_EXPIRED,
+                TRIP_MEMBER.name()
+        )).when(tripShareCodeValidator)
+                .validateShareCodeCanBeUsed(
+                        eq(shareCode),
+                        any(LocalDateTime.class)
+                );
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> service.requestToJoinByShareCode(RAW_CODE)
+        );
+
+        assertBusinessException(
+                exception,
+                TRIP_SHARE_CODE_EXPIRED,
+                TRIP_MEMBER.name()
+        );
+        assertThat(shareCode.getCodeStatus()).isEqualTo(TripEnum.EXPIRED);
+        assertThat(shareCode.getModifiedDate()).isNotNull();
+
+        verify(tripShareCodeRepository).save(shareCode);
+        verify(tripShareCodeSecurityEventService)
+                .recordInvalidAttempt(REQUESTER_USER_ID);
+        verify(tripShareCodeSecurityEventService, never())
+                .recordExpiredCodeAndInvalidAttempt(anyLong(), anyLong());
     }
 
     @Test

@@ -15,7 +15,7 @@ import type { TripShareCodePreview } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
 import { formatDateTime } from "@/src/utils/dateFormat";
 
-const SHARE_CODE_PATTERN = /WM-[A-Z0-9]{8}/i;
+const SHARE_CODE_PATTERN = /WM-(?:[A-HJ-NP-Z2-9]{12}|[A-Z0-9]{8})/i;
 
 function extractShareCode(value: string) {
     const match = value.match(SHARE_CODE_PATTERN);
@@ -112,7 +112,7 @@ export default function JoinTripScreen() {
                     }}
                     autoCapitalize="characters"
                     autoCorrect={false}
-                    placeholder="WM-ABC12345"
+                    placeholder="WM-ABCDEFGHJKLM"
                     helperText="You can paste only the code, the link, or the whole invite message."
                     leftIcon={<Ionicons name="key-outline" size={20} color={colors.textMuted} />}
                 />

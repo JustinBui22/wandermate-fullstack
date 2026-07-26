@@ -1,7 +1,9 @@
 package com.example.travellingapp.controller;
 
+import com.example.travellingapp.dto.request.PreviewTripShareCodeRequest;
 import com.example.travellingapp.dto.request.create.GenerateTripShareCodeRequest;
 import com.example.travellingapp.response_template.ResponseBody;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,9 +16,9 @@ public interface TripShareCodeController {
             @RequestBody(required = false) GenerateTripShareCodeRequest request
     );
 
-    @GetMapping("/share-codes/{code}")
+    @PostMapping("/share-codes/preview")
     ResponseEntity<ResponseBody<Object>> previewShareCode(
-            @PathVariable String code
+            @Valid @RequestBody PreviewTripShareCodeRequest request
     );
 
     @PostMapping("/share-codes/{code}/join-requests")

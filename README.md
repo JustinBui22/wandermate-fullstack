@@ -287,8 +287,8 @@ The following facts are important when evaluating or extending this version:
 - Public endpoints are defined in code through a shared, HTTP-method-specific `PublicEndpointMatcher` used by both Spring Security and `TokenFilter`.
 - CORS origins are configured through `CORS_ALLOWED_ORIGINS`; allowed request headers include `Authorization`, `Session-Token`, and `Refresh-Token`.
 - OTP records currently store the latest OTP value in `otp_check`; hashing/purpose-binding OTP records is roadmap work.
-- Share-code preview is currently an authenticated `GET /api/v1/trips/share-codes/{code}` endpoint.
-- Share codes currently use a `WM-` prefix plus an eight-character UUID-derived value.
+- Share-code preview is an authenticated `POST /api/v1/trips/share-codes/preview` endpoint because preview attempts update rate-limit state.
+- Share codes use `SecureRandom`, a `WM-` prefix, and a twelve-character unambiguous alphabet. Generation and redemption use pessimistic locking.
 - Google email OAuth refresh currently creates its own scheduled executor; lifecycle management is a roadmap improvement.
 
 ## Screenshots and portfolio evidence

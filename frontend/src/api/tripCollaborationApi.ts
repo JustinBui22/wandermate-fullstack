@@ -208,8 +208,9 @@ export async function getActiveTripShareCode(
 export async function previewTripShareCode(
     code: string
 ): Promise<TripShareCodePreview> {
-    const response = await axiosClient.get<ApiResponse<TripShareCodePreview>>(
-        `/api/v1/trips/share-codes/${encodeURIComponent(code)}`
+    const response = await axiosClient.post<ApiResponse<TripShareCodePreview>>(
+        "/api/v1/trips/share-codes/preview",
+        { code }
     );
 
     logger.debug("Preview trip share code response:", response.data);

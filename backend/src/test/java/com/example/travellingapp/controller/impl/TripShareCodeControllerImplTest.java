@@ -1,5 +1,6 @@
 package com.example.travellingapp.controller.impl;
 
+import com.example.travellingapp.dto.request.PreviewTripShareCodeRequest;
 import com.example.travellingapp.dto.request.create.GenerateTripShareCodeRequest;
 import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.response_template.CompleteResponse;
@@ -19,7 +20,6 @@ import static com.example.travellingapp.enums.CommonEnum.TRIP_MEMBER;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -53,8 +53,8 @@ class TripShareCodeControllerImplTest {
                 Map.of(
                         "tripId", 1,
                         "tripName", "Adelaide Trip",
-                        "code", "WM-ABCDEFGH",
-                        "inviteLink", "wandermate://join-trip?code=WM-ABCDEFGH",
+                        "code", "WM-ABCDEFGHJKLM",
+                        "inviteLink", "wandermate://join-trip?code=WM-ABCDEFGHJKLM",
                         "defaultRole", "VIEWER",
                         "codeStatus", "ACTIVE"
                 )
@@ -74,7 +74,7 @@ class TripShareCodeControllerImplTest {
                 .andExpect(jsonPath("$.flow").value(TRIP_MEMBER.name()))
                 .andExpect(jsonPath("$.body.tripId").value(1))
                 .andExpect(jsonPath("$.body.tripName").value("Adelaide Trip"))
-                .andExpect(jsonPath("$.body.code").value("WM-ABCDEFGH"))
+                .andExpect(jsonPath("$.body.code").value("WM-ABCDEFGHJKLM"))
                 .andExpect(jsonPath("$.body.defaultRole").value("VIEWER"))
                 .andExpect(jsonPath("$.body.codeStatus").value("ACTIVE"));
 
@@ -99,10 +99,15 @@ class TripShareCodeControllerImplTest {
                 )
         );
 
-        when(tripShareCodeService.previewShareCode("WM-ABCDEFGH"))
+        when(tripShareCodeService.previewShareCode("WM-ABCDEFGHJKLM"))
                 .thenReturn(new CompleteResponse<>(responseBody, 200));
 
-        mockMvc.perform(get("/api/v1/trips/share-codes/WM-ABCDEFGH")
+        PreviewTripShareCodeRequest request = new PreviewTripShareCodeRequest();
+        request.setCode("WM-ABCDEFGHJKLM");
+
+        mockMvc.perform(post("/api/v1/trips/share-codes/preview")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("E000"))
@@ -114,7 +119,7 @@ class TripShareCodeControllerImplTest {
                 .andExpect(jsonPath("$.body.ownerUsername").value("OwnerUser"))
                 .andExpect(jsonPath("$.body.defaultRole").value("VIEWER"));
 
-        verify(tripShareCodeService).previewShareCode("WM-ABCDEFGH");
+        verify(tripShareCodeService).previewShareCode("WM-ABCDEFGHJKLM");
     }
 
     @Test
@@ -135,10 +140,10 @@ class TripShareCodeControllerImplTest {
                 )
         );
 
-        when(tripShareCodeService.requestToJoinByShareCode("WM-ABCDEFGH"))
+        when(tripShareCodeService.requestToJoinByShareCode("WM-ABCDEFGHJKLM"))
                 .thenReturn(new CompleteResponse<>(responseBody, 200));
 
-        mockMvc.perform(post("/api/v1/trips/share-codes/WM-ABCDEFGH/join-requests")
+        mockMvc.perform(post("/api/v1/trips/share-codes/WM-ABCDEFGHJKLM/join-requests")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("E000"))
@@ -150,7 +155,7 @@ class TripShareCodeControllerImplTest {
                 .andExpect(jsonPath("$.body.requestedRole").value("VIEWER"))
                 .andExpect(jsonPath("$.body.status").value("PENDING"));
 
-        verify(tripShareCodeService).requestToJoinByShareCode("WM-ABCDEFGH");
+        verify(tripShareCodeService).requestToJoinByShareCode("WM-ABCDEFGHJKLM");
     }
 
     @Test

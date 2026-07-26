@@ -8,10 +8,12 @@ import com.example.travellingapp.entity.collaboration.TripCollaborationRequestEn
 import com.example.travellingapp.entity.collaboration.TripShareCodeEntity;
 import com.example.travellingapp.enums.TripEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
+import com.example.travellingapp.exception_handler.exception.TripShareCodeExpiredException;
 import com.example.travellingapp.mapper.TripCollaborationRequestMapper;
 import com.example.travellingapp.mapper.TripShareCodeMapper;
 import com.example.travellingapp.repository.ConfigurationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
+import com.example.travellingapp.repository.TripRepository;
 import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.repository.collaboration.TripCollaborationRequestRepository;
 import com.example.travellingapp.repository.collaboration.TripShareCodeAttemptRepository;
@@ -26,13 +28,14 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
 import static com.example.travellingapp.enums.CommonEnum.INVITE_LINK_PREFIX;
 import static com.example.travellingapp.enums.CommonEnum.TRIP_MEMBER;
 import static com.example.travellingapp.enums.ErrorCodeEnum.INTERNAL_SERVER_ERROR;
+import static com.example.travellingapp.enums.ErrorCodeEnum.TRIP_NOT_FOUND;
 import static com.example.travellingapp.enums.ErrorCodeEnum.TRIP_SHARE_CODE_CREATED_SUCCESS;
 import static com.example.travellingapp.enums.ErrorCodeEnum.TRIP_SHARE_CODE_EXPIRED;
 import static com.example.travellingapp.enums.ErrorCodeEnum.TRIP_SHARE_CODE_JOIN_REQUEST_SENT_SUCCESS;
@@ -46,12 +49,17 @@ import static com.example.travellingapp.response_template.CompleteResponse.getCo
 public class TripShareCodeServiceImpl
         implements TripShareCodeService {
 
-    private static final int SHARE_CODE_LENGTH = 8;
+    private static final int SHARE_CODE_LENGTH = 12;
     private static final long CODE_EXPIRY_HOURS = 24;
     private static final long GENERATE_COOLDOWN_SECONDS = 60;
     private static final String CODE_PREFIX = "WM-";
+    private static final String CODE_ALPHABET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final int MAX_CODE_GENERATION_ATTEMPTS = 10;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final TripShareCodeRepository tripShareCodeRepository;
+    private final TripRepository tripRepository;
     private final ConfigurationRepository configurationRepository;
     private final TripShareCodeAttemptRepository
             tripShareCodeAttemptRepository;
@@ -70,6 +78,7 @@ public class TripShareCodeServiceImpl
 
     public TripShareCodeServiceImpl(
             TripShareCodeRepository tripShareCodeRepository,
+            TripRepository tripRepository,
             ConfigurationRepository configurationRepository,
             TripShareCodeAttemptRepository
                     tripShareCodeAttemptRepository,
@@ -87,6 +96,7 @@ public class TripShareCodeServiceImpl
                     tripShareCodeSecurityEventService
     ) {
         this.tripShareCodeRepository = tripShareCodeRepository;
+        this.tripRepository = tripRepository;
         this.configurationRepository = configurationRepository;
         this.tripShareCodeAttemptRepository =
                 tripShareCodeAttemptRepository;
@@ -116,10 +126,15 @@ public class TripShareCodeServiceImpl
             String username =
                     authenticatedUserProvider.getUsername();
 
-            TripEntity trip =
-                    tripAccessService.getTripIfOwner(
-                            tripId,
-                            username
+            tripAccessService.assertIsOwner(tripId, username);
+
+            TripEntity trip = tripRepository
+                    .findByTripIdForUpdate(tripId)
+                    .orElseThrow(
+                            () -> new BusinessException(
+                                    TRIP_NOT_FOUND,
+                                    TRIP_MEMBER.name()
+                            )
                     );
 
             User owner = userRepository
@@ -202,7 +217,8 @@ public class TripShareCodeServiceImpl
             TripShareCodeEntity shareCode =
                     getValidShareCodeOrRegisterInvalidAttempt(
                             code,
-                            user
+                            user,
+                            false
                     );
 
             return getCompleteResponse(
@@ -227,7 +243,7 @@ public class TripShareCodeServiceImpl
         }
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = TripShareCodeExpiredException.class)
     @Override
     public CompleteResponse<Object> requestToJoinByShareCode(
             String code
@@ -240,7 +256,8 @@ public class TripShareCodeServiceImpl
             TripShareCodeEntity shareCode =
                     getValidShareCodeOrRegisterInvalidAttempt(
                             code,
-                            requester
+                            requester,
+                            true
                     );
 
             tripShareCodeValidator
@@ -375,26 +392,30 @@ public class TripShareCodeServiceImpl
         if (activeCode.getExpiresAt().isBefore(now)) {
             activeCode.setCodeStatus(TripEnum.EXPIRED);
             activeCode.setModifiedDate(now);
-            tripShareCodeRepository.save(activeCode);
+            tripShareCodeRepository.saveAndFlush(activeCode);
             return;
         }
 
         activeCode.setCodeStatus(TripEnum.REVOKED);
         activeCode.setModifiedDate(now);
-        tripShareCodeRepository.save(activeCode);
+        tripShareCodeRepository.saveAndFlush(activeCode);
     }
 
     private TripShareCodeEntity
     getValidShareCodeOrRegisterInvalidAttempt(
             String code,
-            User user
+            User user,
+            boolean lockForRedemption
     ) {
         String normalizedCode =
                 tripShareCodeValidator.normalizeCode(code);
 
         TripShareCodeEntity shareCode =
-                tripShareCodeRepository
-                        .findByCode(normalizedCode)
+                (lockForRedemption
+                        ? tripShareCodeRepository
+                        .findByCodeForUpdate(normalizedCode)
+                        : tripShareCodeRepository
+                        .findByCode(normalizedCode))
                         .orElseGet(() -> {
                             tripShareCodeSecurityEventService
                                     .recordInvalidAttempt(
@@ -425,6 +446,15 @@ public class TripShareCodeServiceImpl
                     == TRIP_SHARE_CODE_EXPIRED
                     && shareCode.getCodeStatus()
                     == TripEnum.ACTIVE) {
+                if (lockForRedemption) {
+                    shareCode.setCodeStatus(TripEnum.EXPIRED);
+                    shareCode.setModifiedDate(LocalDateTime.now());
+                    tripShareCodeRepository.save(shareCode);
+                    tripShareCodeSecurityEventService
+                            .recordInvalidAttempt(user.getUserId());
+                    throw new TripShareCodeExpiredException();
+                }
+
                 tripShareCodeSecurityEventService
                         .recordExpiredCodeAndInvalidAttempt(
                                 shareCode.getShareCodeId(),
@@ -506,16 +536,38 @@ public class TripShareCodeServiceImpl
     }
 
     private String generateUniqueShareCode() {
-        String code;
-        do {
-            code = CODE_PREFIX
-                    + UUID.randomUUID()
-                    .toString()
-                    .replace("-", "")
-                    .substring(0, SHARE_CODE_LENGTH)
-                    .toUpperCase();
-        } while (tripShareCodeRepository.existsByCode(code));
+        for (int attempt = 0;
+             attempt < MAX_CODE_GENERATION_ATTEMPTS;
+             attempt++) {
+            StringBuilder codeBuilder = new StringBuilder(
+                    CODE_PREFIX
+            );
 
-        return code;
+            for (int character = 0;
+                 character < SHARE_CODE_LENGTH;
+                 character++) {
+                codeBuilder.append(
+                        CODE_ALPHABET.charAt(
+                                SECURE_RANDOM.nextInt(
+                                        CODE_ALPHABET.length()
+                                )
+                        )
+                );
+            }
+
+            String code = codeBuilder.toString();
+            if (!tripShareCodeRepository.existsByCode(code)) {
+                return code;
+            }
+        }
+
+        log.error(
+                "Unable to generate a unique trip share code after {} attempts",
+                MAX_CODE_GENERATION_ATTEMPTS
+        );
+        throw new BusinessException(
+                INTERNAL_SERVER_ERROR,
+                COMMON.name()
+        );
     }
 }
