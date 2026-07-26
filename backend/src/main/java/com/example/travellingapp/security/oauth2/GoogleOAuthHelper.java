@@ -6,18 +6,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.http.*;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.http.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
 import static com.example.travellingapp.util.Common.getConfigValue;
@@ -25,14 +23,14 @@ import static com.example.travellingapp.util.Common.getEnvConfig;
 
 @Log4j2
 @Component
-@EnableScheduling
 public class GoogleOAuthHelper implements SchedulingConfigurer {
     private final ConfigurationRepository configurationRepository;
-    private ScheduledExecutorService scheduler;
+    private final TaskScheduler taskScheduler;
     private static final String OAUTH_REFRESH_TOKEN_FIELD = "refresh_token";
 
-    public GoogleOAuthHelper(ConfigurationRepository configurationRepository) {
+    public GoogleOAuthHelper(ConfigurationRepository configurationRepository, TaskScheduler taskScheduler) {
         this.configurationRepository = configurationRepository;
+        this.taskScheduler = taskScheduler;
     }
 
     public void refreshOAuthToken() {
@@ -99,15 +97,8 @@ public class GoogleOAuthHelper implements SchedulingConfigurer {
     @Override
     public void configureTasks(@NonNull ScheduledTaskRegistrar taskRegistrar) {
         long refreshRate = Long.parseLong(getConfigValue(EMAIL_REFRESH_ACCESS_TOKEN_RATE.name(), configurationRepository, "3500000"));
-        // Initialize scheduler only once and store it
-        // This executor won't be automatically shut down by Spring.
-        // Storing it as a field to stop or manage your scheduled tasks
-        if (scheduler == null || scheduler.isShutdown()) {
-            scheduler = Executors.newSingleThreadScheduledExecutor();
-        }
-        // Schedule task using newSingleThreadScheduledExecutor
-        scheduler.scheduleAtFixedRate(this::refreshOAuthToken, 0, refreshRate, TimeUnit.MILLISECONDS);
+        taskRegistrar.setTaskScheduler(taskScheduler);
+        taskRegistrar.addFixedRateTask(this::refreshOAuthToken, Duration.ofMillis(refreshRate));
         log.info("OAuth token refresh scheduled every {} milliseconds.", refreshRate);
     }
 }
-
