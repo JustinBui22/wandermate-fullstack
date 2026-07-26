@@ -11,6 +11,7 @@ import com.example.travellingapp.exception_handler.exception.BusinessException;
 import com.example.travellingapp.mapper.UserMapper;
 import com.example.travellingapp.repository.ConfigurationRepository;
 import com.example.travellingapp.repository.ErrorCodeRepository;
+import com.example.travellingapp.security.AccountEnumerationRateLimiter;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.TokenService;
@@ -27,7 +28,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -54,9 +54,10 @@ public class UserServiceImpl implements UserService {
     private final UserValidator userValidator;
     private final UserMapper userMapper;
     private final CloudinaryImageClient cloudinaryImageClient;
+    private final AccountEnumerationRateLimiter accountEnumerationRateLimiter;
 
 
-    public UserServiceImpl(UserRepository userRepository, ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, TokenService tokenService, PasswordEncoder passwordEncoder, OtpServiceImpl otpServiceImpl, AuthenticatedUserProvider authenticatedUserProvider, UserValidator userValidator, UserMapper userMapper, CloudinaryImageClient cloudinaryImageClient) {
+    public UserServiceImpl(UserRepository userRepository, ConfigurationRepository configurationRepository, ErrorCodeRepository errorCodeRepository, TokenService tokenService, PasswordEncoder passwordEncoder, OtpServiceImpl otpServiceImpl, AuthenticatedUserProvider authenticatedUserProvider, UserValidator userValidator, UserMapper userMapper, CloudinaryImageClient cloudinaryImageClient, AccountEnumerationRateLimiter accountEnumerationRateLimiter) {
         this.userRepository = userRepository;
         this.configurationRepository = configurationRepository;
         this.errorCodeRepository = errorCodeRepository;
@@ -67,6 +68,7 @@ public class UserServiceImpl implements UserService {
         this.userValidator = userValidator;
         this.userMapper = userMapper;
         this.cloudinaryImageClient = cloudinaryImageClient;
+        this.accountEnumerationRateLimiter = accountEnumerationRateLimiter;
     }
 
     @Transactional
@@ -205,12 +207,22 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public CompleteResponse<Object> checkUserExisted(String userInput) {
-        Optional<User> userOptional = findUser(userInput, configurationRepository, userRepository);
-        if (userOptional.isEmpty()) {
-            log.error("User {} not found!", userInput);
-            throw new BusinessException(USER_NOT_FOUND, COMMON.name());
+        String requesterUsername = authenticatedUserProvider.getUsername();
+        accountEnumerationRateLimiter.checkAuthenticatedLookupAllowed(requesterUsername);
+
+        String normalizedUserInput = userInput == null ? "" : userInput.trim();
+        if (normalizedUserInput.isBlank() || normalizedUserInput.length() > 254) {
+            throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
-        return getCompleteResponse(errorCodeRepository, SEARCH_INFO_SUCCESS, COMMON.name(), userOptional.get().getUsername());
+
+        boolean userExists = findUser(normalizedUserInput, configurationRepository, userRepository).isPresent();
+        log.info("Authenticated account lookup completed for user {}", requesterUsername);
+        return getCompleteResponse(
+                errorCodeRepository,
+                SEARCH_INFO_SUCCESS,
+                COMMON.name(),
+                Map.of("exists", userExists)
+        );
     }
 
     @Transactional

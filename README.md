@@ -285,6 +285,7 @@ The following facts are important when evaluating or extending this version:
 - JPA currently uses `spring.jpa.hibernate.ddl-auto=update`; versioned Flyway/Liquibase migrations are not configured.
 - The Docker SQL seed runs only when MariaDB initializes a new named volume.
 - Public endpoints are defined in code through a shared, HTTP-method-specific `PublicEndpointMatcher` used by both Spring Security and `TokenFilter`.
+- Account lookup requires authentication, returns only a generic `exists` boolean, and is rate-limited per authenticated account. Public registration verification and OTP-send entry points are rate-limited by source address. Login and password-reset account mismatches use generic responses.
 - CORS origins are configured through `CORS_ALLOWED_ORIGINS`; allowed request headers include `Authorization`, `Session-Token`, and `Refresh-Token`.
 - OTP records currently store the latest OTP value in `otp_check`; hashing/purpose-binding OTP records is roadmap work.
 - Share-code preview is an authenticated `POST /api/v1/trips/share-codes/preview` endpoint because preview attempts update rate-limit state.

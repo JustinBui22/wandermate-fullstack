@@ -12,6 +12,8 @@ This roadmap starts from the implementation currently present in the repository.
 - Replaced UUID-substring share codes with longer `SecureRandom` codes using an unambiguous alphabet.
 - Serialized active-code generation and redemption with pessimistic database locks.
 - Changed state-sensitive share-code preview from GET to POST.
+- Protected and rate-limited `/api/v1/users/check`, removed canonical-username disclosure, and standardized found/not-found responses. Public registration verification and OTP-send entry points are also source-rate-limited.
+- Confirmed generic login and password-reset account-mismatch behaviour and documented the remaining registration-availability trade-off.
 
 ## Priority 1 — Security and concurrency hardening
 
@@ -20,7 +22,6 @@ This roadmap starts from the implementation currently present in the repository.
 - Add pessimistic/atomic locking to the main OTP lookup/consume path.
 - Serialize refresh-token rotation by locking the token-hash row.
 - Rework refresh-token reuse revocation so it does not depend on a second unlocked lookup.
-- Remove or redesign `/api/v1/users/check` to reduce account enumeration.
 
 ## Priority 2 — Database lifecycle
 

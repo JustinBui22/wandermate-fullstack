@@ -19,6 +19,7 @@ import com.example.travellingapp.repository.ErrorCodeRepository;
 import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.response_template.ResponseBody;
+import com.example.travellingapp.security.AccountEnumerationRateLimiter;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.TokenService;
@@ -83,6 +84,9 @@ class UserServiceImplTest {
     @Mock
     private CloudinaryImageClient cloudinaryImageClient;
 
+    @Mock
+    private AccountEnumerationRateLimiter accountEnumerationRateLimiter;
+
     private UserServiceImpl userService;
 
     @BeforeEach
@@ -97,8 +101,119 @@ class UserServiceImplTest {
                 authenticatedUserProvider,
                 userValidator,
                 userMapper,
-                cloudinaryImageClient
+                cloudinaryImageClient,
+                accountEnumerationRateLimiter
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // checkUserExisted()
+    // -------------------------------------------------------------------------
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void checkUserExisted_shouldReturnGenericExistsTrue_withoutReturningCanonicalUsername() {
+        String requesterUsername = "Requester123";
+        String userInput = "justin@example.com";
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(requesterUsername);
+        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
+
+        try (MockedStatic<Common> commonMock = mockStatic(Common.class, CALLS_REAL_METHODS)) {
+            commonMock.when(() -> Common.findUser(
+                            userInput,
+                            configurationRepository,
+                            userRepository
+                    ))
+                    .thenReturn(Optional.of(activeUser("JustinBo123")));
+
+            CompleteResponse<Object> response = userService.checkUserExisted(userInput);
+
+            Map<String, Boolean> body =
+                    (Map<String, Boolean>) response.getResponseBody().getBody();
+
+            assertThat(response.getResponseBody().getCode())
+                    .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
+            assertThat(body).containsExactly(Map.entry("exists", true));
+            assertThat(response.getResponseBody().getBody().toString())
+                    .doesNotContain("JustinBo123");
+
+            verify(accountEnumerationRateLimiter).checkAuthenticatedLookupAllowed(requesterUsername);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void checkUserExisted_shouldReturnSameSuccessEnvelope_whenUserDoesNotExist() {
+        String requesterUsername = "Requester123";
+        String userInput = "missing@example.com";
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(requesterUsername);
+        mockErrorCode(SEARCH_INFO_SUCCESS, COMMON.name());
+
+        try (MockedStatic<Common> commonMock = mockStatic(Common.class, CALLS_REAL_METHODS)) {
+            commonMock.when(() -> Common.findUser(
+                            userInput,
+                            configurationRepository,
+                            userRepository
+                    ))
+                    .thenReturn(Optional.empty());
+
+            CompleteResponse<Object> response = userService.checkUserExisted(userInput);
+
+            Map<String, Boolean> body =
+                    (Map<String, Boolean>) response.getResponseBody().getBody();
+
+            assertThat(response.getResponseBody().getCode())
+                    .isEqualTo(SEARCH_INFO_SUCCESS.getCode());
+            assertThat(body).containsExactly(Map.entry("exists", false));
+
+            verify(accountEnumerationRateLimiter).checkAuthenticatedLookupAllowed(requesterUsername);
+        }
+    }
+
+    @Test
+    void checkUserExisted_shouldRejectBlankInput_afterApplyingRateLimit() {
+        String requesterUsername = "Requester123";
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(requesterUsername);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.checkUserExisted("   ")
+        );
+
+        assertBusinessException(exception, INVALID_INPUT, COMMON.name());
+
+        verify(accountEnumerationRateLimiter)
+                .checkAuthenticatedLookupAllowed(requesterUsername);
+        verifyNoInteractions(configurationRepository);
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void checkUserExisted_shouldStopBeforeLookup_whenRateLimitIsExceeded() {
+        String requesterUsername = "Requester123";
+        String userInput = "justin@example.com";
+
+        when(authenticatedUserProvider.getUsername()).thenReturn(requesterUsername);
+        doThrow(new BusinessException(ACCOUNT_ENUMERATION_RATE_LIMITED, COMMON.name()))
+                .when(accountEnumerationRateLimiter)
+                .checkAuthenticatedLookupAllowed(requesterUsername);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.checkUserExisted(userInput)
+        );
+
+        assertBusinessException(
+                exception,
+                ACCOUNT_ENUMERATION_RATE_LIMITED,
+                COMMON.name()
+        );
+
+        verifyNoInteractions(configurationRepository);
+        verifyNoInteractions(userRepository);
     }
 
     // -------------------------------------------------------------------------

@@ -21,8 +21,6 @@ public class PublicEndpointMatcher implements RequestMatcher {
             PathPatternRequestMatcher.withDefaults()
                     .matcher(HttpMethod.POST, "/api/v1/users/forgot-password"),
             PathPatternRequestMatcher.withDefaults()
-                    .matcher(HttpMethod.GET, "/api/v1/users/check"),
-            PathPatternRequestMatcher.withDefaults()
                     .matcher(HttpMethod.POST, "/api/v1/auth/refresh"),
             PathPatternRequestMatcher.withDefaults()
                     .matcher(HttpMethod.POST, "/api/v1/otp/send"),

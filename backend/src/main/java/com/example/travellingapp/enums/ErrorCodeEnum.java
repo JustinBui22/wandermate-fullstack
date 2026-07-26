@@ -158,7 +158,8 @@ public enum ErrorCodeEnum {
 
     DELETE_IMAGE_FAIL("E085", "Failed to delete image from cloud storage", COMMON, HttpStatusCodeEnum.INTERNAL_SERVER_ERROR),
     OTP_COOLDOWN_NOT_EXPIRED("E086", "OTP cooldown period has not expired yet", OTP, HttpStatusCodeEnum.TOO_MANY_REQUESTS),
-    REGISTER_OTP_ALREADY_SENT("E087", "An OTP has already been sent for registration. Please wait before requesting another one.", REGISTER, HttpStatusCodeEnum.TOO_MANY_REQUESTS)
+    REGISTER_OTP_ALREADY_SENT("E087", "An OTP has already been sent for registration. Please wait before requesting another one.", REGISTER, HttpStatusCodeEnum.TOO_MANY_REQUESTS),
+    ACCOUNT_ENUMERATION_RATE_LIMITED("E088", "Too many account verification requests. Please try again later.", COMMON, HttpStatusCodeEnum.TOO_MANY_REQUESTS)
 
 
     ;

@@ -6,6 +6,7 @@ import com.example.travellingapp.mapper.UserMapper;
 import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.response_template.ResponseBody;
+import com.example.travellingapp.security.AccountEnumerationRateLimiter;
 import com.example.travellingapp.security.data_security.AuthenticatedUserProvider;
 import com.example.travellingapp.service.CloudinaryImageClient;
 import com.example.travellingapp.service.TokenService;
@@ -67,6 +68,9 @@ class PasswordResetTransactionIntegrationTest {
 
     @MockitoBean
     private CloudinaryImageClient cloudinaryImageClient;
+
+    @MockitoBean
+    private AccountEnumerationRateLimiter accountEnumerationRateLimiter;
 
     @BeforeEach
     void setUp() {

@@ -54,7 +54,6 @@ Public access is defined in code by `PublicEndpointMatcher`. The matcher is shar
 | POST | `/api/v1/users/register` | Register after OTP verification |
 | POST | `/api/v1/users/login` | Login and receive three tokens |
 | POST | `/api/v1/users/forgot-password` | Reset password after OTP verification |
-| GET | `/api/v1/users/check?userInput=...` | Check whether username/email/phone resolves to an active user |
 | POST | `/api/v1/otp/send` | Send OTP |
 | POST | `/api/v1/otp/verify` | Verify/consume OTP |
 | POST | `/api/v1/auth/refresh` | Rotate refresh token and issue a new access token |
@@ -77,10 +76,19 @@ A path is not made public for every HTTP method. For example, `POST /api/v1/user
 | POST | `/api/v1/auth/refresh` | Refresh/session headers | Rotate refresh token |
 | POST | `/api/v1/users/forgot-password` | No | Verify OTP, change password, revoke active sessions/tokens |
 | POST | `/api/v1/users/logout` | Yes | Revoke current session and its active refresh tokens |
-| GET | `/api/v1/users/check` | No | Resolve whether an account exists |
+| GET | `/api/v1/users/check` | Yes | Rate-limited account lookup returning only `{ "exists": true|false }` |
 | GET | `/api/v1/users/me` | Yes | Current profile |
 | PATCH | `/api/v1/users/me/profile` | Yes | Update display name, phone, DOB and profile image reference |
 | PATCH | `/api/v1/users/me/settings` | Yes | Update preferred theme |
+
+
+### Account-enumeration behaviour
+
+`GET /api/v1/users/check` is not public. It requires the normal access-token and session-token headers, is limited per authenticated account, and returns the same `E000` response envelope whether the supplied username/email/phone exists or not. The body contains only an `exists` boolean; it never returns the matched canonical username, active-status details, or authentication-provider details.
+
+The default authenticated lookup limit is 20 requests per 60 seconds and can be configured through `ACCOUNT_LOOKUP_MAX_REQUESTS` and `ACCOUNT_LOOKUP_WINDOW_SECONDS`. Public registration-verification and OTP-send requests share a default limit of 10 requests per 60 seconds per remote address, configured through `PUBLIC_ACCOUNT_MAX_REQUESTS` and `PUBLIC_ACCOUNT_WINDOW_SECONDS`. The limiter is in-memory and per application instance, which is sufficient for the current single-instance deployment but should be replaced with a shared Redis/database-backed limiter before horizontal scaling.
+
+Registration verification intentionally still returns field-specific username/email/phone availability errors so the registration form can guide the user. This is an accepted UX/security trade-off. Login uses the same invalid-credentials response for missing users and incorrect passwords, including a dummy BCrypt comparison for the missing-user path. Password-reset OTP requests return the same success response and send nothing when the account or supplied destination does not match. Exact latency equality is not guaranteed because a valid request still performs synchronous email/SMS delivery; eliminating that residual timing signal would require queued asynchronous delivery.
 
 ### Login request
 

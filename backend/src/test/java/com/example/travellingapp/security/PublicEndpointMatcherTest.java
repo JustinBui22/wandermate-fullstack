@@ -35,6 +35,18 @@ class PublicEndpointMatcherTest {
     }
 
     @Test
+    void matches_shouldRequireAuthenticationForAccountLookup() {
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "GET",
+                "/Wandermate/api/v1/users/check"
+        );
+        request.setContextPath("/Wandermate");
+        request.setServletPath("/api/v1/users/check");
+
+        assertThat(publicEndpointMatcher.matches(request)).isFalse();
+    }
+
+    @Test
     void matches_shouldAllowSwaggerResource() {
         MockHttpServletRequest request = new MockHttpServletRequest(
                 "GET",
