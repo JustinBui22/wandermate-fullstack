@@ -21,6 +21,8 @@ import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.response_template.ResponseBody;
 import com.example.travellingapp.service.OtpFailureAccountingService;
+import com.example.travellingapp.security.data_security.DataSecurity;
+import com.example.travellingapp.security.TokenSecretProvider;
 import com.example.travellingapp.validator.OtpValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -74,12 +78,23 @@ class OtpServiceImplTest {
 
     private OtpServiceImpl otpService;
 
+    private DataSecurity dataSecurity;
+
     private static final String USERNAME = "JustinBo123";
     private static final String EMAIL_ADDRESS = "justin@example.com";
     private static final String PHONE_NUMBER = "0412345678";
+    private static final String OTP_HASH_SECRET = "test-otp-hash-secret-that-is-at-least-thirty-two-characters";
 
     @BeforeEach
     void setUp() {
+        TokenSecretProvider tokenSecretProvider = mock(TokenSecretProvider.class);
+        lenient().when(tokenSecretProvider.getOtpHashKey()).thenReturn(
+                new SecretKeySpec(
+                        OTP_HASH_SECRET.getBytes(StandardCharsets.UTF_8),
+                        "HmacSHA256"
+                )
+        );
+        dataSecurity = new DataSecurity(tokenSecretProvider);
         otpService = new OtpServiceImpl(
                 emailServiceImpl,
                 errorCodeRepository,
@@ -90,7 +105,8 @@ class OtpServiceImplTest {
                 otpCheckRepository,
                 userRepository,
                 otpValidator,
-                otpFailureAccountingService
+                otpFailureAccountingService,
+                dataSecurity
         );
     }
 
@@ -179,25 +195,28 @@ class OtpServiceImplTest {
         assertThat(savedOtp.getUsername()).isEqualTo(USERNAME);
         assertThat(savedOtp.getEmail()).isEqualTo(EMAIL_ADDRESS);
         assertThat(savedOtp.getPhoneNumber()).isNull();
-        assertThat(savedOtp.getNewestOtp()).matches("\\d{6}");
         assertThat(savedOtp.getRetrySendOtpCount()).isEqualTo(1);
         assertThat(savedOtp.getRetryVerifyOtpCount()).isEqualTo(0);
         assertThat(savedOtp.isBlock()).isFalse();
         assertThat(savedOtp.getOtpExpirationTime()).isAfter(LocalDateTime.now());
 
+        ArgumentCaptor<String> emailContentCaptor = ArgumentCaptor.forClass(String.class);
+
         verify(emailServiceImpl).sendEmail(
                 eq("noreply@wandermate.com"),
                 eq(EMAIL_ADDRESS),
                 contains("2"),
-                contains(USERNAME)
+                emailContentCaptor.capture()
         );
 
-        verify(emailServiceImpl).sendEmail(
-                anyString(),
-                anyString(),
-                anyString(),
-                contains(savedOtp.getNewestOtp())
-        );
+        String sentOtp = extractSixDigitOtp(emailContentCaptor.getValue());
+        assertThat(emailContentCaptor.getValue()).contains(USERNAME);
+        assertThat(dataSecurity.matchesOtp(
+                savedOtp.getUsername(),
+                savedOtp.getPurpose(),
+                sentOtp,
+                savedOtp.getNewestOtp()
+        )).isTrue();
 
         verify(smsServiceImpl, never()).sendSms(anyString(), anyString());
     }
@@ -232,9 +251,24 @@ class OtpServiceImplTest {
 
         assertThat(existingOtp.getEmail()).isEqualTo(EMAIL_ADDRESS);
         assertThat(existingOtp.getPhoneNumber()).isNull();
-        assertThat(existingOtp.getNewestOtp()).matches("\\d{6}");
         assertThat(existingOtp.getRetrySendOtpCount()).isEqualTo(2);
         assertThat(existingOtp.getRetryVerifyOtpCount()).isEqualTo(0);
+
+        ArgumentCaptor<String> emailContentCaptor = ArgumentCaptor.forClass(String.class);
+        verify(emailServiceImpl).sendEmail(
+                anyString(),
+                eq(EMAIL_ADDRESS),
+                anyString(),
+                emailContentCaptor.capture()
+        );
+
+        String sentOtp = extractSixDigitOtp(emailContentCaptor.getValue());
+        assertThat(dataSecurity.matchesOtp(
+                existingOtp.getUsername(),
+                existingOtp.getPurpose(),
+                sentOtp,
+                existingOtp.getNewestOtp()
+        )).isTrue();
 
         verify(otpCheckRepository).save(existingOtp);
     }
@@ -304,9 +338,24 @@ class OtpServiceImplTest {
 
         assertThat(existingOtp.getUsername()).isEqualTo("NewJustinBo123");
         assertThat(existingOtp.getEmail()).isEqualTo(EMAIL_ADDRESS);
-        assertThat(existingOtp.getNewestOtp()).matches("\\d{6}");
         assertThat(existingOtp.getRetrySendOtpCount()).isEqualTo(2);
         assertThat(existingOtp.getRetryVerifyOtpCount()).isEqualTo(0);
+
+        ArgumentCaptor<String> emailContentCaptor = ArgumentCaptor.forClass(String.class);
+        verify(emailServiceImpl).sendEmail(
+                anyString(),
+                eq(EMAIL_ADDRESS),
+                anyString(),
+                emailContentCaptor.capture()
+        );
+
+        String sentOtp = extractSixDigitOtp(emailContentCaptor.getValue());
+        assertThat(dataSecurity.matchesOtp(
+                existingOtp.getUsername(),
+                existingOtp.getPurpose(),
+                sentOtp,
+                existingOtp.getNewestOtp()
+        )).isTrue();
 
         verify(otpCheckRepository).findByEmailIgnoreCase(EMAIL_ADDRESS);
         verify(otpCheckRepository).save(existingOtp);
@@ -391,11 +440,19 @@ class OtpServiceImplTest {
         assertThat(savedOtp.getUsername()).isEqualTo(USERNAME);
         assertThat(savedOtp.getPhoneNumber()).isEqualTo(PHONE_NUMBER);
         assertThat(savedOtp.getEmail()).isNull();
-        assertThat(savedOtp.getNewestOtp()).matches("\\d{6}");
         assertThat(savedOtp.getRetrySendOtpCount()).isEqualTo(1);
         assertThat(savedOtp.getRetryVerifyOtpCount()).isEqualTo(0);
 
-        verify(smsServiceImpl).sendSms(eq(PHONE_NUMBER), contains(savedOtp.getNewestOtp()));
+        ArgumentCaptor<String> smsMessageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(smsServiceImpl).sendSms(eq(PHONE_NUMBER), smsMessageCaptor.capture());
+
+        String sentOtp = extractSixDigitOtp(smsMessageCaptor.getValue());
+        assertThat(dataSecurity.matchesOtp(
+                savedOtp.getUsername(),
+                savedOtp.getPurpose(),
+                sentOtp,
+                savedOtp.getNewestOtp()
+        )).isTrue();
         verify(emailServiceImpl, never()).sendEmail(anyString(), anyString(), anyString(), anyString());
     }
 
@@ -437,13 +494,22 @@ class OtpServiceImplTest {
         assertThat(existingOtp.getUsername()).isEqualTo("NewJustinBo123");
         assertThat(existingOtp.getPhoneNumber()).isEqualTo(PHONE_NUMBER);
         assertThat(existingOtp.getEmail()).isNull();
-        assertThat(existingOtp.getNewestOtp()).matches("\\d{6}");
         assertThat(existingOtp.getRetrySendOtpCount()).isEqualTo(2);
         assertThat(existingOtp.getRetryVerifyOtpCount()).isEqualTo(0);
 
+        ArgumentCaptor<String> smsMessageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(smsServiceImpl).sendSms(eq(PHONE_NUMBER), smsMessageCaptor.capture());
+
+        String sentOtp = extractSixDigitOtp(smsMessageCaptor.getValue());
+        assertThat(dataSecurity.matchesOtp(
+                existingOtp.getUsername(),
+                existingOtp.getPurpose(),
+                sentOtp,
+                existingOtp.getNewestOtp()
+        )).isTrue();
+
         verify(otpCheckRepository).findFirstByPhoneNumber(PHONE_NUMBER);
         verify(otpCheckRepository).save(existingOtp);
-        verify(smsServiceImpl).sendSms(eq(PHONE_NUMBER), contains(existingOtp.getNewestOtp()));
     }
 
     @Test
@@ -853,7 +919,7 @@ class OtpServiceImplTest {
         OtpDTO request = verifyEmailOtpRequest("123456");
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
 
         mockVerifyConfigs();
@@ -876,7 +942,7 @@ class OtpServiceImplTest {
         OtpDTO request = verifyPhoneOtpRequest("123456");
 
         OtpCheckEntity otpRecord = otpRecordForPhone();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
 
         mockVerifyConfigs();
@@ -917,7 +983,7 @@ class OtpServiceImplTest {
         request.setEmail("wrong@example.com");
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
 
         mockVerifyConfigs();
@@ -941,7 +1007,7 @@ class OtpServiceImplTest {
         request.setPhoneNumber("0499999999");
 
         OtpCheckEntity otpRecord = otpRecordForPhone();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
 
         mockVerifyConfigs();
@@ -964,7 +1030,7 @@ class OtpServiceImplTest {
         OtpDTO request = verifyEmailOtpRequest("123456");
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setRetryVerifyOtpCount(0);
         otpRecord.setOtpExpirationTime(LocalDateTime.now().minusMinutes(1));
 
@@ -990,7 +1056,7 @@ class OtpServiceImplTest {
         OtpDTO request = verifyEmailOtpRequest("999999");
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setRetryVerifyOtpCount(0);
         otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
 
@@ -1016,7 +1082,7 @@ class OtpServiceImplTest {
         OtpDTO request = verifyEmailOtpRequest("999999");
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setRetryVerifyOtpCount(2);
         otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
 
@@ -1042,7 +1108,7 @@ class OtpServiceImplTest {
         OtpDTO request = verifyEmailOtpRequest("123456");
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setRetryVerifyOtpCount(2);
         otpRecord.setOtpExpirationTime(LocalDateTime.now().minusMinutes(1));
 
@@ -1102,7 +1168,7 @@ class OtpServiceImplTest {
         OtpDTO request = verifyEmailOtpRequest("123456");
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
 
         mockVerifyConfigs();
@@ -1125,7 +1191,7 @@ class OtpServiceImplTest {
         OtpDTO request = verifyEmailOtpRequest("123456");
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
-        otpRecord.setNewestOtp("123456");
+        otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
 
         mockVerifyConfigs();
@@ -1208,7 +1274,7 @@ class OtpServiceImplTest {
         entity.setEmail(EMAIL_ADDRESS);
         entity.setPhoneNumber(null);
         entity.setCreatedDate(LocalDateTime.now());
-        entity.setNewestOtp("123456");
+        entity.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         entity.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
         entity.setRetrySendOtpCount(0);
         entity.setRetryVerifyOtpCount(0);
@@ -1224,7 +1290,7 @@ class OtpServiceImplTest {
         entity.setEmail(null);
         entity.setPhoneNumber(PHONE_NUMBER);
         entity.setCreatedDate(LocalDateTime.now());
-        entity.setNewestOtp("123456");
+        entity.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         entity.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
         entity.setRetrySendOtpCount(0);
         entity.setRetryVerifyOtpCount(0);
@@ -1256,6 +1322,15 @@ class OtpServiceImplTest {
                 SMS.name(),
                 null
         );
+    }
+
+    private String extractSixDigitOtp(String message) {
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("\\b\\d{6}\\b")
+                .matcher(message);
+
+        assertThat(matcher.find()).isTrue();
+        return matcher.group();
     }
 
     private void mockSendRetryConfigs() {

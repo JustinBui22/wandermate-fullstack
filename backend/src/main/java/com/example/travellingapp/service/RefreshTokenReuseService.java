@@ -1,8 +1,7 @@
 package com.example.travellingapp.service;
 
+import com.example.travellingapp.entity.RefreshTokenEntity;
+
 public interface RefreshTokenReuseService {
-    void revokeCompromisedSession(
-            java.util.UUID reusedTokenId,
-            String sessionToken
-    );
+    void revokeCompromisedSession(RefreshTokenEntity reusedToken);
 }

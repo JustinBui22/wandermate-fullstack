@@ -5,7 +5,7 @@ import com.example.travellingapp.entity.SessionTokenEntity;
 import com.example.travellingapp.repository.RefreshTokenRepository;
 import com.example.travellingapp.repository.SessionTokenRepository;
 import com.example.travellingapp.security.data_security.DataSecurity;
-import com.example.travellingapp.security.data_security.TokenSecretProvider;
+import com.example.travellingapp.security.TokenSecretProvider;
 import com.example.travellingapp.service.impl.RefreshTokenReuseServiceImpl;
 import com.example.travellingapp.service.impl.TokenServiceImpl;
 import org.junit.jupiter.api.Test;

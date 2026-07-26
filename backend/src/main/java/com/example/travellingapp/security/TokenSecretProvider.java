@@ -1,4 +1,4 @@
-package com.example.travellingapp.security.data_security;
+package com.example.travellingapp.security;
 
 import io.jsonwebtoken.security.Keys;
 import lombok.Getter;
@@ -18,11 +18,14 @@ public class TokenSecretProvider {
 
     private final SecretKey jwtSigningKey;
     private final SecretKey refreshTokenHashKey;
+    private final SecretKey otpHashKey;
 
     public TokenSecretProvider(
             @Value("${app.security.jwt-secret}") String jwtSecret,
             @Value("${app.security.refresh-token-hash-secret}")
-            String refreshTokenHashSecret
+            String refreshTokenHashSecret,
+            @Value("${app.security.otp-hash-secret}")
+            String otpHashSecret
     ) {
         byte[] jwtSecretBytes = requireSecret(
                 "JWT_SECRET",
@@ -36,9 +39,19 @@ public class TokenSecretProvider {
                 HMAC_SHA_256_MINIMUM_BYTES
         );
 
+        byte[] otpHashSecretBytes = requireSecret(
+                "OTP_HASH_SECRET",
+                otpHashSecret,
+                HMAC_SHA_256_MINIMUM_BYTES
+        );
+
         this.jwtSigningKey = Keys.hmacShaKeyFor(jwtSecretBytes);
         this.refreshTokenHashKey = new SecretKeySpec(
                 refreshHashSecretBytes,
+                "HmacSHA256"
+        );
+        this.otpHashKey = new SecretKeySpec(
+                otpHashSecretBytes,
                 "HmacSHA256"
         );
     }

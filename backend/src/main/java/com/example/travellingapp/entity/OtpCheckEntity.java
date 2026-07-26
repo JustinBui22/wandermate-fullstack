@@ -1,5 +1,6 @@
 package com.example.travellingapp.entity;
 
+import com.example.travellingapp.enums.OtpPurpose;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -43,6 +44,10 @@ public class OtpCheckEntity implements Serializable {
     @Column(name = "newest_otp")
     private String newestOtp;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "otp_purpose", nullable = false)
+    private OtpPurpose purpose = OtpPurpose.REGISTRATION;
+
     @Column(name = "is_block", nullable = false)
     private boolean isBlock;
 
@@ -66,4 +71,3 @@ public class OtpCheckEntity implements Serializable {
         this.isBlock = isBlock;
     }
 }
-

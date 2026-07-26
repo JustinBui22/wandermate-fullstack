@@ -5,10 +5,11 @@ import com.example.travellingapp.entity.SessionTokenEntity;
 import com.example.travellingapp.entity.User;
 import com.example.travellingapp.enums.ErrorCodeEnum;
 import com.example.travellingapp.exception_handler.exception.BusinessException;
+import com.example.travellingapp.exception_handler.exception.RefreshTokenReuseDetectedException;
 import com.example.travellingapp.repository.*;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.DataSecurity;
-import com.example.travellingapp.security.data_security.TokenSecretProvider;
+import com.example.travellingapp.security.TokenSecretProvider;
 import com.example.travellingapp.service.RefreshTokenReuseService;
 import com.example.travellingapp.service.TokenService;
 import io.jsonwebtoken.Claims;
@@ -151,24 +152,16 @@ public class TokenServiceImpl implements TokenService {
         log.info("All active refresh tokens for user {} revoked successfully", username);
     }
 
-    private void revokeActiveRefreshTokenByTokenId(UUID tokenId) {
-        Optional<RefreshTokenEntity> tokenOptional = refreshTokenRepository.findByTokenId(tokenId);
-        if (tokenOptional.isPresent()) {
-            RefreshTokenEntity token = tokenOptional.get();
-            String username = token.getUsername();
-            token.setRevoked(true);
-            token.setModifiedDate(LocalDateTime.now());
-            refreshTokenRepository.save(token);
-            log.info("Refresh token revoked for user {} successfully!", username);
-
-        } else {
-            log.error("No existing refresh token with token Id {} to be revoked", tokenId);
-            throw new BusinessException(SESSION_TOKEN_INVALID, TOKEN.name());
-        }
+    private void revokeActiveRefreshToken(RefreshTokenEntity token) {
+        String username = token.getUsername();
+        token.setRevoked(true);
+        token.setModifiedDate(LocalDateTime.now());
+        refreshTokenRepository.save(token);
+        log.info("Refresh token revoked for user {} successfully!", username);
     }
 
     @SuppressWarnings("unchecked")
-    @Transactional
+    @Transactional(noRollbackFor = RefreshTokenReuseDetectedException.class)
     @Override
     public CompleteResponse<Object> refreshAccessToken(String refreshToken, String sessionToken) {
         log.info("Start refreshing access token!");
@@ -181,7 +174,7 @@ public class TokenServiceImpl implements TokenService {
         }
         try {
             // Validate if the token's user exists
-            Optional<RefreshTokenEntity> refreshTokenOptional = refreshTokenRepository.findByTokenHash(dataSecurity.hashData(refreshToken));
+            Optional<RefreshTokenEntity> refreshTokenOptional = refreshTokenRepository.findByTokenHashForUpdate(dataSecurity.hashData(refreshToken));
             if (refreshTokenOptional.isEmpty()) {
                 log.error("There is no valid refresh token!");
                 throw new BusinessException(REFRESH_TOKEN_INVALID, TOKEN.name());
@@ -189,19 +182,18 @@ public class TokenServiceImpl implements TokenService {
             RefreshTokenEntity refreshTokenEntity = refreshTokenOptional.get();
             String userName = refreshTokenEntity.getUsername();
             String sessionId = refreshTokenEntity.getSessionId();
-            UUID tokenId = refreshTokenEntity.getTokenId();
             // Check if the refresh token is revoked and reused
             if (refreshTokenEntity.isRevoked()) {
                 log.error("Refresh token reuse detected for user {} and sessionId {}", userName, sessionId);
-                // Revoke the compromised session and all its active refresh tokens independently before the outer method throws and rolls back
-                refreshTokenReuseService.revokeCompromisedSession(refreshTokenEntity.getTokenId(), sessionToken);
-                throw new BusinessException(REFRESH_TOKEN_INVALID, TOKEN.name());
+                // Revoke the compromised session and all its active refresh tokens before returning the reuse error
+                refreshTokenReuseService.revokeCompromisedSession(refreshTokenEntity);
+                throw new RefreshTokenReuseDetectedException();
             }
             // If refresh token expired
             if (refreshTokenEntity.getExpiredDate().isBefore(LocalDateTime.now())) {
                 log.error("The refresh token for user {} expired!", userName);
                 // Revoke refresh token
-                revokeActiveRefreshTokenByTokenId(tokenId);
+                revokeActiveRefreshToken(refreshTokenEntity);
                 // Revoke session token
                 revokeSessionTokenBySessionId(userName, sessionId, sessionToken);
                 return getCompleteResponse(errorCodeRepository, REFRESH_TOKEN_EXPIRED, TOKEN.name(), null);
@@ -211,7 +203,7 @@ public class TokenServiceImpl implements TokenService {
                 throw new BusinessException(SESSION_TOKEN_INVALID, TOKEN.name());
             }
             // Revoke refresh token
-            revokeActiveRefreshTokenByTokenId(tokenId);
+            revokeActiveRefreshToken(refreshTokenEntity);
 
             // Get new access token
             CompleteResponse<Object> newAccessTokenResponse = generateAccessToken(userName, sessionId);

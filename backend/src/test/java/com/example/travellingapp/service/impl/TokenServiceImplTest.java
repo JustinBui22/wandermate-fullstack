@@ -14,7 +14,7 @@ import com.example.travellingapp.repository.SessionTokenRepository;
 import com.example.travellingapp.repository.UserRepository;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.security.data_security.DataSecurity;
-import com.example.travellingapp.security.data_security.TokenSecretProvider;
+import com.example.travellingapp.security.TokenSecretProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -189,7 +189,8 @@ class TokenServiceImplTest {
                 IllegalStateException.class,
                 () -> new TokenSecretProvider(
                         "short-secret",
-                        REFRESH_HASH_SECRET
+                        REFRESH_HASH_SECRET,
+                        "test-otp-hash-secret-at-least-thirty-two-bytes"
                 )
         );
     }
@@ -200,7 +201,8 @@ class TokenServiceImplTest {
                 IllegalStateException.class,
                 () -> new TokenSecretProvider(
                         SECRET,
-                        "short-refresh-secret"
+                        "short-refresh-secret",
+                        "test-otp-hash-secret-at-least-thirty-two-bytes"
                 )
         );
     }
@@ -923,7 +925,7 @@ class TokenServiceImplTest {
                 .thenReturn("hashed-refresh-token");
 
         when(refreshTokenRepository
-                .findByTokenHash("hashed-refresh-token"))
+                .findByTokenHashForUpdate("hashed-refresh-token"))
                 .thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(
@@ -942,7 +944,7 @@ class TokenServiceImplTest {
     }
 
     @Test
-    void refreshAccessToken_shouldDelegateReuseResponseToIndependentTransaction() {
+    void refreshAccessToken_shouldRevokeCompromisedSession_whenRevokedTokenIsPresented() {
         RefreshTokenEntity revokedToken = refreshToken(
                 "JustinBo123",
                 "session-123",
@@ -954,7 +956,7 @@ class TokenServiceImplTest {
                 .thenReturn("hashed-refresh-token");
 
         when(refreshTokenRepository
-                .findByTokenHash("hashed-refresh-token"))
+                .findByTokenHashForUpdate("hashed-refresh-token"))
                 .thenReturn(Optional.of(revokedToken));
 
         BusinessException exception = assertThrows(
@@ -972,10 +974,7 @@ class TokenServiceImplTest {
         );
 
         verify(refreshTokenReuseServiceImpl)
-                .revokeCompromisedSession(
-                        revokedToken.getTokenId(),
-                        "session-token"
-                );
+                .revokeCompromisedSession(revokedToken);
     }
 
     @Test
@@ -999,11 +998,7 @@ class TokenServiceImplTest {
                 .thenReturn("hashed-refresh-token");
 
         when(refreshTokenRepository
-                .findByTokenHash("hashed-refresh-token"))
-                .thenReturn(Optional.of(expiredToken));
-
-        when(refreshTokenRepository
-                .findByTokenId(expiredToken.getTokenId()))
+                .findByTokenHashForUpdate("hashed-refresh-token"))
                 .thenReturn(Optional.of(expiredToken));
 
         when(sessionTokenRepository.findByUsernameAndSessionId(
@@ -1050,7 +1045,7 @@ class TokenServiceImplTest {
                 .thenReturn("hashed-refresh-token");
 
         when(refreshTokenRepository
-                .findByTokenHash("hashed-refresh-token"))
+                .findByTokenHashForUpdate("hashed-refresh-token"))
                 .thenReturn(Optional.of(activeToken));
 
         when(sessionTokenRepository.findByUsernameAndSessionId(
@@ -1077,8 +1072,6 @@ class TokenServiceImplTest {
                 TOKEN.name()
         );
 
-        verify(refreshTokenRepository, never())
-                .findByTokenId(any());
     }
 
     @Test
@@ -1124,7 +1117,7 @@ class TokenServiceImplTest {
                         "hashed-" + invocation.getArgument(0)
                 );
 
-        when(refreshTokenRepository.findByTokenHash(
+        when(refreshTokenRepository.findByTokenHashForUpdate(
                 "hashed-" + oldRefreshTokenRaw
         )).thenReturn(Optional.of(oldRefreshToken));
 
@@ -1137,10 +1130,6 @@ class TokenServiceImplTest {
                 sessionTokenRaw,
                 "encoded-session-token"
         )).thenReturn(true);
-
-        when(refreshTokenRepository.findByTokenId(
-                oldRefreshToken.getTokenId()
-        )).thenReturn(Optional.of(oldRefreshToken));
 
         when(userRepository.findByUsernameAndActive(username))
                 .thenReturn(Optional.of(activeUser(username)));

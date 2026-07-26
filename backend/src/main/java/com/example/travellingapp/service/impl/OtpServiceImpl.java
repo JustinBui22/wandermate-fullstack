@@ -10,6 +10,7 @@ import com.example.travellingapp.repository.*;
 import com.example.travellingapp.response_template.CompleteResponse;
 import com.example.travellingapp.service.OtpService;
 import com.example.travellingapp.service.OtpFailureAccountingService;
+import com.example.travellingapp.security.data_security.DataSecurity;
 import com.example.travellingapp.validator.OtpValidator;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -42,9 +43,10 @@ public class OtpServiceImpl implements OtpService {
     private final SecureRandom random = new SecureRandom();
     private final OtpValidator otpValidator;
     private final OtpFailureAccountingService otpFailureAccountingService;
+    private final DataSecurity dataSecurity;
 
 
-    public OtpServiceImpl(EmailServiceImpl emailServiceImpl, ErrorCodeRepository errorCodeRepository, SmsServiceImpl smsServiceImpl, SmsRepository smsRepository, EmailRepository emailRepository, ConfigurationRepository configurationRepository, OtpCheckRepository otpCheckRepository, UserRepository userRepository, OtpValidator otpValidator, OtpFailureAccountingService otpFailureAccountingService) {
+    public OtpServiceImpl(EmailServiceImpl emailServiceImpl, ErrorCodeRepository errorCodeRepository, SmsServiceImpl smsServiceImpl, SmsRepository smsRepository, EmailRepository emailRepository, ConfigurationRepository configurationRepository, OtpCheckRepository otpCheckRepository, UserRepository userRepository, OtpValidator otpValidator, OtpFailureAccountingService otpFailureAccountingService, DataSecurity dataSecurity) {
         this.emailServiceImpl = emailServiceImpl;
         this.errorCodeRepository = errorCodeRepository;
         this.smsServiceImpl = smsServiceImpl;
@@ -55,6 +57,7 @@ public class OtpServiceImpl implements OtpService {
         this.userRepository = userRepository;
         this.otpValidator = otpValidator;
         this.otpFailureAccountingService = otpFailureAccountingService;
+        this.dataSecurity = dataSecurity;
     }
 
     @Override
@@ -280,7 +283,8 @@ public class OtpServiceImpl implements OtpService {
             log.error("Unsupported OTP verification method {}", otpDTO.getOtpVerificationMethod());
             throw new BusinessException(INVALID_INPUT, OTP.name());
         }
-        otpCheckEntity.setNewestOtp(otpCode);
+        otpCheckEntity.setPurpose(otpDTO.getPurpose());
+        otpCheckEntity.setNewestOtp(dataSecurity.hashOtp(otpDTO.getUserName(), otpDTO.getPurpose(), otpCode));
         otpCheckEntity.setCreatedDate(LocalDateTime.now());
         LocalDateTime expirationOtpTime = otpCheckEntity.getCreatedDate().plusSeconds(expirationOtpDuration / 1000);
         otpCheckEntity.setOtpExpirationTime(expirationOtpTime);
@@ -399,8 +403,19 @@ public class OtpServiceImpl implements OtpService {
                 throw new BusinessException(VERIFICATION_OTP_EXPIRED, OTP.name());
             }
 
-            // Check if OTP code matches
-            if (!otpDTO.getOtp().equals(otpCheckEntity.getNewestOtp())) {
+            // Check if OTP purpose matches the purpose for which the stored OTP was issued
+            if (otpCheckEntity.getPurpose() != otpDTO.getPurpose()) {
+                log.warn("Verification OTP purpose does not match!");
+                otpFailureAccountingService.recordFailedVerification(
+                        otpCheckEntity.getOtpCheckId(),
+                        maxRetryVerifyOtp,
+                        restrictedOtpDuration
+                );
+                throw new BusinessException(OTP_CODE_NOT_CORRECT, OTP.name());
+            }
+
+            // Check if OTP code matches the stored purpose-bound HMAC hash
+            if (!dataSecurity.matchesOtp(otpDTO.getUserName(), otpDTO.getPurpose(), otpDTO.getOtp(), otpCheckEntity.getNewestOtp())) {
                 log.warn("Verification OTP does not match!");
                 otpFailureAccountingService.recordFailedVerification(
                         otpCheckEntity.getOtpCheckId(),
