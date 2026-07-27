@@ -32,7 +32,7 @@ import type { Activity } from "@/src/types/activity";
 import type { Destination } from "@/src/types/destination";
 import type { TripCollaborationRole } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
-import { formatDateTime } from "@/src/utils/dateFormat";
+import { formatDateOnly, formatDateTime } from "@/src/utils/dateFormat";
 import { canEditTripPlan, getCurrentUserTripRole } from "@/src/utils/tripRoleUtils";
 
 function getApiMessage(error: unknown) {
@@ -271,12 +271,12 @@ export default function DestinationDetailScreen() {
                 <DestinationInfoCard
                     icon="calendar-outline"
                     label="Start"
-                    value={formatDateTime(destination.startDate)}
+                    value={formatDateOnly(destination.startDate)}
                 />
                 <DestinationInfoCard
                     icon="flag-outline"
                     label="End"
-                    value={formatDateTime(destination.endDate)}
+                    value={formatDateOnly(destination.endDate)}
                 />
                 <DestinationInfoCard
                     icon="swap-vertical-outline"

@@ -14,7 +14,7 @@ import {
     updateDestination,
 } from "@/src/api/destinationApi";
 import { DateTimePickerCard } from "@/src/components/forms/DateTimePickerCard";
-import { DateTimeSection } from "@/src/components/forms/DateTimeSection";
+import { DateSection } from "@/src/components/forms/DateSection";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
 import { AppInput } from "@/src/components/ui/AppInput";
@@ -29,23 +29,12 @@ import {
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
 import {
-    formatForBackend,
+    formatDateForBackend,
+    parseDateOnly,
     type PickerTarget,
     updateDatePart,
-    updateTimePart,
 } from "@/src/utils/dateTimePickerUtils";
 
-function parseDateOrFallback(value: string | undefined, fallback: Date) {
-    if (!value) return fallback;
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return fallback;
-    }
-
-    return date;
-}
 
 function parseDestinationOrder(value: string) {
     const trimmedValue = value.trim();
@@ -115,8 +104,8 @@ export default function EditDestinationScreen() {
                     : ""
             );
             setNotes(data.notes ?? "");
-            setStartDateTime(parseDateOrFallback(data.startDate, fallbackStart));
-            setEndDateTime(parseDateOrFallback(data.endDate, fallbackEnd));
+            setStartDateTime(parseDateOnly(data.startDate, fallbackStart));
+            setEndDateTime(parseDateOnly(data.endDate, fallbackEnd));
         } catch (error: unknown) {
             setError(getApiErrorMessage(error, "Failed to load destination. Please try again."));
         } finally {
@@ -136,19 +125,12 @@ export default function EditDestinationScreen() {
             return;
         }
 
-        if (activePicker === "startTime") {
-            setStartDateTime((current) => updateTimePart(current, selectedDate));
-            return;
-        }
 
         if (activePicker === "endDate") {
             setEndDateTime((current) => updateDatePart(current, selectedDate));
             return;
         }
 
-        if (activePicker === "endTime") {
-            setEndDateTime((current) => updateTimePart(current, selectedDate));
-        }
     }
 
     function handlePickerValueChange(selectedDate: Date) {
@@ -166,8 +148,8 @@ export default function EditDestinationScreen() {
     async function submitDestinationUpdate(allowOverlap = false) {
         await updateDestination(tripNumberId, destinationNumberId, {
             destinationName: destinationName.trim(),
-            startDate: formatForBackend(startDateTime),
-            endDate: formatForBackend(endDateTime),
+            startDate: formatDateForBackend(startDateTime),
+            endDate: formatDateForBackend(endDateTime),
             destinationOrder: parseDestinationOrder(destinationOrder),
             notes: notes.trim() || null,
             allowOverlap,
@@ -218,8 +200,8 @@ export default function EditDestinationScreen() {
             return;
         }
 
-        if (endDateTime <= startDateTime) {
-            Alert.alert("Invalid dates", "End date/time must be after start date/time.");
+        if (endDateTime < startDateTime) {
+            Alert.alert("Invalid dates", "End date cannot be before start date.");
             return;
         }
 
@@ -366,18 +348,16 @@ export default function EditDestinationScreen() {
 
                 <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-                <DateTimeSection
+                <DateSection
                     title="Start"
-                    dateTime={startDateTime}
+                    date={startDateTime}
                     onDatePress={() => setActivePicker("startDate")}
-                    onTimePress={() => setActivePicker("startTime")}
                 />
 
-                <DateTimeSection
+                <DateSection
                     title="End"
-                    dateTime={endDateTime}
+                    date={endDateTime}
                     onDatePress={() => setActivePicker("endDate")}
-                    onTimePress={() => setActivePicker("endTime")}
                 />
 
                 <ErrorMessage message={error} title="Update destination failed" />

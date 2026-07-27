@@ -8,7 +8,7 @@ import { colors, fontWeight, radius, spacing, typography } from "@/src/constants
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { Destination } from "@/src/types/destination";
 import type { Trip } from "@/src/types/trip";
-import { formatDateTime } from "@/src/utils/dateFormat";
+import { formatDateOnly, formatDateTime } from "@/src/utils/dateFormat";
 
 export function TripHeroContent({ trip }: Readonly<{ trip: Trip }>) {
     return (
@@ -98,7 +98,7 @@ export function TripDestinationCard({
                     {destination.destinationName || "Untitled destination"}
                 </Text>
                 <Text style={[styles.destinationDate, { color: themeColors.textMuted }]}>
-                    {formatDateTime(destination.startDate)} → {formatDateTime(destination.endDate)}
+                    {formatDateOnly(destination.startDate)} → {formatDateOnly(destination.endDate)}
                 </Text>
                 {destination.notes ? (
                     <Text style={[styles.destinationNotes, { color: themeColors.textMuted }]} numberOfLines={2}>

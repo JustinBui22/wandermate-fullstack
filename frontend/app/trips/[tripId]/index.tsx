@@ -28,7 +28,7 @@ import { colors, fontWeight, radius, spacing, typography } from "@/src/constants
 import type { Destination } from "@/src/types/destination";
 import type { Trip } from "@/src/types/trip";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
-import { formatDateTime } from "@/src/utils/dateFormat";
+import { formatDateOnly, formatDateTime } from "@/src/utils/dateFormat";
 import { normalizeImageUrl } from "@/src/utils/imageUrlUtils";
 
 function getApiMessage(error: unknown) {
@@ -292,12 +292,12 @@ export default function TripDetailScreen() {
                 <TripInfoCard
                     icon="calendar-outline"
                     label="Start"
-                    value={formatDateTime(trip.startDate)}
+                    value={formatDateOnly(trip.startDate)}
                 />
                 <TripInfoCard
                     icon="flag-outline"
                     label="End"
-                    value={formatDateTime(trip.endDate)}
+                    value={formatDateOnly(trip.endDate)}
                 />
             </View>
 

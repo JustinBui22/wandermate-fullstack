@@ -11,7 +11,7 @@ import { useRouter } from "expo-router";
 
 import { createTrip } from "@/src/api/tripApi";
 import { DateTimePickerCard } from "@/src/components/forms/DateTimePickerCard";
-import { DateTimeSection } from "@/src/components/forms/DateTimeSection";
+import { DateSection } from "@/src/components/forms/DateSection";
 import { ImageUploadPicker } from "@/src/components/media/ImageUploadPicker";
 import { AppButton } from "@/src/components/ui/AppButton";
 import { AppCard } from "@/src/components/ui/AppCard";
@@ -27,10 +27,9 @@ import {
     hasApiWarning,
 } from "@/src/utils/apiWarningUtils";
 import {
-    formatForBackend,
+    formatDateForBackend,
     type PickerTarget,
     updateDatePart,
-    updateTimePart,
 } from "@/src/utils/dateTimePickerUtils";
 
 function getDefaultStartDateTime() {
@@ -68,18 +67,8 @@ export default function CreateTripScreen() {
             return;
         }
 
-        if (activePicker === "startTime") {
-            setStartDateTime((current) => updateTimePart(current, selectedDate));
-            return;
-        }
-
         if (activePicker === "endDate") {
             setEndDateTime((current) => updateDatePart(current, selectedDate));
-            return;
-        }
-
-        if (activePicker === "endTime") {
-            setEndDateTime((current) => updateTimePart(current, selectedDate));
         }
     }
 
@@ -99,8 +88,8 @@ export default function CreateTripScreen() {
         await createTrip({
             tripName: tripName.trim(),
             destination: destination.trim(),
-            startDate: formatForBackend(startDateTime),
-            endDate: formatForBackend(endDateTime),
+            startDate: formatDateForBackend(startDateTime),
+            endDate: formatDateForBackend(endDateTime),
             allowOverlap,
             coverImageUrl: normalizeImageUrl(coverImageUrl),
             coverImagePublicId,
@@ -145,8 +134,8 @@ export default function CreateTripScreen() {
             return;
         }
 
-        if (endDateTime <= startDateTime) {
-            Alert.alert("Invalid dates", "End date/time must be after start date/time.");
+        if (endDateTime < startDateTime) {
+            Alert.alert("Invalid dates", "End date cannot be before start date.");
             return;
         }
 
@@ -284,18 +273,16 @@ export default function CreateTripScreen() {
                     ]}
                 />
 
-                <DateTimeSection
+                <DateSection
                     title="Start"
-                    dateTime={startDateTime}
+                    date={startDateTime}
                     onDatePress={() => setActivePicker("startDate")}
-                    onTimePress={() => setActivePicker("startTime")}
                 />
 
-                <DateTimeSection
+                <DateSection
                     title="End"
-                    dateTime={endDateTime}
+                    date={endDateTime}
                     onDatePress={() => setActivePicker("endDate")}
-                    onTimePress={() => setActivePicker("endTime")}
                 />
 
                 <ErrorMessage message={error} title="Create trip failed" />

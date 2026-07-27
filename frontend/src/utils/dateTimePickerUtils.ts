@@ -15,6 +15,25 @@ export function formatForBackend(date: Date) {
     return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
 }
 
+
+export function formatDateForBackend(date: Date) {
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+
+    return `${year}-${month}-${day}`;
+}
+
+export function parseDateOnly(value: string | undefined, fallback: Date) {
+    if (!value) return fallback;
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return fallback;
+
+    const parsed = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+}
+
 export function formatDisplayDate(date: Date) {
     return date.toLocaleDateString(undefined, {
         weekday: "short",

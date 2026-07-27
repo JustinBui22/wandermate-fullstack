@@ -13,7 +13,7 @@ import { colors as staticColors, fontWeight, radius, spacing, typography } from 
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import type { TripShareCodePreview } from "@/src/types/tripCollaboration";
 import { getApiErrorMessage } from "@/src/utils/apiWarningUtils";
-import { formatDateTime } from "@/src/utils/dateFormat";
+import { formatDateOnly, formatDateTime } from "@/src/utils/dateFormat";
 
 const SHARE_CODE_PATTERN = /WM-(?:[A-HJ-NP-Z2-9]{12}|[A-Z0-9]{8})/i;
 
@@ -150,8 +150,8 @@ export default function JoinTripScreen() {
                     </View>
 
                     <InfoRow label="Owner" value={preview.ownerUsername} icon="person-outline" />
-                    <InfoRow label="Start" value={formatDateTime(preview.startDate)} icon="calendar-outline" />
-                    <InfoRow label="End" value={formatDateTime(preview.endDate)} icon="flag-outline" />
+                    <InfoRow label="Start" value={formatDateOnly(preview.startDate)} icon="calendar-outline" />
+                    <InfoRow label="End" value={formatDateOnly(preview.endDate)} icon="flag-outline" />
 
                     <View style={[styles.expiryBox, { borderColor: colors.warning, backgroundColor: colors.warningSoft }]}>
                         <Ionicons name="time-outline" size={22} color={colors.warning} />

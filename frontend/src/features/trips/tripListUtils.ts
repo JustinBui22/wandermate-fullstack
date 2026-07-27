@@ -40,12 +40,22 @@ export function formatDateRange(startDate?: string, endDate?: string) {
     return `${formatDate(startDate)} → ${formatDate(endDate)}`;
 }
 
+function parseCalendarDate(value?: string) {
+    if (!value) return null;
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return null;
+
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function formatDate(value?: string) {
     if (!value) return "Not set";
 
-    const date = new Date(value);
+    const date = parseCalendarDate(value);
 
-    if (Number.isNaN(date.getTime())) {
+    if (!date) {
         return value;
     }
 
@@ -57,19 +67,17 @@ export function formatDate(value?: string) {
 }
 
 export function resolveTripStatusFromDates(startDate?: string, endDate?: string): TripStatus {
-    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
+    const start = parseCalendarDate(startDate);
+    const end = parseCalendarDate(endDate);
 
-    const hasValidStart = start && !Number.isNaN(start.getTime());
-    const hasValidEnd = end && !Number.isNaN(end.getTime());
-
-    if (hasValidStart && now < start) {
+    if (start && today < start) {
         return "PLANNING";
     }
 
-    if (hasValidEnd && now > end) {
+    if (end && today > end) {
         return "FINISHED";
     }
 
