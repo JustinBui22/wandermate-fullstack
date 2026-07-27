@@ -29,7 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
 import static com.example.travellingapp.enums.CommonEnum.INVITE_LINK_PREFIX;
@@ -159,7 +159,7 @@ public class TripShareCodeServiceImpl
                     );
 
             String code = generateUniqueShareCode();
-            LocalDateTime now = LocalDateTime.now();
+            Instant now = Instant.now();
 
             TripShareCodeEntity shareCode =
                     tripShareCodeMapper.toNewShareCodeEntity(
@@ -270,7 +270,7 @@ public class TripShareCodeServiceImpl
                     tripShareCodeMapper.toJoinRequestEntity(
                             shareCode,
                             requester,
-                            LocalDateTime.now()
+                            Instant.now()
                     );
 
             TripCollaborationRequestEntity savedJoinRequest =
@@ -330,7 +330,7 @@ public class TripShareCodeServiceImpl
                 );
             }
 
-            LocalDateTime now = LocalDateTime.now();
+            Instant now = Instant.now();
 
             if (activeShareCode.getExpiresAt().isBefore(now)) {
                 activeShareCode.setCodeStatus(TripEnum.EXPIRED);
@@ -381,7 +381,7 @@ public class TripShareCodeServiceImpl
     private void handleExistingActiveCodeBeforeRegeneration(
             TripShareCodeEntity activeCode
     ) {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         tripShareCodeValidator.validateActiveCodeCanBeRegenerated(
                 activeCode,
@@ -436,7 +436,7 @@ public class TripShareCodeServiceImpl
         try {
             tripShareCodeValidator.validateShareCodeCanBeUsed(
                     shareCode,
-                    LocalDateTime.now()
+                    Instant.now()
             );
 
             resetInvalidAttempt(user);
@@ -448,7 +448,7 @@ public class TripShareCodeServiceImpl
                     == TripEnum.ACTIVE) {
                 if (lockForRedemption) {
                     shareCode.setCodeStatus(TripEnum.EXPIRED);
-                    shareCode.setModifiedDate(LocalDateTime.now());
+                    shareCode.setModifiedDate(Instant.now());
                     tripShareCodeRepository.save(shareCode);
                     tripShareCodeSecurityEventService
                             .recordInvalidAttempt(user.getUserId());
@@ -473,7 +473,7 @@ public class TripShareCodeServiceImpl
             TripShareCodeEntity shareCode,
             User requester
     ) {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         shareCode.setCodeStatus(TripEnum.USED);
         shareCode.setUsedByUser(requester);
@@ -484,7 +484,7 @@ public class TripShareCodeServiceImpl
     }
 
     private void validateAttemptIsNotRestricted(User user) {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         tripShareCodeAttemptRepository
                 .findByUser_UserId(user.getUserId())
@@ -508,7 +508,7 @@ public class TripShareCodeServiceImpl
     }
 
     private void resetInvalidAttempt(User user) {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         tripShareCodeAttemptRepository
                 .findByUser_UserId(user.getUserId())

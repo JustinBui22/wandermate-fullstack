@@ -4,7 +4,8 @@ import com.example.travellingapp.enums.TripEnum;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -13,10 +14,10 @@ public class TripResponseDTO {
     private Long tripId;
     private String tripName;
     private String destination;
-    private LocalDateTime createdDate;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
-    private LocalDateTime modifiedDate;
+    private Instant createdDate;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private Instant modifiedDate;
 
     private Long userId;
     private String username;
@@ -32,8 +33,8 @@ public class TripResponseDTO {
     }
 
     public TripResponseDTO(Long tripId, String tripName, String destination,
-                           LocalDateTime createdDate, LocalDateTime startDate,
-                           LocalDateTime endDate, LocalDateTime modifiedDate,
+                           Instant createdDate, LocalDate startDate,
+                           LocalDate endDate, Instant modifiedDate,
                            Long userId, String username, String coverImageUrl, String coverImagePublicId, TripEnum tripStatus, TripEnum currentUserRole) {
         this.tripId = tripId;
         this.tripName = tripName;
@@ -51,8 +52,8 @@ public class TripResponseDTO {
     }
 
     public TripResponseDTO(Long tripId, String tripName, String destination,
-                           LocalDateTime createdDate, LocalDateTime startDate,
-                           LocalDateTime endDate, LocalDateTime modifiedDate,
+                           Instant createdDate, LocalDate startDate,
+                           LocalDate endDate, Instant modifiedDate,
                            Long userId, String username, String coverImageUrl, String coverImagePublicId, TripEnum tripStatus) {
         this.tripId = tripId;
         this.tripName = tripName;
@@ -68,4 +69,3 @@ public class TripResponseDTO {
         this.coverImagePublicId = coverImagePublicId;
     }
 }
-

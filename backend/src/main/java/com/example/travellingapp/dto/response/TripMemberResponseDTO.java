@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -19,6 +19,6 @@ public class TripMemberResponseDTO {
     private String username;
     private String email;
     private TripEnum role;
-    private LocalDateTime createdDate;
-    private LocalDateTime modifiedDate;
+    private Instant createdDate;
+    private Instant modifiedDate;
 }

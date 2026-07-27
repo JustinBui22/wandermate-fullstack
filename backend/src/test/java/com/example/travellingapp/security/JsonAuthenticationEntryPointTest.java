@@ -12,7 +12,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 
 import static com.example.travellingapp.enums.CommonEnum.TOKEN;
@@ -34,7 +34,7 @@ class JsonAuthenticationEntryPointTest {
         errorCode.setErrorEnum(TOKEN_VERIFY_FAIL.name());
         errorCode.setErrorMessage(TOKEN_VERIFY_FAIL.getMessage());
         errorCode.setFlow(TOKEN.name());
-        errorCode.setCreatedDate(LocalDateTime.now());
+        errorCode.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(TOKEN_VERIFY_FAIL.name(), TOKEN.name()))
                 .thenReturn(Optional.of(errorCode));

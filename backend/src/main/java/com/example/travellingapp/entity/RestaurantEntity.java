@@ -6,7 +6,7 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "restaurants")
@@ -25,9 +25,9 @@ public class RestaurantEntity implements Serializable {
     private String restaurantName;
 
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
-    public RestaurantEntity(String restaurantName, LocalDateTime createdDate) {
+    public RestaurantEntity(String restaurantName, Instant createdDate) {
         this.restaurantName = restaurantName;
         this.createdDate = createdDate;
     }

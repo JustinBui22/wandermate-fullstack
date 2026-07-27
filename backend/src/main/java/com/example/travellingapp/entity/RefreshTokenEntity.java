@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -28,19 +28,19 @@ public class RefreshTokenEntity {
     private String username;
 
     @Column(name = "created_date", nullable = false)
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "expired_date", nullable = false)
-    private LocalDateTime expiredDate;
+    private Instant expiredDate;
 
     @Column(name = "is_revoked", nullable = false)
     private boolean isRevoked;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     @Column(name = "revoked_date")
-    private LocalDateTime revokedDate;
+    private Instant revokedDate;
 
     @Column(name = "replaced_by_token_id")
     private UUID replacedByTokenId;
@@ -48,7 +48,7 @@ public class RefreshTokenEntity {
     @Column(name = "reuse_detected", nullable = false)
     private boolean reuseDetected;
 
-    public RefreshTokenEntity(boolean isRevoked, LocalDateTime createdDate, LocalDateTime expiredDate, String username, String tokenHash, String sessionId, UUID replacedByTokenId) {
+    public RefreshTokenEntity(boolean isRevoked, Instant createdDate, Instant expiredDate, String username, String tokenHash, String sessionId, UUID replacedByTokenId) {
         this.isRevoked = isRevoked;
         this.createdDate = createdDate;
         this.expiredDate = expiredDate;

@@ -3,7 +3,8 @@ package com.example.travellingapp.dto.response;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -13,9 +14,9 @@ public class DestinationResponseDTO {
 
     private String destinationName;
 
-    private LocalDateTime startDate;
+    private LocalDate startDate;
 
-    private LocalDateTime endDate;
+    private LocalDate endDate;
 
     private Integer destinationOrder;
 
@@ -23,9 +24,9 @@ public class DestinationResponseDTO {
 
     private Long tripId;
 
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     private Long createdByUserId;
 

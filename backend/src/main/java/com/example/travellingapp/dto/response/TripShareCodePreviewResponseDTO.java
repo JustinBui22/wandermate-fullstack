@@ -4,7 +4,8 @@ import com.example.travellingapp.enums.TripEnum;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -12,11 +13,11 @@ public class TripShareCodePreviewResponseDTO {
     private Long tripId;
     private String tripName;
     private String destination;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private LocalDate startDate;
+    private LocalDate endDate;
     private String ownerUsername;
     private TripEnum defaultRole;
-    private LocalDateTime expiresAt;
+    private Instant expiresAt;
 
     public TripShareCodePreviewResponseDTO() {
     }
@@ -25,11 +26,11 @@ public class TripShareCodePreviewResponseDTO {
             Long tripId,
             String tripName,
             String destination,
-            LocalDateTime startDate,
-            LocalDateTime endDate,
+            LocalDate startDate,
+            LocalDate endDate,
             String ownerUsername,
             TripEnum defaultRole,
-            LocalDateTime expiresAt
+            Instant expiresAt
     ) {
         this.tripId = tripId;
         this.tripName = tripName;

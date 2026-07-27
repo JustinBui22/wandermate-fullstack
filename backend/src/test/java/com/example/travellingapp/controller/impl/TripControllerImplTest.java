@@ -12,7 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Map;
 
 import static com.example.travellingapp.enums.CommonEnum.TRIP;
@@ -45,8 +45,8 @@ class TripControllerImplTest {
         CreateTripDTO request = new CreateTripDTO();
         request.setTripName("Adelaide Trip");
         request.setDestination("Adelaide");
-        request.setStartDate(LocalDateTime.of(2026, 8, 1, 9, 0));
-        request.setEndDate(LocalDateTime.of(2026, 8, 5, 18, 0));
+        request.setStartDate(LocalDate.of(2026, 8, 1));
+        request.setEndDate(LocalDate.of(2026, 8, 5));
         request.setAllowOverlap(false);
 
         ResponseBody<Object> responseBody = new ResponseBody<>(
@@ -77,8 +77,8 @@ class TripControllerImplTest {
         CreateTripDTO request = new CreateTripDTO();
         request.setTripName("Overlapping Trip");
         request.setDestination("Adelaide");
-        request.setStartDate(LocalDateTime.of(2026, 8, 1, 9, 0));
-        request.setEndDate(LocalDateTime.of(2026, 8, 5, 18, 0));
+        request.setStartDate(LocalDate.of(2026, 8, 1));
+        request.setEndDate(LocalDate.of(2026, 8, 5));
         request.setAllowOverlap(false);
 
         ResponseBody<Object> responseBody = new ResponseBody<>(

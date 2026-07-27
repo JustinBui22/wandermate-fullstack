@@ -9,7 +9,7 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "trip_share_codes")
@@ -44,20 +44,20 @@ public class TripShareCodeEntity implements Serializable {
     private TripEnum codeStatus;
 
     @Column(name = "expires_at", nullable = false)
-    private LocalDateTime expiresAt;
+    private Instant expiresAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "used_by_user_id")
     private User usedByUser;
 
     @Column(name = "used_date")
-    private LocalDateTime usedDate;
+    private Instant usedDate;
 
     @Column(name = "created_date", nullable = false)
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     public TripShareCodeEntity() {
     }
@@ -68,8 +68,8 @@ public class TripShareCodeEntity implements Serializable {
             User createdByUser,
             TripEnum defaultRole,
             TripEnum codeStatus,
-            LocalDateTime expiresAt,
-            LocalDateTime createdDate
+            Instant expiresAt,
+            Instant createdDate
     ) {
         this.trip = trip;
         this.code = code;

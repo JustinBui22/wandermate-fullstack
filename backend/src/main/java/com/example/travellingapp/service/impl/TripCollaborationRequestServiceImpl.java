@@ -27,7 +27,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
@@ -114,7 +114,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     request.getRole(),
                     TripEnum.INVITATION,
                     TripEnum.PENDING,
-                    LocalDateTime.now()
+                    Instant.now()
             );
 
             TripCollaborationRequestEntity savedInvitation = requestRepository.save(invitation);
@@ -201,7 +201,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     invitation.getTrip(),
                     invitation.getTargetUser(),
                     invitation.getRequestedRole(),
-                    LocalDateTime.now()
+                    Instant.now()
             );
 
             // Save new trip member
@@ -313,7 +313,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     request.getRole(),
                     TripEnum.JOIN_REQUEST,
                     TripEnum.PENDING,
-                    LocalDateTime.now()
+                    Instant.now()
             );
 
             TripCollaborationRequestEntity savedJoinRequest = requestRepository.save(joinRequest);
@@ -448,7 +448,7 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
                     joinRequest.getTrip(),
                     joinRequest.getRequester(),
                     joinRequest.getRequestedRole(),
-                    LocalDateTime.now()
+                    Instant.now()
             );
 
             // Save new trip member
@@ -510,8 +510,8 @@ public class TripCollaborationRequestServiceImpl implements TripCollaborationReq
     private void markRequestAsResponded(TripCollaborationRequestEntity request, TripEnum status) {
         // Update pending request after user/owner responds
         request.setStatus(status);
-        request.setModifiedDate(LocalDateTime.now());
-        request.setRespondedDate(LocalDateTime.now());
+        request.setModifiedDate(Instant.now());
+        request.setRespondedDate(Instant.now());
         requestRepository.save(request);
     }
 

@@ -9,7 +9,8 @@ import com.example.travellingapp.entity.collaboration.TripShareCodeEntity;
 import com.example.travellingapp.enums.TripEnum;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.Instant;
 
 @Component
 public class TripShareCodeMapper {
@@ -18,7 +19,7 @@ public class TripShareCodeMapper {
             String code,
             User owner,
             TripEnum defaultRole,
-            LocalDateTime now,
+            Instant now,
             long expiryHours
     ) {
         return new TripShareCodeEntity(
@@ -27,7 +28,7 @@ public class TripShareCodeMapper {
                 owner,
                 defaultRole,
                 TripEnum.ACTIVE,
-                now.plusHours(expiryHours),
+                now.plus(Duration.ofHours(expiryHours)),
                 now
         );
     }
@@ -35,7 +36,7 @@ public class TripShareCodeMapper {
     public TripCollaborationRequestEntity toJoinRequestEntity(
             TripShareCodeEntity shareCode,
             User requester,
-            LocalDateTime now
+            Instant now
     ) {
         TripEntity trip = shareCode.getTrip();
         User owner = trip.getUser();

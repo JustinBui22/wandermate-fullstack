@@ -8,7 +8,7 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "otp_check")
@@ -30,7 +30,7 @@ public class OtpCheckEntity implements Serializable {
     private String email;
 
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "phone_num")
     private String phoneNumber;
@@ -52,15 +52,15 @@ public class OtpCheckEntity implements Serializable {
     private boolean isBlock;
 
     @Column(name = "otp_expiration_time")
-    private LocalDateTime otpExpirationTime;
+    private Instant otpExpirationTime;
 
     @Column(name = "otp_restricted_time")
-    private LocalDateTime otpRestrictedTime;
+    private Instant otpRestrictedTime;
 
     public OtpCheckEntity() {
     }
 
-    public OtpCheckEntity(String username, String email, LocalDateTime createdDate, String phoneNumber, int retrySendOtpCount, int retryVerifyOtpCount, String newestOtp, boolean isBlock) {
+    public OtpCheckEntity(String username, String email, Instant createdDate, String phoneNumber, int retrySendOtpCount, int retryVerifyOtpCount, String newestOtp, boolean isBlock) {
         this.username = username;
         this.email = email;
         this.createdDate = createdDate;

@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "sms_contents")
@@ -28,13 +28,12 @@ public class SmsEntity {
     private String smsFlow;
 
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "sms_enum", nullable = false)
     private SmsEnum smsEnum;
 }
-

@@ -29,7 +29,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.*;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
@@ -98,7 +99,7 @@ public class UserServiceImpl implements UserService {
             else if (StringUtils.isEmpty(registerRequest.getOtp())) {
                 log.info("OTP is empty/ invalid!");
                 throw new BusinessException(OTP_BLOCKED_OR_NOT_FOUND, REGISTER.name());
-            } else if (toLocalDate(registerRequest.getDob()).isAfter(LocalDateTime.now().toLocalDate())) {
+            } else if (toLocalDate(registerRequest.getDob()).isAfter(LocalDate.now())) {
                 log.error("Date of birth cannot be in the future!");
                 throw new BusinessException(DOB_IN_FUTURE, REGISTER.name());
             }
@@ -109,7 +110,7 @@ public class UserServiceImpl implements UserService {
             String verifyOtpErrorCode = otpServiceImpl.verifyOtp(verifyOtpDTO).getResponseBody().getCode();
 
             if (verifyOtpErrorCode.equals(OTP_VERIFICATION_SUCCESS.getCode())) {
-                User newUser = new User(registerRequest.getUsername(), passwordEncoder.encode(registerRequest.getPassword()), registerRequest.getPhoneNumber(), toLocalDate(registerRequest.getDob()), LocalDateTime.now(), registerRequest.getEmail(), true);
+                User newUser = new User(registerRequest.getUsername(), passwordEncoder.encode(registerRequest.getPassword()), registerRequest.getPhoneNumber(), toLocalDate(registerRequest.getDob()), Instant.now(), registerRequest.getEmail(), true);
                 userRepository.save(newUser);
                 log.info("User has been created!");
                 errorCodeEnum = USER_CREATED;
@@ -326,7 +327,7 @@ public class UserServiceImpl implements UserService {
             String oldProfileImagePublicId = user.getProfileImagePublicId();
 
             userMapper.updateProfileEntity(user, updateUserProfileDTO, parsedDob);
-            user.setModifiedDate(LocalDateTime.now());
+            user.setModifiedDate(Instant.now());
             User savedUser = userRepository.save(user);
 
             // Delete the old profile image from Cloudinary if it has changed
@@ -359,7 +360,7 @@ public class UserServiceImpl implements UserService {
             userValidator.validateUpdateSettingsInput(updateUserSettingsDTO);
 
             userMapper.updateSettingsEntity(user, updateUserSettingsDTO);
-            user.setModifiedDate(LocalDateTime.now());
+            user.setModifiedDate(Instant.now());
 
             User savedUser = userRepository.save(user);
 

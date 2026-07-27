@@ -36,8 +36,8 @@ public class TripValidator {
             throw new BusinessException(TRIP_NAME_NOT_FOUND, TRIP.name());
         }
 
-        if (!tripDTO.getStartDate().isBefore(tripDTO.getEndDate())) {
-            log.error("Start date must be before end date to create a trip!!");
+        if (tripDTO.getStartDate().isAfter(tripDTO.getEndDate())) {
+            log.error("Start date must not be after end date to create a trip!!");
             throw new BusinessException(TRIP_TIME_INVALID, TRIP.name());
         }
 
@@ -63,8 +63,8 @@ public class TripValidator {
             throw new BusinessException(TRIP_NAME_NOT_FOUND, TRIP.name());
         }
 
-        if (!tripDTO.getStartDate().isBefore(tripDTO.getEndDate())) {
-            log.error("Start date must be before end date to update a trip!");
+        if (tripDTO.getStartDate().isAfter(tripDTO.getEndDate())) {
+            log.error("Start date must not be after end date to update a trip!");
             throw new BusinessException(TRIP_TIME_INVALID, TRIP.name());
         }
         return tripName;

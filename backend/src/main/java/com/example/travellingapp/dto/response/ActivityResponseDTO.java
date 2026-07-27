@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Getter
@@ -18,8 +19,8 @@ public class ActivityResponseDTO {
     private String description;
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
-    private LocalDateTime createdDate;
-    private LocalDateTime modifiedDate;
+    private Instant createdDate;
+    private Instant modifiedDate;
 
     private Long createdByUserId;
     private String createdByUsername;
@@ -31,4 +32,3 @@ public class ActivityResponseDTO {
     private String modifiedByDisplayName;
     private String modifiedByProfileImageUrl;
 }
-

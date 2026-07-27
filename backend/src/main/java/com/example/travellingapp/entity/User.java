@@ -10,7 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -41,7 +41,7 @@ public class User implements Serializable, UserDetails {
     private LocalDate dob;
 
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "referred_code")
     private String referredCode;
@@ -69,7 +69,7 @@ public class User implements Serializable, UserDetails {
     private String profileImagePublicId;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     public User(String username, String password, String email) {
         this.username = username;
@@ -79,7 +79,7 @@ public class User implements Serializable, UserDetails {
         this.preferredTheme = UserSettingEnum.SYSTEM;
     }
 
-    public User(String username, String password, String phoneNumber, LocalDate dob, LocalDateTime createdDate, String email, boolean isActive) {
+    public User(String username, String password, String phoneNumber, LocalDate dob, Instant createdDate, String email, boolean isActive) {
         this.username = username;
         this.password = password;
         this.phoneNumber = phoneNumber;
@@ -91,7 +91,7 @@ public class User implements Serializable, UserDetails {
         this.preferredTheme = UserSettingEnum.SYSTEM;
     }
 
-    public User(String username, String password, LocalDate dob, LocalDateTime createdDate, String email, boolean isActive, boolean isOAuth2) {
+    public User(String username, String password, LocalDate dob, Instant createdDate, String email, boolean isActive, boolean isOAuth2) {
         this.username = username;
         this.password = password;
         this.dob = dob;

@@ -33,7 +33,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -572,8 +573,8 @@ class TripCollaborationRequestServiceImplTest {
         trip.setTripId(TRIP_ID);
         trip.setTripName("Adelaide Trip");
         trip.setDestination("Adelaide");
-        trip.setStartDate(LocalDateTime.of(2026, 7, 10, 9, 0));
-        trip.setEndDate(LocalDateTime.of(2026, 7, 15, 18, 0));
+        trip.setStartDate(LocalDate.of(2026, 7, 10));
+        trip.setEndDate(LocalDate.of(2026, 7, 15));
         trip.setUser(owner);
         return trip;
     }
@@ -591,7 +592,7 @@ class TripCollaborationRequestServiceImplTest {
         request.setRequestedRole(TripEnum.EDITOR);
         request.setRequestType(TripEnum.INVITATION);
         request.setStatus(TripEnum.PENDING);
-        request.setCreatedDate(LocalDateTime.now());
+        request.setCreatedDate(Instant.now());
         return request;
     }
 
@@ -608,7 +609,7 @@ class TripCollaborationRequestServiceImplTest {
         request.setRequestedRole(TripEnum.VIEWER);
         request.setRequestType(TripEnum.JOIN_REQUEST);
         request.setStatus(TripEnum.PENDING);
-        request.setCreatedDate(LocalDateTime.now());
+        request.setCreatedDate(Instant.now());
         return request;
     }
 
@@ -622,7 +623,7 @@ class TripCollaborationRequestServiceImplTest {
         member.setTrip(trip);
         member.setUser(user);
         member.setRole(role);
-        member.setCreatedDate(LocalDateTime.now());
+        member.setCreatedDate(Instant.now());
         return member;
     }
 
@@ -632,7 +633,7 @@ class TripCollaborationRequestServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(errorCodeEnum.name(), flow))
                 .thenReturn(Optional.of(entity));

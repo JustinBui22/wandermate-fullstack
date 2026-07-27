@@ -9,7 +9,7 @@ import com.example.travellingapp.exception_handler.exception.BusinessException;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
 import static com.example.travellingapp.enums.CommonEnum.TRIP_MEMBER;
@@ -46,7 +46,7 @@ public class TripShareCodeValidator {
         throw new BusinessException(TRIP_OWNER_ROLE_CANNOT_BE_CHANGED, TRIP_MEMBER.name());
     }
 
-    public void validateActiveCodeCanBeRegenerated(TripShareCodeEntity activeCode, LocalDateTime now, long cooldownSeconds) {
+    public void validateActiveCodeCanBeRegenerated(TripShareCodeEntity activeCode, Instant now, long cooldownSeconds) {
         // Expired active code can be replaced immediately
         if (activeCode.getExpiresAt().isBefore(now)) {
             return;
@@ -68,7 +68,7 @@ public class TripShareCodeValidator {
         return code.trim().toUpperCase();
     }
 
-    public void validateAttemptIsNotRestricted(TripShareCodeAttemptEntity attempt, LocalDateTime now) {
+    public void validateAttemptIsNotRestricted(TripShareCodeAttemptEntity attempt, Instant now) {
         // No attempt record means user is not restricted
         if (attempt == null) {
             return;
@@ -81,7 +81,7 @@ public class TripShareCodeValidator {
         }
     }
 
-    public void validateShareCodeCanBeUsed(TripShareCodeEntity shareCode, LocalDateTime now) {
+    public void validateShareCodeCanBeUsed(TripShareCodeEntity shareCode, Instant now) {
         // Used code cannot be reused
         if (shareCode.getCodeStatus() == TripEnum.USED) {
             log.error("Share code has already been used. Code: {}, status: {}", shareCode.getCode(), shareCode.getCodeStatus());

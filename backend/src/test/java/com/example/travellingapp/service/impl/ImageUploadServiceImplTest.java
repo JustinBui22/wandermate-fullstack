@@ -23,7 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.ByteArrayOutputStream;
 import java.awt.image.BufferedImage;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 import javax.imageio.ImageIO;
 
@@ -338,7 +338,7 @@ class ImageUploadServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(errorCodeEnum.name(), flow))
                 .thenReturn(Optional.of(entity));

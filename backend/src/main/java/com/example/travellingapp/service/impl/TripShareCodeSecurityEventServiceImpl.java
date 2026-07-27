@@ -13,7 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @Log4j2
@@ -53,7 +54,7 @@ public class TripShareCodeSecurityEventServiceImpl
                 .ifPresent(shareCode -> {
                     if (shareCode.getCodeStatus() == TripEnum.ACTIVE) {
                         shareCode.setCodeStatus(TripEnum.EXPIRED);
-                        shareCode.setModifiedDate(LocalDateTime.now());
+                        shareCode.setModifiedDate(Instant.now());
                         shareCodeRepository.save(shareCode);
                     }
                 });
@@ -75,8 +76,7 @@ public class TripShareCodeSecurityEventServiceImpl
             );
         }
 
-        LocalDateTime now = LocalDateTime.now();
-
+        Instant now = Instant.now();
         TripShareCodeAttemptEntity attempt = attemptRepository
                 .findByUser_UserId(userId)
                 .orElseGet(
@@ -101,7 +101,7 @@ public class TripShareCodeSecurityEventServiceImpl
         if (newRetryCount >= MAX_INVALID_ATTEMPTS) {
             attempt.setRetryCount(0);
             attempt.setRestrictedUntil(
-                    now.plusMinutes(RESTRICTION_MINUTES)
+                    now.plus(RESTRICTION_MINUTES, ChronoUnit.MINUTES)
             );
         }
 

@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 @Setter
 @Getter
 public class CreateTripDTO {
@@ -19,10 +19,10 @@ public class CreateTripDTO {
     private String destination;
 
     @NotNull(message = "Start date is required")
-    private LocalDateTime startDate;
+    private LocalDate startDate;
 
     @NotNull(message = "End date is required")
-    private LocalDateTime endDate;
+    private LocalDate endDate;
 
     private Boolean allowOverlap;
 
@@ -34,4 +34,3 @@ public class CreateTripDTO {
     @Size(max = 500, message = "Cover image public ID must be at most 500 characters")
     private String coverImagePublicId;
 }
-

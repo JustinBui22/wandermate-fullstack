@@ -90,8 +90,8 @@ public class ActivityValidator {
             throw new BusinessException(DESTINATION_NOT_FOUND, ACTIVITY.name());
         }
 
-        if (startDateTime.isBefore(destination.getStartDate())
-                || endDateTime.isAfter(destination.getEndDate())) {
+        if (startDateTime.toLocalDate().isBefore(destination.getStartDate())
+                || endDateTime.toLocalDate().isAfter(destination.getEndDate())) {
             log.error("Activity time must be within the destination duration!");
             throw new BusinessException(ACTIVITY_OUTSIDE_DESTINATION_RANGE, ACTIVITY.name());
         }

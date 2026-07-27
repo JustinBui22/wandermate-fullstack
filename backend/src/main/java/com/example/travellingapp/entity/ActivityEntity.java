@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -37,10 +38,10 @@ public class ActivityEntity implements Serializable {
     private LocalDateTime endDateTime;
 
     @Column(name = "created_date", nullable = false)
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "destination_id", nullable = false)
@@ -63,7 +64,7 @@ public class ActivityEntity implements Serializable {
             String description,
             LocalDateTime startDateTime,
             LocalDateTime endDateTime,
-            LocalDateTime createdDate,
+            Instant createdDate,
             DestinationEntity destination,
             User createdBy
     ) {
@@ -77,4 +78,3 @@ public class ActivityEntity implements Serializable {
         this.createdBy = createdBy;
     }
 }
-

@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Service
 @Log4j2
@@ -56,7 +56,7 @@ public class OtpFailureAccountingServiceImpl
         if (newRetryCount >= maxRetryVerifyOtp) {
             otpCheck.setBlock(true);
             otpCheck.setOtpRestrictedTime(
-                    LocalDateTime.now().plus(
+                    Instant.now().plus(
                             Duration.ofMillis(restrictedDurationMillis)
                     )
             );

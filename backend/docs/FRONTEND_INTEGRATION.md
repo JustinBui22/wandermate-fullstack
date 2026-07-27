@@ -59,11 +59,13 @@ API modules normally return `response.data.body` from the backend's shared wrapp
 
 ## Date/time payloads
 
-The current backend DTOs use ISO `LocalDateTime` for:
+The backend uses two scheduling formats:
 
-- trip `startDate` / `endDate`;
-- destination `startDate` / `endDate`;
-- activity `startDateTime` / `endDateTime`.
+- trip `startDate` / `endDate`: ISO calendar dates (`yyyy-MM-dd`);
+- destination `startDate` / `endDate`: ISO calendar dates (`yyyy-MM-dd`);
+- activity `startDateTime` / `endDateTime`: ISO local date-times without an offset (`yyyy-MM-dd'T'HH:mm:ss`).
+
+Calendar-only dates must be parsed and formatted from their numeric year/month/day components so JavaScript does not reinterpret them as UTC and shift the displayed day. Activity values are destination-local wall-clock values and must not be automatically timezone-shifted.
 
 Example:
 

@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "session_token")
@@ -27,12 +27,12 @@ public class SessionTokenEntity {
     private String sessionToken;
 
     @Column(name = "created_date", nullable = false)
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
-    public SessionTokenEntity(String username, String sessionToken, String sessionId, LocalDateTime createdDate) {
+    public SessionTokenEntity(String username, String sessionToken, String sessionId, Instant createdDate) {
         this.username = username;
         this.sessionToken = sessionToken;
         this.sessionId = sessionId;

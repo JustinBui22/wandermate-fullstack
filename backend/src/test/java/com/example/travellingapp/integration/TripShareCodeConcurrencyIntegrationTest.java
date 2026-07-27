@@ -18,7 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -200,7 +201,7 @@ class TripShareCodeConcurrencyIntegrationTest {
     }
 
     private void markUsed(TripShareCodeEntity shareCode) {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         shareCode.setCodeStatus(TripEnum.USED);
         shareCode.setUsedByUser(shareCode.getCreatedByUser());
         shareCode.setUsedDate(now);
@@ -230,7 +231,7 @@ class TripShareCodeConcurrencyIntegrationTest {
                 "encoded-password",
                 "0412345678",
                 LocalDate.of(1995, 1, 1),
-                LocalDateTime.now(),
+                Instant.now(),
                 "share-code-owner@example.com",
                 true
         );
@@ -240,9 +241,9 @@ class TripShareCodeConcurrencyIntegrationTest {
         return new TripEntity(
                 "Concurrency trip",
                 "Adelaide",
-                LocalDateTime.now(),
-                LocalDateTime.now().plusDays(1),
-                LocalDateTime.now().plusDays(2),
+                Instant.now(),
+                LocalDate.now().plus(1, ChronoUnit.DAYS),
+                LocalDate.now().plus(2, ChronoUnit.DAYS),
                 user
         );
     }
@@ -257,8 +258,8 @@ class TripShareCodeConcurrencyIntegrationTest {
                 owner,
                 TripEnum.VIEWER,
                 TripEnum.ACTIVE,
-                LocalDateTime.now().plusHours(24),
-                LocalDateTime.now()
+                Instant.now().plus(24, ChronoUnit.HOURS),
+                Instant.now()
         );
     }
 

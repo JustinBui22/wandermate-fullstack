@@ -6,7 +6,8 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,10 +29,10 @@ public class DestinationEntity implements Serializable {
     private String destinationName;
 
     @Column(name = "start_date", nullable = false)
-    private LocalDateTime startDate;
+    private LocalDate startDate;
 
     @Column(name = "end_date", nullable = false)
-    private LocalDateTime endDate;
+    private LocalDate endDate;
 
     @Column(name = "destination_order")
     private Integer destinationOrder;
@@ -40,10 +41,10 @@ public class DestinationEntity implements Serializable {
     private String notes;
 
     @Column(name = "created_date", nullable = false)
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_id", nullable = false)
@@ -65,12 +66,12 @@ public class DestinationEntity implements Serializable {
 
     public DestinationEntity(
             String destinationName,
-            LocalDateTime startDate,
-            LocalDateTime endDate,
+            LocalDate startDate,
+            LocalDate endDate,
             Integer destinationOrder,
             String notes,
-            LocalDateTime createdDate,
-            LocalDateTime modifiedDate,
+            Instant createdDate,
+            Instant modifiedDate,
             TripEntity trip
     ) {
         this.destinationName = destinationName;
@@ -86,12 +87,12 @@ public class DestinationEntity implements Serializable {
     @PrePersist
     protected void onCreate() {
         if (this.createdDate == null) {
-            this.createdDate = LocalDateTime.now();
+            this.createdDate = Instant.now();
         }
     }
 
     @PreUpdate
     protected void onUpdate() {
-        this.modifiedDate = LocalDateTime.now();
+        this.modifiedDate = Instant.now();
     }
 }

@@ -16,7 +16,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 
 import static com.example.travellingapp.util.Common.getConfigValue;
@@ -111,7 +111,7 @@ public class OtpServiceImpl implements OtpService {
             // If the OTP record is currently blocked, restriction status must be checked before cooldown or retry count.
             if (otpCheckEntity.isBlock()) {
                 // If the restriction has expired, unblock the record and allow the user to request a fresh OTP immediately.
-                if (otpCheckEntity.getOtpRestrictedTime() == null || otpCheckEntity.getOtpRestrictedTime().isBefore(LocalDateTime.now())) {
+                if (otpCheckEntity.getOtpRestrictedTime() == null || otpCheckEntity.getOtpRestrictedTime().isBefore(Instant.now())) {
                     log.info("OTP restriction expired for user {}. Resetting OTP retry state.", otpDTO.getUserName());
                     otpCheckEntity.setOtpRestrictedTime(null);
                     otpCheckEntity.setBlock(false);
@@ -142,7 +142,7 @@ public class OtpServiceImpl implements OtpService {
                 otpCheckEntity.setBlock(true);
 
                 // Calculate when the OTP restriction will expire.
-                LocalDateTime restrictedOtpTime = LocalDateTime.now().plusSeconds(restrictedOtpDuration / 1000);
+                Instant restrictedOtpTime = Instant.now().plusSeconds(restrictedOtpDuration / 1000);
                 otpCheckEntity.setOtpRestrictedTime(restrictedOtpTime);
                 otpCheckRepository.save(otpCheckEntity);
 
@@ -151,7 +151,7 @@ public class OtpServiceImpl implements OtpService {
 
             // Cooldown so users cannot spam OTP requests.
             long otpCooldownDuration = convertStringToLong(getConfigValue(OTP_RETRY_COOLDOWN.name(), configurationRepository, "60000"));
-            long timeSinceLastOtp = java.time.Duration.between(otpCheckEntity.getCreatedDate(), LocalDateTime.now()).toMillis();
+            long timeSinceLastOtp = java.time.Duration.between(otpCheckEntity.getCreatedDate(), Instant.now()).toMillis();
 
             if (timeSinceLastOtp < otpCooldownDuration) {
                 log.error("OTP cooldown has not expired yet for user {}. Elapsed={}ms, required={}ms.",
@@ -205,7 +205,7 @@ public class OtpServiceImpl implements OtpService {
         return new OtpCheckEntity(
                 otpDTO.getUserName(),
                 otpDTO.getEmail(),
-                LocalDateTime.now(),
+                Instant.now(),
                 otpDTO.getPhoneNumber(),
                 0,
                 0,
@@ -285,8 +285,8 @@ public class OtpServiceImpl implements OtpService {
         }
         otpCheckEntity.setPurpose(otpDTO.getPurpose());
         otpCheckEntity.setNewestOtp(dataSecurity.hashOtp(otpDTO.getUserName(), otpDTO.getPurpose(), otpCode));
-        otpCheckEntity.setCreatedDate(LocalDateTime.now());
-        LocalDateTime expirationOtpTime = otpCheckEntity.getCreatedDate().plusSeconds(expirationOtpDuration / 1000);
+        otpCheckEntity.setCreatedDate(Instant.now());
+        Instant expirationOtpTime = otpCheckEntity.getCreatedDate().plusSeconds(expirationOtpDuration / 1000);
         otpCheckEntity.setOtpExpirationTime(expirationOtpTime);
         // New OTP means previous wrong verification attempts should reset
         otpCheckEntity.setRetryVerifyOtpCount(0);
@@ -393,7 +393,7 @@ public class OtpServiceImpl implements OtpService {
 
             // Check if OTP has expired
             if (otpCheckEntity.getOtpExpirationTime() != null
-                    && LocalDateTime.now().isAfter(otpCheckEntity.getOtpExpirationTime())) {
+                    && Instant.now().isAfter(otpCheckEntity.getOtpExpirationTime())) {
                 log.warn("Verification OTP has expired!");
                 otpFailureAccountingService.recordFailedVerification(
                         otpCheckEntity.getOtpCheckId(),

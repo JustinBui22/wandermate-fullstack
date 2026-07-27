@@ -14,6 +14,8 @@ This roadmap starts from the implementation currently present in the repository.
 - Changed state-sensitive share-code preview from GET to POST.
 - Protected and rate-limited `/api/v1/users/check`, removed canonical-username disclosure, and standardized found/not-found responses. Public registration verification and OTP-send entry points are also source-rate-limited.
 - Confirmed generic login and password-reset account-mismatch behaviour and documented the remaining registration-availability trade-off.
+- Standardized the date model: trips/destinations use `LocalDate`, activities retain local wall-clock `LocalDateTime`, and audit/security/expiry fields use UTC `Instant`.
+- Added Flyway V5 for calendar-date columns and frontend date-only parsing that avoids timezone day shifts.
 
 ## Priority 1 — Security and concurrency hardening
 
@@ -33,10 +35,18 @@ This roadmap starts from the implementation currently present in the repository.
 
 ## Priority 3 — Date model consistency
 
-- Decide whether trips/destinations are calendar dates or instants.
-- Prefer `LocalDate` for all-day trip/destination boundaries if time-of-day is not meaningful.
-- Keep activities as `LocalDateTime` and document timezone assumptions.
-- Add end-to-end tests for Australian timezone/date conversion and same-day trips.
+Completed in Phase 9:
+
+- Trip and destination boundaries are calendar-only `LocalDate` values and allow same-day ranges.
+- Activity schedules remain destination-local `LocalDateTime` wall-clock values.
+- Audit, security, and expiry timestamps use UTC `Instant` values.
+- Flyway V5 converts trip and destination columns to SQL `DATE` without editing earlier migrations.
+- Frontend date-only parsing avoids JavaScript UTC day shifts.
+
+Remaining follow-up:
+
+- Add destination IANA timezone metadata if activities later need conversion into globally comparable instants.
+- Add device-level E2E coverage around daylight-saving boundaries.
 
 ## Priority 4 — Image lifecycle
 

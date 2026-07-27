@@ -15,7 +15,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,8 +102,8 @@ class TokenRevocationIntegrationTest {
     ) {
         return new RefreshTokenEntity(
                 false,
-                LocalDateTime.now(),
-                LocalDateTime.now().plusDays(1),
+                Instant.now(),
+                Instant.now().plus(1, ChronoUnit.DAYS),
                 username,
                 tokenHash,
                 sessionId,
@@ -115,6 +116,6 @@ class TokenRevocationIntegrationTest {
             String sessionId,
             String encodedToken
     ) {
-        return new SessionTokenEntity(username, encodedToken, sessionId, LocalDateTime.now());
+        return new SessionTokenEntity(username, encodedToken, sessionId, Instant.now());
     }
 }

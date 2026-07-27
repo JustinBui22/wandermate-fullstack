@@ -21,7 +21,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
@@ -116,7 +116,7 @@ public class ActivityServiceImpl implements ActivityService {
                     activityDTO.getDescription(),
                     activityDTO.getStartDateTime(),
                     activityDTO.getEndDateTime(),
-                    LocalDateTime.now(),
+                    Instant.now(),
                     destination,
                     user
             );
@@ -277,11 +277,11 @@ public class ActivityServiceImpl implements ActivityService {
 
             // Check for overlapping activities in the same trip, excluding current activity
             boolean hasOverlap = activityRepository.existsByDestination_Trip_TripIdAndActivityIdNotAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
-                            tripId,
-                            activityId,
-                            updateActivityDTO.getEndDateTime(),
-                            updateActivityDTO.getStartDateTime()
-                    );
+                    tripId,
+                    activityId,
+                    updateActivityDTO.getEndDateTime(),
+                    updateActivityDTO.getStartDateTime()
+            );
 
             if (hasOverlap) {
                 log.error("Updated activity time overlaps with another activity in trip {}.", tripId);
@@ -298,7 +298,7 @@ public class ActivityServiceImpl implements ActivityService {
             activity.setStartDateTime(updateActivityDTO.getStartDateTime());
             activity.setEndDateTime(updateActivityDTO.getEndDateTime());
             activity.setModifiedBy(user);
-            activity.setModifiedDate(LocalDateTime.now());
+            activity.setModifiedDate(Instant.now());
 
             activityRepository.save(activity);
 

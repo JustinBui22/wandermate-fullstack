@@ -15,7 +15,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
 import static com.example.travellingapp.util.Common.getConfigValue;
@@ -72,18 +72,18 @@ public class GoogleOAuthHelper implements SchedulingConfigurer {
                 String newRefreshToken = jsonNode.findValue(OAUTH_REFRESH_TOKEN_FIELD) == null ? null : jsonNode.get(OAUTH_REFRESH_TOKEN_FIELD).asText();
                 if (newRefreshToken != null && !newRefreshToken.equals(refreshToken)) {
                     ConfigurationEntity oauthRefreshTokenConfig = configurationRepository.findByConfigCode(EMAIL_REFRESH_TOKEN.name())
-                            .orElse(new ConfigurationEntity(EMAIL_REFRESH_TOKEN.name(), newRefreshToken, LocalDateTime.now()));
+                            .orElse(new ConfigurationEntity(EMAIL_REFRESH_TOKEN.name(), newRefreshToken, Instant.now()));
                     oauthRefreshTokenConfig.setConfigValue(newRefreshToken);
-                    oauthRefreshTokenConfig.setModifiedDate(LocalDateTime.now());
+                    oauthRefreshTokenConfig.setModifiedDate(Instant.now());
                     log.info("New refresh token for Oauth2 received!");
                     configurationRepository.save(oauthRefreshTokenConfig);
                 }
                 log.info("New access token for Oauth2 received!");
                 // Store new access token
                 ConfigurationEntity config = configurationRepository.findByConfigCode(EMAIL_ACCESS_TOKEN_CONFIG.name())
-                        .orElse(new ConfigurationEntity(EMAIL_ACCESS_TOKEN_CONFIG.name(), newAccessToken, LocalDateTime.now()));
+                        .orElse(new ConfigurationEntity(EMAIL_ACCESS_TOKEN_CONFIG.name(), newAccessToken, Instant.now()));
                 config.setConfigValue(newAccessToken);
-                config.setModifiedDate(LocalDateTime.now());
+                config.setModifiedDate(Instant.now());
                 configurationRepository.save(config);
                 log.info("OAuth2 token refreshed successfully.");
             } else {

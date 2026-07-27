@@ -18,7 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -290,7 +290,7 @@ class EmailServiceImplTest {
         ConfigurationEntity entity = new ConfigurationEntity();
         entity.setConfigCode(configCode);
         entity.setConfigValue(configValue);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
         return entity;
     }
 

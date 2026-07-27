@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static com.example.travellingapp.enums.CommonEnum.TRIP_MEMBER;
 import static com.example.travellingapp.enums.ErrorCodeEnum.TRIP_SHARE_CODE_NOT_FOUND;
@@ -78,7 +78,7 @@ class ShareCodeAttemptTransactionIntegrationTest {
                 .orElseThrow();
 
         assertThat(persisted.getRetryCount()).isZero();
-        assertThat(persisted.getRestrictedUntil()).isAfter(LocalDateTime.now());
+        assertThat(persisted.getRestrictedUntil()).isAfter(Instant.now());
     }
 
     private User activeUser() {
@@ -87,7 +87,7 @@ class ShareCodeAttemptTransactionIntegrationTest {
                 "encoded-password",
                 "0412345678",
                 LocalDate.of(1995, 1, 1),
-                LocalDateTime.now(),
+                Instant.now(),
                 "share-code@example.com",
                 true
         );

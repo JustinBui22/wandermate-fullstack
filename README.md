@@ -102,7 +102,7 @@ Session-Token: <session-token>
 - A normal permission-only `403` does not clear the local session; explicit invalid-session/token responses do.
 - Refresh-token values are HMAC-SHA256 hashed before persistence.
 - Session-token values are BCrypt hashed before persistence.
-- Refresh-token reuse detection revokes the related active token family and session in a separate transaction.
+- Refresh-token reuse detection revokes the related active token family and session in the locked refresh transaction.
 
 ### Trip planning
 
@@ -112,7 +112,9 @@ Session-Token: <session-token>
 - Create destinations under a trip.
 - Create activities under a destination.
 - Validate trip, destination, and activity ranges and overlap rules.
-- Store trip/destination/activity scheduling values as `LocalDateTime` in the current backend.
+- Store trip and destination boundaries as calendar-only `LocalDate` values.
+- Keep activity schedules as destination-local `LocalDateTime` wall-clock values.
+- Store audit, security, and expiry timestamps as UTC `Instant` values.
 
 ### Collaboration
 
@@ -282,14 +284,15 @@ An EAS workflow builds the `e2e-test` Android profile and runs the Maestro login
 
 The following facts are important when evaluating or extending this version:
 
-- JPA currently uses `spring.jpa.hibernate.ddl-auto=update`; versioned Flyway/Liquibase migrations are not configured.
+- Flyway owns schema changes and JPA validates the production schema with `spring.jpa.hibernate.ddl-auto=validate`.
 - The Docker SQL seed runs only when MariaDB initializes a new named volume.
 - Public endpoints are defined in code through a shared, HTTP-method-specific `PublicEndpointMatcher` used by both Spring Security and `TokenFilter`.
 - Account lookup requires authentication, returns only a generic `exists` boolean, and is rate-limited per authenticated account. Public registration verification and OTP-send entry points are rate-limited by source address. Login and password-reset account mismatches use generic responses.
 - CORS origins are configured through `CORS_ALLOWED_ORIGINS`; allowed request headers include `Authorization`, `Session-Token`, and `Refresh-Token`.
-- OTP records currently store the latest OTP value in `otp_check`; hashing/purpose-binding OTP records is roadmap work.
+- OTP records store purpose-bound HMAC hashes rather than reusable plaintext OTP values.
 - Share-code preview is an authenticated `POST /api/v1/trips/share-codes/preview` endpoint because preview attempts update rate-limit state.
 - Share codes use `SecureRandom`, a `WM-` prefix, and a twelve-character unambiguous alphabet. Generation and redemption use pessimistic locking.
+- Trip/destination dates use `yyyy-MM-dd`; activity schedules remain timezone-free local wall-clock values; audit/expiry timestamps serialize as UTC instants.
 - Google email OAuth refresh currently creates its own scheduled executor; lifecycle management is a roadmap improvement.
 
 ## Screenshots and portfolio evidence

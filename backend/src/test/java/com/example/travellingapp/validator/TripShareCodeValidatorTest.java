@@ -14,7 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
 import static com.example.travellingapp.enums.CommonEnum.TRIP_MEMBER;
@@ -111,12 +113,12 @@ class TripShareCodeValidatorTest {
     @Test
     void validateActiveCodeCanBeRegenerated_shouldNotThrow_whenActiveCodeExpired() {
         TripShareCodeEntity activeCode = activeShareCode();
-        activeCode.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        activeCode.setExpiresAt(Instant.now().minus(1, ChronoUnit.MINUTES));
 
         assertDoesNotThrow(() ->
                 validator.validateActiveCodeCanBeRegenerated(
                         activeCode,
-                        LocalDateTime.now(),
+                        Instant.now(),
                         60
                 )
         );
@@ -124,10 +126,10 @@ class TripShareCodeValidatorTest {
 
     @Test
     void validateActiveCodeCanBeRegenerated_shouldNotThrow_whenCooldownPassed() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         TripShareCodeEntity activeCode = activeShareCode();
         activeCode.setCreatedDate(now.minusSeconds(120));
-        activeCode.setExpiresAt(now.plusHours(1));
+        activeCode.setExpiresAt(now.plus(1, ChronoUnit.HOURS));
 
         assertDoesNotThrow(() ->
                 validator.validateActiveCodeCanBeRegenerated(
@@ -140,10 +142,10 @@ class TripShareCodeValidatorTest {
 
     @Test
     void validateActiveCodeCanBeRegenerated_shouldThrowTooSoon_whenCooldownNotPassed() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         TripShareCodeEntity activeCode = activeShareCode();
         activeCode.setCreatedDate(now.minusSeconds(10));
-        activeCode.setExpiresAt(now.plusHours(1));
+        activeCode.setExpiresAt(now.plus(1, ChronoUnit.HOURS));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -193,7 +195,7 @@ class TripShareCodeValidatorTest {
         assertDoesNotThrow(() ->
                 validator.validateAttemptIsNotRestricted(
                         null,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
         );
     }
@@ -206,7 +208,7 @@ class TripShareCodeValidatorTest {
         assertDoesNotThrow(() ->
                 validator.validateAttemptIsNotRestricted(
                         attempt,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
         );
     }
@@ -214,13 +216,13 @@ class TripShareCodeValidatorTest {
     @Test
     void validateAttemptIsNotRestricted_shouldThrow_whenRestrictionStillActive() {
         TripShareCodeAttemptEntity attempt = new TripShareCodeAttemptEntity();
-        attempt.setRestrictedUntil(LocalDateTime.now().plusMinutes(5));
+        attempt.setRestrictedUntil(Instant.now().plus(5, ChronoUnit.MINUTES));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> validator.validateAttemptIsNotRestricted(
                         attempt,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
         );
 
@@ -238,7 +240,7 @@ class TripShareCodeValidatorTest {
         assertDoesNotThrow(() ->
                 validator.validateShareCodeCanBeUsed(
                         shareCode,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
         );
     }
@@ -252,7 +254,7 @@ class TripShareCodeValidatorTest {
                 BusinessException.class,
                 () -> validator.validateShareCodeCanBeUsed(
                         shareCode,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
         );
 
@@ -268,7 +270,7 @@ class TripShareCodeValidatorTest {
                 BusinessException.class,
                 () -> validator.validateShareCodeCanBeUsed(
                         shareCode,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
         );
 
@@ -284,7 +286,7 @@ class TripShareCodeValidatorTest {
                 BusinessException.class,
                 () -> validator.validateShareCodeCanBeUsed(
                         shareCode,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
         );
 
@@ -295,13 +297,13 @@ class TripShareCodeValidatorTest {
     void validateShareCodeCanBeUsed_shouldThrowExpired_whenActiveCodePassedExpiryTime() {
         TripShareCodeEntity shareCode = activeShareCode();
         shareCode.setCodeStatus(TripEnum.ACTIVE);
-        shareCode.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        shareCode.setExpiresAt(Instant.now().minus(1, ChronoUnit.MINUTES));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> validator.validateShareCodeCanBeUsed(
                         shareCode,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
         );
 
@@ -317,7 +319,7 @@ class TripShareCodeValidatorTest {
                 BusinessException.class,
                 () -> validator.validateShareCodeCanBeUsed(
                         shareCode,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
         );
 
@@ -352,8 +354,8 @@ class TripShareCodeValidatorTest {
         shareCode.setCode("WM-ABC12345");
         shareCode.setCodeStatus(TripEnum.ACTIVE);
         shareCode.setDefaultRole(TripEnum.VIEWER);
-        shareCode.setCreatedDate(LocalDateTime.now().minusMinutes(2));
-        shareCode.setExpiresAt(LocalDateTime.now().plusHours(1));
+        shareCode.setCreatedDate(Instant.now().minus(2, ChronoUnit.MINUTES));
+        shareCode.setExpiresAt(Instant.now().plus(1, ChronoUnit.HOURS));
         return shareCode;
     }
 
@@ -362,8 +364,8 @@ class TripShareCodeValidatorTest {
         trip.setTripId(TRIP_ID);
         trip.setTripName("Adelaide Trip");
         trip.setDestination("Adelaide");
-        trip.setStartDate(LocalDateTime.now().plusDays(10));
-        trip.setEndDate(LocalDateTime.now().plusDays(15));
+        trip.setStartDate(LocalDate.now().plus(10, ChronoUnit.DAYS));
+        trip.setEndDate(LocalDate.now().plus(15, ChronoUnit.DAYS));
         trip.setUser(owner);
         return trip;
     }

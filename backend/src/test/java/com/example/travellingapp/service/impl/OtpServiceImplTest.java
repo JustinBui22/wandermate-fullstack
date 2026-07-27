@@ -33,7 +33,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
@@ -198,7 +199,7 @@ class OtpServiceImplTest {
         assertThat(savedOtp.getRetrySendOtpCount()).isEqualTo(1);
         assertThat(savedOtp.getRetryVerifyOtpCount()).isEqualTo(0);
         assertThat(savedOtp.isBlock()).isFalse();
-        assertThat(savedOtp.getOtpExpirationTime()).isAfter(LocalDateTime.now());
+        assertThat(savedOtp.getOtpExpirationTime()).isAfter(Instant.now());
 
         ArgumentCaptor<String> emailContentCaptor = ArgumentCaptor.forClass(String.class);
 
@@ -226,7 +227,7 @@ class OtpServiceImplTest {
         OtpDTO request = emailOtpRequest();
 
         OtpCheckEntity existingOtp = otpRecordForEmail();
-        existingOtp.setCreatedDate(LocalDateTime.now().minusMinutes(2));
+        existingOtp.setCreatedDate(Instant.now().minus(2, ChronoUnit.MINUTES));
         existingOtp.setRetrySendOtpCount(1);
         existingOtp.setRetryVerifyOtpCount(2);
 
@@ -278,7 +279,7 @@ class OtpServiceImplTest {
         OtpDTO request = emailOtpRequest();
 
         OtpCheckEntity existingOtp = otpRecordForEmail();
-        existingOtp.setCreatedDate(LocalDateTime.now().minusSeconds(10));
+        existingOtp.setCreatedDate(Instant.now().minusSeconds(10));
         existingOtp.setRetrySendOtpCount(1);
         existingOtp.setBlock(false);
 
@@ -311,7 +312,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity existingOtp = otpRecordForEmail();
         existingOtp.setUsername("OldJustinBo123");
-        existingOtp.setCreatedDate(LocalDateTime.now().minusMinutes(2));
+        existingOtp.setCreatedDate(Instant.now().minus(2, ChronoUnit.MINUTES));
         existingOtp.setRetrySendOtpCount(1);
         existingOtp.setRetryVerifyOtpCount(2);
 
@@ -368,7 +369,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity existingOtp = otpRecordForEmail();
         existingOtp.setUsername("OldJustinBo123");
-        existingOtp.setCreatedDate(LocalDateTime.now().minusSeconds(10));
+        existingOtp.setCreatedDate(Instant.now().minusSeconds(10));
         existingOtp.setRetrySendOtpCount(1);
         existingOtp.setBlock(false);
 
@@ -463,7 +464,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity existingOtp = otpRecordForPhone();
         existingOtp.setUsername("OldJustinBo123");
-        existingOtp.setCreatedDate(LocalDateTime.now().minusMinutes(2));
+        existingOtp.setCreatedDate(Instant.now().minus(2, ChronoUnit.MINUTES));
         existingOtp.setRetrySendOtpCount(1);
         existingOtp.setRetryVerifyOtpCount(2);
 
@@ -518,7 +519,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity existingOtp = otpRecordForEmail();
         existingOtp.setBlock(true);
-        existingOtp.setOtpRestrictedTime(LocalDateTime.now().plusMinutes(10));
+        existingOtp.setOtpRestrictedTime(Instant.now().plus(10, ChronoUnit.MINUTES));
 
         mockSendRetryConfigs();
         mockConfig(PHONE_VN_PATTERN.name(), "^(0|84|\\+84)(3|5|7|8|9)\\d{7,8}$");
@@ -701,7 +702,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity existingOtp = otpRecordForEmail();
         existingOtp.setBlock(true);
-        existingOtp.setOtpRestrictedTime(LocalDateTime.now().plusMinutes(10));
+        existingOtp.setOtpRestrictedTime(Instant.now().plus(10, ChronoUnit.MINUTES));
 
         mockSendRetryConfigs();
         mockConfig(EMAIL_PATTERN.name(), "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
@@ -730,7 +731,7 @@ class OtpServiceImplTest {
         existingOtp.setBlock(true);
         existingOtp.setRetrySendOtpCount(3);
         existingOtp.setRetryVerifyOtpCount(2);
-        existingOtp.setOtpRestrictedTime(LocalDateTime.now().minusMinutes(1));
+        existingOtp.setOtpRestrictedTime(Instant.now().minus(1, ChronoUnit.MINUTES));
 
         mockSendRetryConfigs();
         mockOtpExpirationConfig("120000");
@@ -920,7 +921,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        otpRecord.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
         mockErrorCode(OTP_VERIFICATION_SUCCESS, OTP.name());
@@ -943,7 +944,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity otpRecord = otpRecordForPhone();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        otpRecord.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
         mockErrorCode(OTP_VERIFICATION_SUCCESS, OTP.name());
@@ -984,7 +985,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        otpRecord.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
 
@@ -1008,7 +1009,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity otpRecord = otpRecordForPhone();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        otpRecord.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
 
@@ -1032,7 +1033,7 @@ class OtpServiceImplTest {
         OtpCheckEntity otpRecord = otpRecordForEmail();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setRetryVerifyOtpCount(0);
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().minusMinutes(1));
+        otpRecord.setOtpExpirationTime(Instant.now().minus(1, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
 
@@ -1058,7 +1059,7 @@ class OtpServiceImplTest {
         OtpCheckEntity otpRecord = otpRecordForEmail();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setRetryVerifyOtpCount(0);
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        otpRecord.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
 
@@ -1084,7 +1085,7 @@ class OtpServiceImplTest {
         OtpCheckEntity otpRecord = otpRecordForEmail();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setRetryVerifyOtpCount(2);
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        otpRecord.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
 
@@ -1110,7 +1111,7 @@ class OtpServiceImplTest {
         OtpCheckEntity otpRecord = otpRecordForEmail();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
         otpRecord.setRetryVerifyOtpCount(2);
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().minusMinutes(1));
+        otpRecord.setOtpExpirationTime(Instant.now().minus(1, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
 
@@ -1169,7 +1170,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        otpRecord.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
         mockErrorCode(OTP_VERIFICATION_SUCCESS, OTP.name());
@@ -1192,7 +1193,7 @@ class OtpServiceImplTest {
 
         OtpCheckEntity otpRecord = otpRecordForEmail();
         otpRecord.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
-        otpRecord.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        otpRecord.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
 
         mockVerifyConfigs();
         mockErrorCode(OTP_VERIFICATION_SUCCESS, OTP.name());
@@ -1273,9 +1274,9 @@ class OtpServiceImplTest {
         entity.setUsername(USERNAME);
         entity.setEmail(EMAIL_ADDRESS);
         entity.setPhoneNumber(null);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
         entity.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
-        entity.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        entity.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
         entity.setRetrySendOtpCount(0);
         entity.setRetryVerifyOtpCount(0);
         entity.setBlock(false);
@@ -1289,9 +1290,9 @@ class OtpServiceImplTest {
         entity.setUsername(USERNAME);
         entity.setEmail(null);
         entity.setPhoneNumber(PHONE_NUMBER);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
         entity.setNewestOtp(dataSecurity.hashOtp(USERNAME, OtpPurpose.REGISTRATION, "123456"));
-        entity.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        entity.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
         entity.setRetrySendOtpCount(0);
         entity.setRetryVerifyOtpCount(0);
         entity.setBlock(false);
@@ -1355,7 +1356,7 @@ class OtpServiceImplTest {
         ConfigurationEntity entity = new ConfigurationEntity();
         entity.setConfigCode(configCode);
         entity.setConfigValue(configValue);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(configurationRepository.findByConfigCode(configCode))
                 .thenReturn(Optional.of(entity));
@@ -1367,7 +1368,7 @@ class OtpServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(errorCodeEnum.name(), flow))
                 .thenReturn(Optional.of(entity));

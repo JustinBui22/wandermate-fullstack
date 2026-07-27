@@ -35,7 +35,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
@@ -145,7 +147,7 @@ class TripShareCodeServiceImplTest {
                 anyString(),
                 eq(owner),
                 eq(TripEnum.VIEWER),
-                any(LocalDateTime.class),
+                any(Instant.class),
                 eq(24L)
         )).thenReturn(newShareCode);
         when(tripShareCodeRepository.save(newShareCode)).thenReturn(newShareCode);
@@ -172,7 +174,7 @@ class TripShareCodeServiceImplTest {
                 generatedCodeCaptor.capture(),
                 eq(owner),
                 eq(TripEnum.VIEWER),
-                any(LocalDateTime.class),
+                any(Instant.class),
                 eq(24L)
         );
         assertThat(generatedCodeCaptor.getValue())
@@ -205,7 +207,7 @@ class TripShareCodeServiceImplTest {
                 anyString(),
                 eq(owner),
                 eq(TripEnum.VIEWER),
-                any(LocalDateTime.class),
+                any(Instant.class),
                 eq(24L)
         )).thenReturn(newShareCode);
         when(tripShareCodeRepository.save(newShareCode)).thenReturn(newShareCode);
@@ -225,8 +227,8 @@ class TripShareCodeServiceImplTest {
         GenerateTripShareCodeRequest request = generateRequest(TripEnum.EDITOR);
 
         TripShareCodeEntity oldActiveCode = activeShareCode(trip, owner);
-        oldActiveCode.setCreatedDate(LocalDateTime.now().minusMinutes(2));
-        oldActiveCode.setExpiresAt(LocalDateTime.now().plusHours(1));
+        oldActiveCode.setCreatedDate(Instant.now().minus(2, ChronoUnit.MINUTES));
+        oldActiveCode.setExpiresAt(Instant.now().plus(1, ChronoUnit.HOURS));
 
         TripShareCodeEntity newShareCode = activeShareCode(trip, owner);
         newShareCode.setCode("WM-NPQRSTUVWXYZ");
@@ -250,7 +252,7 @@ class TripShareCodeServiceImplTest {
                 anyString(),
                 eq(owner),
                 eq(TripEnum.EDITOR),
-                any(LocalDateTime.class),
+                any(Instant.class),
                 eq(24L)
         )).thenReturn(newShareCode);
         when(tripShareCodeRepository.save(any(TripShareCodeEntity.class)))
@@ -267,7 +269,7 @@ class TripShareCodeServiceImplTest {
 
         verify(tripShareCodeValidator).validateActiveCodeCanBeRegenerated(
                 eq(oldActiveCode),
-                any(LocalDateTime.class),
+                any(Instant.class),
                 eq(60L)
         );
         verify(tripShareCodeRepository).saveAndFlush(oldActiveCode);
@@ -281,7 +283,7 @@ class TripShareCodeServiceImplTest {
         GenerateTripShareCodeRequest request = generateRequest(TripEnum.VIEWER);
 
         TripShareCodeEntity oldActiveCode = activeShareCode(trip, owner);
-        oldActiveCode.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        oldActiveCode.setExpiresAt(Instant.now().minus(1, ChronoUnit.MINUTES));
 
         TripShareCodeEntity newShareCode = activeShareCode(trip, owner);
         newShareCode.setCode("WM-NPQRSTUVWXYZ");
@@ -305,7 +307,7 @@ class TripShareCodeServiceImplTest {
                 anyString(),
                 eq(owner),
                 eq(TripEnum.VIEWER),
-                any(LocalDateTime.class),
+                any(Instant.class),
                 eq(24L)
         )).thenReturn(newShareCode);
         when(tripShareCodeRepository.save(any(TripShareCodeEntity.class)))
@@ -346,7 +348,7 @@ class TripShareCodeServiceImplTest {
         )).when(tripShareCodeValidator)
                 .validateActiveCodeCanBeRegenerated(
                         eq(activeCode),
-                        any(LocalDateTime.class),
+                        any(Instant.class),
                         eq(60L)
                 );
 
@@ -398,7 +400,7 @@ class TripShareCodeServiceImplTest {
 
         verify(tripShareCodeValidator).validateShareCodeCanBeUsed(
                 eq(shareCode),
-                any(LocalDateTime.class)
+                any(Instant.class)
         );
     }
 
@@ -442,7 +444,7 @@ class TripShareCodeServiceImplTest {
         )).when(tripShareCodeValidator)
                 .validateShareCodeCanBeUsed(
                         eq(shareCode),
-                        any(LocalDateTime.class)
+                        any(Instant.class)
                 );
 
         BusinessException exception = assertThrows(
@@ -465,7 +467,7 @@ class TripShareCodeServiceImplTest {
         TripShareCodeAttemptEntity attempt = new TripShareCodeAttemptEntity(
                 requester,
                 0,
-                LocalDateTime.now()
+                Instant.now()
         );
 
         when(authenticatedUserProvider.getUsername()).thenReturn(REQUESTER_USERNAME);
@@ -479,7 +481,7 @@ class TripShareCodeServiceImplTest {
         )).when(tripShareCodeValidator)
                 .validateAttemptIsNotRestricted(
                         eq(attempt),
-                        any(LocalDateTime.class)
+                        any(Instant.class)
                 );
 
         BusinessException exception = assertThrows(
@@ -522,7 +524,7 @@ class TripShareCodeServiceImplTest {
         when(tripShareCodeMapper.toJoinRequestEntity(
                 eq(shareCode),
                 eq(requester),
-                any(LocalDateTime.class)
+                any(Instant.class)
         )).thenReturn(joinRequest);
         when(tripCollaborationRequestRepository.save(joinRequest)).thenReturn(savedJoinRequest);
         when(tripCollaborationRequestMapper.toResponseDTO(savedJoinRequest)).thenReturn(responseDTO);
@@ -634,7 +636,7 @@ class TripShareCodeServiceImplTest {
         )).when(tripShareCodeValidator)
                 .validateShareCodeCanBeUsed(
                         eq(shareCode),
-                        any(LocalDateTime.class)
+                        any(Instant.class)
                 );
 
         BusinessException exception = assertThrows(
@@ -682,7 +684,7 @@ class TripShareCodeServiceImplTest {
         User owner = user(OWNER_USER_ID, OWNER_USERNAME);
         TripEntity trip = trip(owner);
         TripShareCodeEntity activeShareCode = activeShareCode(trip, owner);
-        activeShareCode.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        activeShareCode.setExpiresAt(Instant.now().minus(1, ChronoUnit.MINUTES));
 
         mockErrorCode(TRIP_SHARE_CODE_RETRIEVED_SUCCESS, TRIP_MEMBER.name());
 
@@ -761,9 +763,9 @@ class TripShareCodeServiceImplTest {
         trip.setTripId(TRIP_ID);
         trip.setTripName("Adelaide Trip");
         trip.setDestination("Adelaide");
-        trip.setStartDate(LocalDateTime.now().plusDays(10));
-        trip.setEndDate(LocalDateTime.now().plusDays(15));
-        trip.setCreatedDate(LocalDateTime.now());
+        trip.setStartDate(LocalDate.now().plus(10, ChronoUnit.DAYS));
+        trip.setEndDate(LocalDate.now().plus(15, ChronoUnit.DAYS));
+        trip.setCreatedDate(Instant.now());
         trip.setUser(owner);
         return trip;
     }
@@ -779,8 +781,8 @@ class TripShareCodeServiceImplTest {
         shareCode.setCreatedByUser(owner);
         shareCode.setDefaultRole(TripEnum.VIEWER);
         shareCode.setCodeStatus(TripEnum.ACTIVE);
-        shareCode.setCreatedDate(LocalDateTime.now().minusMinutes(2));
-        shareCode.setExpiresAt(LocalDateTime.now().plusHours(1));
+        shareCode.setCreatedDate(Instant.now().minus(2, ChronoUnit.MINUTES));
+        shareCode.setExpiresAt(Instant.now().plus(1, ChronoUnit.HOURS));
         return shareCode;
     }
 
@@ -796,7 +798,7 @@ class TripShareCodeServiceImplTest {
         request.setRequestedRole(TripEnum.VIEWER);
         request.setRequestType(TripEnum.JOIN_REQUEST);
         request.setStatus(TripEnum.PENDING);
-        request.setCreatedDate(LocalDateTime.now());
+        request.setCreatedDate(Instant.now());
         return request;
     }
 
@@ -808,8 +810,8 @@ class TripShareCodeServiceImplTest {
         dto.setInviteLink(INVITE_LINK_PREFIX_VALUE + NORMALIZED_CODE);
         dto.setDefaultRole(TripEnum.VIEWER);
         dto.setCodeStatus(TripEnum.ACTIVE);
-        dto.setExpiresAt(LocalDateTime.now().plusHours(1));
-        dto.setCreatedDate(LocalDateTime.now());
+        dto.setExpiresAt(Instant.now().plus(1, ChronoUnit.HOURS));
+        dto.setCreatedDate(Instant.now());
         return dto;
     }
 
@@ -820,7 +822,7 @@ class TripShareCodeServiceImplTest {
         dto.setDestination("Adelaide");
         dto.setOwnerUsername(OWNER_USERNAME);
         dto.setDefaultRole(TripEnum.VIEWER);
-        dto.setExpiresAt(LocalDateTime.now().plusHours(1));
+        dto.setExpiresAt(Instant.now().plus(1, ChronoUnit.HOURS));
         return dto;
     }
 
@@ -842,7 +844,7 @@ class TripShareCodeServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(
                 errorCodeEnum.name(),

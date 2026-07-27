@@ -25,7 +25,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -106,7 +107,7 @@ class DestinationServiceImplTest {
                 .thenReturn(trip);
         when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(currentUser));
-        when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
+        when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                 TRIP_ID,
                 request.getEndDate(),
                 request.getStartDate()
@@ -215,7 +216,7 @@ class DestinationServiceImplTest {
         assertBusinessException(exception, DESTINATION_DATE_OUTSIDE_TRIP_RANGE, DESTINATION.name());
 
         verify(destinationRepository, never())
-                .existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(anyLong(), any(), any());
+                .existsByTrip_TripIdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(anyLong(), any(), any());
         verify(destinationRepository, never()).save(any(DestinationEntity.class));
     }
 
@@ -234,7 +235,7 @@ class DestinationServiceImplTest {
                 .thenReturn(trip);
         lenient().when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(user()));
-        when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
+        when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                 TRIP_ID,
                 request.getEndDate(),
                 request.getStartDate()
@@ -268,7 +269,7 @@ class DestinationServiceImplTest {
                 .thenReturn(trip);
         lenient().when(userRepository.findByUsernameAndActive(USERNAME))
                 .thenReturn(Optional.of(user()));
-        when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
+        when(destinationRepository.existsByTrip_TripIdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                 TRIP_ID,
                 request.getEndDate(),
                 request.getStartDate()
@@ -531,7 +532,7 @@ class DestinationServiceImplTest {
                 DESTINATION_ID,
                 request.getEndDate()
         )).thenReturn(false);
-        when(destinationRepository.existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanAndEndDateGreaterThan(
+        when(destinationRepository.existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                 TRIP_ID,
                 DESTINATION_ID,
                 request.getEndDate(),
@@ -697,7 +698,7 @@ class DestinationServiceImplTest {
         verify(activityRepository, never())
                 .existsByDestination_DestinationIdAndEndDateTimeAfter(anyLong(), any());
         verify(destinationRepository, never())
-                .existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanAndEndDateGreaterThan(
+                .existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                         anyLong(),
                         anyLong(),
                         any(),
@@ -762,7 +763,7 @@ class DestinationServiceImplTest {
                 DESTINATION_ID,
                 request.getEndDate()
         )).thenReturn(false);
-        when(destinationRepository.existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanAndEndDateGreaterThan(
+        when(destinationRepository.existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                 TRIP_ID,
                 DESTINATION_ID,
                 request.getEndDate(),
@@ -808,7 +809,7 @@ class DestinationServiceImplTest {
                 DESTINATION_ID,
                 request.getEndDate()
         )).thenReturn(false);
-        when(destinationRepository.existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanAndEndDateGreaterThan(
+        when(destinationRepository.existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                 TRIP_ID,
                 DESTINATION_ID,
                 request.getEndDate(),
@@ -971,8 +972,8 @@ class DestinationServiceImplTest {
     private CreateDestinationDTO validCreateRequest() {
         CreateDestinationDTO request = new CreateDestinationDTO();
         request.setDestinationName("Adelaide");
-        request.setStartDate(LocalDateTime.of(2026, 7, 10, 0, 0));
-        request.setEndDate(LocalDateTime.of(2026, 7, 12, 23, 59));
+        request.setStartDate(LocalDate.of(2026, 7, 10));
+        request.setEndDate(LocalDate.of(2026, 7, 12));
         request.setDestinationOrder(1);
         request.setNotes("Stay in Adelaide CBD");
         request.setAllowOverlap(false);
@@ -982,8 +983,8 @@ class DestinationServiceImplTest {
     private UpdateDestinationDTO validUpdateRequest() {
         UpdateDestinationDTO request = new UpdateDestinationDTO();
         request.setDestinationName("Updated Adelaide");
-        request.setStartDate(LocalDateTime.of(2026, 7, 10, 0, 0));
-        request.setEndDate(LocalDateTime.of(2026, 7, 13, 23, 59));
+        request.setStartDate(LocalDate.of(2026, 7, 10));
+        request.setEndDate(LocalDate.of(2026, 7, 13));
         request.setDestinationOrder(2);
         request.setNotes("Updated notes");
         request.setAllowOverlap(false);
@@ -1006,9 +1007,9 @@ class DestinationServiceImplTest {
         trip.setTripId(TRIP_ID);
         trip.setTripName("South Australia Trip");
         trip.setDestination("Adelaide");
-        trip.setStartDate(LocalDateTime.of(2026, 7, 1, 0, 0));
-        trip.setEndDate(LocalDateTime.of(2026, 7, 20, 23, 59));
-        trip.setCreatedDate(LocalDateTime.now());
+        trip.setStartDate(LocalDate.of(2026, 7, 1));
+        trip.setEndDate(LocalDate.of(2026, 7, 20));
+        trip.setCreatedDate(Instant.now());
         return trip;
     }
 
@@ -1016,11 +1017,11 @@ class DestinationServiceImplTest {
         DestinationEntity destination = new DestinationEntity();
         destination.setDestinationId(DESTINATION_ID);
         destination.setDestinationName(name);
-        destination.setStartDate(LocalDateTime.of(2026, 7, 10, 0, 0));
-        destination.setEndDate(LocalDateTime.of(2026, 7, 12, 23, 59));
+        destination.setStartDate(LocalDate.of(2026, 7, 10));
+        destination.setEndDate(LocalDate.of(2026, 7, 12));
         destination.setDestinationOrder(order);
         destination.setNotes("Notes");
-        destination.setCreatedDate(LocalDateTime.now());
+        destination.setCreatedDate(Instant.now());
         destination.setTrip(trip());
         return destination;
     }
@@ -1031,7 +1032,7 @@ class DestinationServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(errorCodeEnum.name(), flow))
                 .thenReturn(Optional.of(entity));

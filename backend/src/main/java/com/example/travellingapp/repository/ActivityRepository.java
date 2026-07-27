@@ -4,6 +4,7 @@ import com.example.travellingapp.entity.ActivityEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -50,11 +51,11 @@ public interface ActivityRepository extends JpaRepository<ActivityEntity, Long> 
 
     boolean existsByDestination_DestinationIdAndStartDateTimeBefore(
             Long destinationId,
-            LocalDateTime startDateTime
+            LocalDate startDateTime
     );
 
     boolean existsByDestination_DestinationIdAndEndDateTimeAfter(
             Long destinationId,
-            LocalDateTime endDateTime
+            LocalDate endDateTime
     );
 }

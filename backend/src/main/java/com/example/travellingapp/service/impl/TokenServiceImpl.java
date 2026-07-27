@@ -21,7 +21,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 import static com.example.travellingapp.util.Common.getConfigValue;
@@ -99,8 +101,8 @@ public class TokenServiceImpl implements TokenService {
         try {
             String refreshToken = UUID.randomUUID().toString();
             int expirationTime = convertStringToInt(getConfigValue(REFRESH_TOKEN_EXPIRATION_TIME.name(), configurationRepository, "1"));
-            RefreshTokenEntity entity = new RefreshTokenEntity(false, LocalDateTime.now(),
-                    LocalDateTime.now().plusMonths(expirationTime), username, dataSecurity.hashData(refreshToken), sessionId, null);
+            RefreshTokenEntity entity = new RefreshTokenEntity(false, Instant.now(),
+                    ZonedDateTime.now(ZoneOffset.UTC).plusMonths(expirationTime).toInstant(), username, dataSecurity.hashData(refreshToken), sessionId, null);
             refreshTokenRepository.save(entity);
             ErrorCodeEnum errorCodeEnum = Optional.of(refreshToken).filter(t -> !t.isEmpty()) // Check if token is not empty
                     .map(t -> TOKEN_GENERATE_SUCCESS).orElseGet(() -> {
@@ -127,8 +129,8 @@ public class TokenServiceImpl implements TokenService {
         }
         for (RefreshTokenEntity token : tokenList) {
             token.setRevoked(true);
-            token.setModifiedDate(LocalDateTime.now());
-            token.setRevokedDate(LocalDateTime.now());
+            token.setModifiedDate(Instant.now());
+            token.setRevokedDate(Instant.now());
         }
         refreshTokenRepository.saveAll(tokenList);
         log.info("Active refresh tokens with sessionId {} revoked successfully", sessionId);
@@ -143,8 +145,8 @@ public class TokenServiceImpl implements TokenService {
         } else {
             for (RefreshTokenEntity token : tokenList) {
                 token.setRevoked(true);
-                token.setModifiedDate(LocalDateTime.now());
-                token.setRevokedDate(LocalDateTime.now());
+                token.setModifiedDate(Instant.now());
+                token.setRevokedDate(Instant.now());
             }
             refreshTokenRepository.saveAll(tokenList);
         }
@@ -155,7 +157,7 @@ public class TokenServiceImpl implements TokenService {
     private void revokeActiveRefreshToken(RefreshTokenEntity token) {
         String username = token.getUsername();
         token.setRevoked(true);
-        token.setModifiedDate(LocalDateTime.now());
+        token.setModifiedDate(Instant.now());
         refreshTokenRepository.save(token);
         log.info("Refresh token revoked for user {} successfully!", username);
     }
@@ -190,7 +192,7 @@ public class TokenServiceImpl implements TokenService {
                 throw new RefreshTokenReuseDetectedException();
             }
             // If refresh token expired
-            if (refreshTokenEntity.getExpiredDate().isBefore(LocalDateTime.now())) {
+            if (refreshTokenEntity.getExpiredDate().isBefore(Instant.now())) {
                 log.error("The refresh token for user {} expired!", userName);
                 // Revoke refresh token
                 revokeActiveRefreshToken(refreshTokenEntity);
@@ -269,7 +271,7 @@ public class TokenServiceImpl implements TokenService {
 
     private void storeSessionToken(String userName, String token, String sessionId) {
         try {
-            SessionTokenEntity newToken = new SessionTokenEntity(userName, passwordEncoder.encode(token), sessionId, LocalDateTime.now());
+            SessionTokenEntity newToken = new SessionTokenEntity(userName, passwordEncoder.encode(token), sessionId, Instant.now());
             sessionTokenRepository.save(newToken);
             log.info("Session token for user {} stored successfully!", userName);
         } catch (Exception e) {

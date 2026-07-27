@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,19 +32,16 @@ public interface TripRepository extends JpaRepository<TripEntity, Long> {
             String tripName,
             Long tripId
     );
-    boolean existsByUser_UsernameAndStartDateLessThanAndEndDateGreaterThan(
+    boolean existsByUser_UsernameAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
             String username,
-            LocalDateTime newEnd,
-            LocalDateTime newStart
+            LocalDate newEnd,
+            LocalDate newStart
     );
 
-    boolean existsByUser_UsernameAndTripIdNotAndStartDateLessThanAndEndDateGreaterThan(
+    boolean existsByUser_UsernameAndTripIdNotAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
             String username,
             Long tripId,
-            LocalDateTime newEnd,
-            LocalDateTime newStart
+            LocalDate newEnd,
+            LocalDate newStart
     );
-
-
-
 }

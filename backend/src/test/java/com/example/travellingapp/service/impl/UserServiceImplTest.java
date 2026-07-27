@@ -39,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -1509,7 +1509,7 @@ class UserServiceImplTest {
         user.setUserId(1L);
         user.setDisplayName("Justin Bui");
         user.setDob(LocalDate.of(1999, 8, 16));
-        user.setCreatedDate(LocalDateTime.of(2026, 1, 1, 9, 0));
+        user.setCreatedDate(Instant.parse("2026-01-01T09:00:00Z"));
         user.setPreferredTheme(UserSettingEnum.SYSTEM);
         user.setProfileImageUrl("https://example.com/avatar.png");
         user.setProfileImagePublicId("wandermate/profile-images/users/1/profile-1-existing");
@@ -1571,7 +1571,7 @@ class UserServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(errorCodeEnum.name(), flow))
                 .thenReturn(Optional.of(entity));
@@ -1600,7 +1600,7 @@ class UserServiceImplTest {
 
                     ConfigurationEntity entity = new ConfigurationEntity();
                     entity.setConfigCode(configCode);
-                    entity.setCreatedDate(LocalDateTime.now());
+                    entity.setCreatedDate(Instant.now());
 
                     if (PHONE_VN_PATTERN.name().equals(configCode)) {
                         entity.setConfigValue("^(0|\\+84)[0-9]{9,10}$");

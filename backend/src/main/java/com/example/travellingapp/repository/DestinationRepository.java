@@ -4,7 +4,7 @@ import com.example.travellingapp.entity.DestinationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,26 +21,26 @@ public interface DestinationRepository extends JpaRepository<DestinationEntity, 
             String username
     );
 
-    boolean existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
+    boolean existsByTrip_TripIdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
             Long tripId,
-            LocalDateTime newEnd,
-            LocalDateTime newStart
+            LocalDate newEnd,
+            LocalDate newStart
     );
 
-    boolean existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanAndEndDateGreaterThan(
+    boolean existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
             Long tripId,
             Long destinationId,
-            LocalDateTime newEnd,
-            LocalDateTime newStart
+            LocalDate newEnd,
+            LocalDate newStart
     );
 
     boolean existsByTrip_TripIdAndStartDateBefore(
             Long tripId,
-            LocalDateTime newTripStartDate
+            LocalDate newTripStartDate
     );
 
     boolean existsByTrip_TripIdAndEndDateAfter(
             Long tripId,
-            LocalDateTime newTripEndDate
+            LocalDate newTripEndDate
     );
 }

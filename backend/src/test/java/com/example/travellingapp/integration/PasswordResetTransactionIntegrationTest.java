@@ -23,7 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static com.example.travellingapp.enums.CommonEnum.OTP;
 import static com.example.travellingapp.enums.ErrorCodeEnum.OTP_VERIFICATION_SUCCESS;
@@ -82,7 +82,7 @@ class PasswordResetTransactionIntegrationTest {
         user.setEmail("justin@example.com");
         user.setActive(true);
         user.setOAuth2(false);
-        user.setCreatedDate(LocalDateTime.now());
+        user.setCreatedDate(Instant.now());
         userRepository.saveAndFlush(user);
 
         when(passwordEncoder.matches(NEW_PASSWORD, OLD_PASSWORD)).thenReturn(false);

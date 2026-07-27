@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -18,7 +18,7 @@ public class UserProfileResponseDTO {
     private LocalDate dob;
     private UserSettingEnum preferredTheme;
     private String profileImageUrl;
-    private LocalDateTime createdDate;
-    private LocalDateTime modifiedDate;
+    private Instant createdDate;
+    private Instant modifiedDate;
     private String profileImagePublicId;
 }

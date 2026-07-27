@@ -12,7 +12,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -65,7 +66,7 @@ class RefreshTokenRotationConcurrencyIntegrationTest {
                     boolean accepted = !token.isRevoked();
                     if (accepted) {
                         token.setRevoked(true);
-                        token.setModifiedDate(LocalDateTime.now());
+                        token.setModifiedDate(Instant.now());
                         refreshTokenRepository.saveAndFlush(token);
                     }
                     return accepted;
@@ -85,7 +86,7 @@ class RefreshTokenRotationConcurrencyIntegrationTest {
                     boolean accepted = !token.isRevoked();
                     if (accepted) {
                         token.setRevoked(true);
-                        token.setModifiedDate(LocalDateTime.now());
+                        token.setModifiedDate(Instant.now());
                         refreshTokenRepository.saveAndFlush(token);
                     }
                     return accepted;
@@ -123,8 +124,8 @@ class RefreshTokenRotationConcurrencyIntegrationTest {
     private static RefreshTokenEntity activeRefreshToken() {
         return new RefreshTokenEntity(
                 false,
-                LocalDateTime.now(),
-                LocalDateTime.now().plusDays(1),
+                Instant.now(),
+                Instant.now().plus(1, ChronoUnit.DAYS),
                 "JustinBo123",
                 TOKEN_HASH,
                 "session-1",

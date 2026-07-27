@@ -4,7 +4,7 @@ import com.example.travellingapp.enums.TripEnum;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -15,8 +15,8 @@ public class TripShareCodeResponseDTO {
     private String inviteLink;
     private TripEnum defaultRole;
     private TripEnum codeStatus;
-    private LocalDateTime expiresAt;
-    private LocalDateTime createdDate;
+    private Instant expiresAt;
+    private Instant createdDate;
 
     public TripShareCodeResponseDTO() {
     }
@@ -28,8 +28,8 @@ public class TripShareCodeResponseDTO {
             String inviteLink,
             TripEnum defaultRole,
             TripEnum codeStatus,
-            LocalDateTime expiresAt,
-            LocalDateTime createdDate
+            Instant expiresAt,
+            Instant createdDate
     ) {
         this.tripId = tripId;
         this.tripName = tripName;

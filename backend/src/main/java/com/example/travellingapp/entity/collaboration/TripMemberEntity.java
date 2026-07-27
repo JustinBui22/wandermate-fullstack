@@ -9,7 +9,7 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(
@@ -47,10 +47,10 @@ public class TripMemberEntity implements Serializable {
     private TripEnum role;
 
     @Column(name = "created_date", nullable = false)
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     public TripMemberEntity() {
     }
@@ -59,7 +59,7 @@ public class TripMemberEntity implements Serializable {
             TripEntity trip,
             User user,
             TripEnum role,
-            LocalDateTime createdDate
+            Instant createdDate
     ) {
         this.trip = trip;
         this.user = user;
@@ -67,4 +67,3 @@ public class TripMemberEntity implements Serializable {
         this.createdDate = createdDate;
     }
 }
-

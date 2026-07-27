@@ -25,7 +25,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -572,9 +573,9 @@ class TripMemberServiceImplTest {
         trip.setTripId(TRIP_ID);
         trip.setTripName("Adelaide Trip");
         trip.setDestination("Adelaide");
-        trip.setStartDate(LocalDateTime.of(2026, 7, 10, 0, 0));
-        trip.setEndDate(LocalDateTime.of(2026, 7, 15, 23, 59));
-        trip.setCreatedDate(LocalDateTime.now());
+        trip.setStartDate(LocalDate.of(2026, 7, 10));
+        trip.setEndDate(LocalDate.of(2026, 7, 15));
+        trip.setCreatedDate(Instant.now());
         trip.setUser(ownerUser());
         return trip;
     }
@@ -607,7 +608,7 @@ class TripMemberServiceImplTest {
         tripMember.setTrip(trip());
         tripMember.setUser(user);
         tripMember.setRole(role);
-        tripMember.setCreatedDate(LocalDateTime.now());
+        tripMember.setCreatedDate(Instant.now());
         return tripMember;
     }
 
@@ -617,7 +618,7 @@ class TripMemberServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(errorCodeEnum.name(), flow))
                 .thenReturn(Optional.of(entity));

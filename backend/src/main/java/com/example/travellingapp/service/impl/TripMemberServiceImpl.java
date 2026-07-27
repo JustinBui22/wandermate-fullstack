@@ -21,7 +21,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
@@ -123,7 +123,7 @@ public class TripMemberServiceImpl implements TripMemberService {
                     trip,
                     targetUser,
                     role,
-                    LocalDateTime.now()
+                    Instant.now()
             );
             tripMemberRepository.save(tripMember);
             return getCompleteResponse(
@@ -168,7 +168,7 @@ public class TripMemberServiceImpl implements TripMemberService {
 
             // Update trip member role
             tripMember.setRole(newRole);
-            tripMember.setModifiedDate(LocalDateTime.now());
+            tripMember.setModifiedDate(Instant.now());
 
             tripMemberRepository.save(tripMember);
             return getCompleteResponse(

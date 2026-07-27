@@ -25,6 +25,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -1007,8 +1009,8 @@ class ActivityServiceImplTest {
         DestinationEntity destination = new DestinationEntity();
         destination.setDestinationId(DESTINATION_ID);
         destination.setDestinationName("Adelaide");
-        destination.setStartDate(LocalDateTime.of(2026, 7, 10, 0, 0));
-        destination.setEndDate(LocalDateTime.of(2026, 7, 12, 23, 59));
+        destination.setStartDate(LocalDate.of(2026, 7, 10));
+        destination.setEndDate(LocalDate.of(2026, 7, 12));
         return destination;
     }
 
@@ -1022,7 +1024,7 @@ class ActivityServiceImplTest {
         activity.setEndDateTime(LocalDateTime.of(2026, 7, 10, 10, 0));
         activity.setDestination(destination());
         activity.setCreatedBy(activeUser());
-        activity.setCreatedDate(LocalDateTime.now());
+        activity.setCreatedDate(Instant.now());
         return activity;
     }
 
@@ -1041,7 +1043,7 @@ class ActivityServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(errorCodeEnum.name(), flow))
                 .thenReturn(Optional.of(entity));

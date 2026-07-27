@@ -4,7 +4,8 @@ import com.example.travellingapp.enums.TripEnum;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -14,8 +15,8 @@ public class TripCollaborationRequestResponseDTO {
     private Long tripId;
     private String tripName;
     private String destination;
-    private LocalDateTime tripStartDate;
-    private LocalDateTime tripEndDate;
+    private LocalDate tripStartDate;
+    private LocalDate tripEndDate;
 
     private Long requesterUserId;
     private String requesterUsername;
@@ -27,7 +28,7 @@ public class TripCollaborationRequestResponseDTO {
     private TripEnum requestType;
     private TripEnum status;
 
-    private LocalDateTime createdDate;
-    private LocalDateTime modifiedDate;
-    private LocalDateTime respondedDate;
+    private Instant createdDate;
+    private Instant modifiedDate;
+    private Instant respondedDate;
 }

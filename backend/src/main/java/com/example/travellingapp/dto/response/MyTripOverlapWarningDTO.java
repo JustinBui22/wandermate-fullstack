@@ -3,23 +3,23 @@ package com.example.travellingapp.dto.response;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Getter
 @Setter
 public class MyTripOverlapWarningDTO {
     private Long currentTripId;
     private String currentTripName;
-    private LocalDateTime currentTripStartDate;
-    private LocalDateTime currentTripEndDate;
+    private LocalDate currentTripStartDate;
+    private LocalDate currentTripEndDate;
 
     private Long overlappingTripId;
     private String overlappingTripName;
-    private LocalDateTime overlappingTripStartDate;
-    private LocalDateTime overlappingTripEndDate;
+    private LocalDate overlappingTripStartDate;
+    private LocalDate overlappingTripEndDate;
 
-    private LocalDateTime overlapStartDate;
-    private LocalDateTime overlapEndDate;
+    private LocalDate overlapStartDate;
+    private LocalDate overlapEndDate;
 
     private String message;
 }

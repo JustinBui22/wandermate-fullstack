@@ -21,7 +21,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static com.example.travellingapp.enums.CommonEnum.*;
@@ -89,7 +89,7 @@ public class DestinationServiceImpl implements DestinationService {
             // Check for overlapping destinations
             boolean allowOverlap = Boolean.TRUE.equals(destinationDTO.getAllowOverlap());
             boolean hasOverlap = destinationRepository
-                    .existsByTrip_TripIdAndStartDateLessThanAndEndDateGreaterThan(
+                    .existsByTrip_TripIdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                             tripId,
                             destinationDTO.getEndDate(),
                             destinationDTO.getStartDate()
@@ -107,7 +107,7 @@ public class DestinationServiceImpl implements DestinationService {
                     destinationDTO.getEndDate(),
                     destinationDTO.getDestinationOrder(),
                     destinationDTO.getNotes(),
-                    LocalDateTime.now(),
+                    Instant.now(),
                     null,
                     trip
             );
@@ -249,7 +249,7 @@ public class DestinationServiceImpl implements DestinationService {
             // Check for overlapping destinations excluding the current one
             boolean allowOverlap = Boolean.TRUE.equals(destinationDTO.getAllowOverlap());
             boolean hasOverlap = destinationRepository
-                    .existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanAndEndDateGreaterThan(
+                    .existsByTrip_TripIdAndDestinationIdNotAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                             tripId,
                             destinationId,
                             destinationDTO.getEndDate(),
@@ -270,7 +270,7 @@ public class DestinationServiceImpl implements DestinationService {
             destination.setEndDate(destinationDTO.getEndDate());
             destination.setDestinationOrder(destinationDTO.getDestinationOrder());
             destination.setNotes(destinationDTO.getNotes());
-            destination.setModifiedDate(LocalDateTime.now());
+            destination.setModifiedDate(Instant.now());
             destination.setModifiedBy(currentUser);
 
             destinationRepository.save(destination);

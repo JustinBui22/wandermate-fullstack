@@ -18,10 +18,13 @@ import com.example.travellingapp.service.TripService;
 import com.example.travellingapp.validator.ImageReferenceValidator;
 import com.example.travellingapp.validator.TripValidator;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -36,6 +39,8 @@ import static com.example.travellingapp.util.DataConverter.convertStringToInt;
 @Service
 @Log4j2
 public class TripServiceImpl implements TripService {
+    @Value("${app.time.default-zone:Australia/Adelaide}")
+    private String defaultTimeZone = "Australia/Adelaide";
     private final ErrorCodeRepository errorCodeRepository;
     private final CityRepository cityRepository;
     private final RestaurantRepository restaurantRepository;
@@ -114,7 +119,7 @@ public class TripServiceImpl implements TripService {
             // Check if the new trip overlaps with the user's existing trips
             boolean allowOverlap = Boolean.TRUE.equals(tripDTO.getAllowOverlap());
             boolean hasOverlap = tripRepository
-                    .existsByUser_UsernameAndStartDateLessThanAndEndDateGreaterThan(
+                    .existsByUser_UsernameAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                             username,
                             tripDTO.getEndDate(),
                             tripDTO.getStartDate()
@@ -130,7 +135,7 @@ public class TripServiceImpl implements TripService {
             TripEntity trip = new TripEntity(
                     tripName,
                     destination,
-                    LocalDateTime.now(),
+                    Instant.now(),
                     tripDTO.getStartDate(),
                     tripDTO.getEndDate(),
                     null,
@@ -157,7 +162,7 @@ public class TripServiceImpl implements TripService {
                     savedTrip,
                     user,
                     TripEnum.OWNER,
-                    LocalDateTime.now()
+                    Instant.now()
             );
             tripMemberRepository.save(ownerMember);
 
@@ -292,7 +297,7 @@ public class TripServiceImpl implements TripService {
             // Check if updated date range overlaps with the owner's other trips
             boolean allowOverlap = Boolean.TRUE.equals(tripDTO.getAllowOverlap());
             boolean hasOverlap = tripRepository
-                    .existsByUser_UsernameAndTripIdNotAndStartDateLessThanAndEndDateGreaterThan(
+                    .existsByUser_UsernameAndTripIdNotAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                             tripOwnerUsername,
                             tripId,
                             tripDTO.getEndDate(),
@@ -327,7 +332,7 @@ public class TripServiceImpl implements TripService {
             trip.setDestination(destination);
             trip.setStartDate(tripDTO.getStartDate());
             trip.setEndDate(tripDTO.getEndDate());
-            trip.setModifiedDate(LocalDateTime.now());
+            trip.setModifiedDate(Instant.now());
 
             // Update cover image URL if provided
             String oldCoverImageUrl = trip.getCoverImageUrl();
@@ -603,18 +608,18 @@ public class TripServiceImpl implements TripService {
     }
 
     private TripEnum resolveTripStatus(TripEntity trip) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = LocalDate.now(ZoneId.of(defaultTimeZone));
 
         // If trip end date has passed, mark as finished
-        if (trip.getEndDate() != null && trip.getEndDate().isBefore(now)) {
+        if (trip.getEndDate() != null && trip.getEndDate().isBefore(today)) {
             return TripEnum.FINISHED;
         }
 
         // If current date is within trip date range, mark as ongoing
         if (trip.getStartDate() != null
                 && trip.getEndDate() != null
-                && !now.isBefore(trip.getStartDate())
-                && !now.isAfter(trip.getEndDate())) {
+                && !today.isBefore(trip.getStartDate())
+                && !today.isAfter(trip.getEndDate())) {
             return TripEnum.ONGOING;
         }
 
@@ -629,7 +634,7 @@ public class TripServiceImpl implements TripService {
         // Update trip status only if it changed
         if (trip.getTripStatus() != resolvedStatus) {
             trip.setTripStatus(resolvedStatus);
-            trip.setModifiedDate(LocalDateTime.now());
+            trip.setModifiedDate(Instant.now());
         }
     }
 
@@ -737,7 +742,7 @@ public class TripServiceImpl implements TripService {
                 .reversed();
     }
 
-    private LocalDateTime getTripUpdatedSortValue(TripResponseDTO trip) {
+    private Instant getTripUpdatedSortValue(TripResponseDTO trip) {
         // Use modified date if available
         if (trip.getModifiedDate() != null) {
             return trip.getModifiedDate();

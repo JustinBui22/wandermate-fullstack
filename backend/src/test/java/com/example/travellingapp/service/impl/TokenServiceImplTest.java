@@ -29,7 +29,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -259,7 +260,7 @@ class TokenServiceImplTest {
         assertThat(savedToken.isRevoked())
                 .isFalse();
         assertThat(savedToken.getExpiredDate())
-                .isAfter(LocalDateTime.now());
+                .isAfter(Instant.now());
     }
 
     @Test
@@ -635,14 +636,14 @@ class TokenServiceImplTest {
                 "JustinBo123",
                 "session-123",
                 false,
-                LocalDateTime.now().plusDays(1)
+                Instant.now().plus(1, ChronoUnit.DAYS)
         );
 
         RefreshTokenEntity token2 = refreshToken(
                 "JustinBo123",
                 "session-123",
                 false,
-                LocalDateTime.now().plusDays(1)
+                Instant.now().plus(1, ChronoUnit.DAYS)
         );
 
         when(refreshTokenRepository
@@ -672,14 +673,14 @@ class TokenServiceImplTest {
                 "JustinBo123",
                 "session-1",
                 false,
-                LocalDateTime.now().plusDays(1)
+                Instant.now().plus(1, ChronoUnit.DAYS)
         );
 
         RefreshTokenEntity token2 = refreshToken(
                 "JustinBo123",
                 "session-2",
                 false,
-                LocalDateTime.now().plusDays(1)
+                Instant.now().plus(1, ChronoUnit.DAYS)
         );
 
         when(refreshTokenRepository
@@ -811,7 +812,7 @@ class TokenServiceImplTest {
                 "JustinBo123",
                 "session-1",
                 false,
-                LocalDateTime.now().plusDays(1)
+                Instant.now().plus(1, ChronoUnit.DAYS)
         );
 
         when(sessionTokenRepository
@@ -949,7 +950,7 @@ class TokenServiceImplTest {
                 "JustinBo123",
                 "session-123",
                 true,
-                LocalDateTime.now().plusDays(1)
+                Instant.now().plus(1, ChronoUnit.DAYS)
         );
 
         when(dataSecurity.hashData("refresh-token"))
@@ -983,7 +984,7 @@ class TokenServiceImplTest {
                 "JustinBo123",
                 "session-123",
                 false,
-                LocalDateTime.now().minusMinutes(1)
+                Instant.now().minus(1, ChronoUnit.MINUTES)
         );
 
         SessionTokenEntity session = session(
@@ -1032,7 +1033,7 @@ class TokenServiceImplTest {
                 "JustinBo123",
                 "session-123",
                 false,
-                LocalDateTime.now().plusDays(1)
+                Instant.now().plus(1, ChronoUnit.DAYS)
         );
 
         SessionTokenEntity session = session(
@@ -1087,7 +1088,7 @@ class TokenServiceImplTest {
                 username,
                 sessionId,
                 false,
-                LocalDateTime.now().plusDays(1)
+                Instant.now().plus(1, ChronoUnit.DAYS)
         );
 
         SessionTokenEntity session = session(
@@ -1211,7 +1212,7 @@ class TokenServiceImplTest {
         session.setUsername(username);
         session.setSessionId(sessionId);
         session.setSessionToken(encodedToken);
-        session.setCreatedDate(LocalDateTime.now());
+        session.setCreatedDate(Instant.now());
         return session;
     }
 
@@ -1219,7 +1220,7 @@ class TokenServiceImplTest {
             String username,
             String sessionId,
             boolean revoked,
-            LocalDateTime expiredDate
+            Instant expiredDate
     ) {
         RefreshTokenEntity token = new RefreshTokenEntity();
         token.setTokenId(UUID.randomUUID());
@@ -1227,7 +1228,7 @@ class TokenServiceImplTest {
         token.setSessionId(sessionId);
         token.setTokenHash("hashed-refresh-token");
         token.setRevoked(revoked);
-        token.setCreatedDate(LocalDateTime.now().minusHours(1));
+        token.setCreatedDate(Instant.now().minus(1, ChronoUnit.HOURS));
         token.setExpiredDate(expiredDate);
         return token;
     }
@@ -1265,7 +1266,7 @@ class TokenServiceImplTest {
         ConfigurationEntity entity = new ConfigurationEntity();
         entity.setConfigCode(configCode);
         entity.setConfigValue(configValue);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(configurationRepository.findByConfigCode(configCode))
                 .thenReturn(Optional.of(entity));
@@ -1280,7 +1281,7 @@ class TokenServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(
                 errorCodeEnum.name(),

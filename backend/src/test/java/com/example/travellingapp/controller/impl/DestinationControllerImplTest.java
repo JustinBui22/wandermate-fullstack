@@ -12,7 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Map;
 
 import static com.example.travellingapp.enums.CommonEnum.DESTINATION;
@@ -42,8 +42,8 @@ class DestinationControllerImplTest {
     void createDestination_shouldReturnServiceResponse() throws Exception {
         CreateDestinationDTO request = new CreateDestinationDTO();
         request.setDestinationName("Adelaide CBD");
-        request.setStartDate(LocalDateTime.of(2026, 8, 1, 9, 0));
-        request.setEndDate(LocalDateTime.of(2026, 8, 3, 18, 0));
+        request.setStartDate(LocalDate.of(2026, 8, 1));
+        request.setEndDate(LocalDate.of(2026, 8, 3));
         request.setDestinationOrder(1);
         request.setNotes("Main city stop");
         request.setAllowOverlap(false);

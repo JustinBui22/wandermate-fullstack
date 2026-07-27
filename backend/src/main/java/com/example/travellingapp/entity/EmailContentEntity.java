@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "email_contents")
@@ -28,10 +28,10 @@ public class EmailContentEntity {
     private String emailFlow;
 
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "email_enum", nullable = false)
@@ -49,4 +49,3 @@ public class EmailContentEntity {
     public EmailContentEntity() {
     }
 }
-

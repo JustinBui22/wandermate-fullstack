@@ -193,8 +193,8 @@ Create/update example:
 {
   "tripName": "Japan 2027",
   "destination": "Tokyo",
-  "startDate": "2027-04-01T00:00:00",
-  "endDate": "2027-04-10T23:59:59",
+  "startDate": "2027-04-01",
+  "endDate": "2027-04-10",
   "allowOverlap": false,
   "tripStatus": "PLANNING",
   "coverImageUrl": null,
@@ -202,7 +202,7 @@ Create/update example:
 }
 ```
 
-Trip and destination request fields are `LocalDateTime` in the current backend.
+Trip and destination boundaries are calendar-only ISO dates (`yyyy-MM-dd`). They must not be converted through the device timezone. Same-day ranges are valid. Audit and expiry timestamps are RFC 3339 UTC instants such as `2027-04-01T05:30:00Z`.
 
 ## Destination endpoints
 
@@ -217,8 +217,8 @@ Trip and destination request fields are `LocalDateTime` in the current backend.
 ```json
 {
   "destinationName": "Kyoto",
-  "startDate": "2027-04-04T00:00:00",
-  "endDate": "2027-04-07T23:59:59",
+  "startDate": "2027-04-04",
+  "endDate": "2027-04-07",
   "destinationOrder": 2,
   "notes": "Train from Tokyo",
   "allowOverlap": false
@@ -244,6 +244,8 @@ Trip and destination request fields are `LocalDateTime` in the current backend.
   "endDateTime": "2027-04-05T11:00:00"
 }
 ```
+
+Activity schedule fields intentionally remain ISO local date-times without an offset. They represent the local wall-clock time at the destination and must not be automatically shifted through the viewer's device timezone.
 
 ## Collaboration request endpoints
 

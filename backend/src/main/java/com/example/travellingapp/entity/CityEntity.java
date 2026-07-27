@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "cities")
@@ -24,9 +24,9 @@ public class CityEntity implements Serializable {
     private String cityName;
 
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
-    public CityEntity(String cityName, LocalDateTime createdDate) {
+    public CityEntity(String cityName, Instant createdDate) {
         this.cityName = cityName;
         this.createdDate = createdDate;
     }

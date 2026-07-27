@@ -7,7 +7,7 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "trip_share_code_attempts")
@@ -30,16 +30,16 @@ public class TripShareCodeAttemptEntity implements Serializable {
     private int retryCount;
 
     @Column(name = "restricted_until")
-    private LocalDateTime restrictedUntil;
+    private Instant restrictedUntil;
 
     @Column(name = "last_attempt_date")
-    private LocalDateTime lastAttemptDate;
+    private Instant lastAttemptDate;
 
     @Column(name = "created_date", nullable = false)
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     public TripShareCodeAttemptEntity() {
     }
@@ -47,7 +47,7 @@ public class TripShareCodeAttemptEntity implements Serializable {
     public TripShareCodeAttemptEntity(
             User user,
             int retryCount,
-            LocalDateTime createdDate
+            Instant createdDate
     ) {
         this.user = user;
         this.retryCount = retryCount;

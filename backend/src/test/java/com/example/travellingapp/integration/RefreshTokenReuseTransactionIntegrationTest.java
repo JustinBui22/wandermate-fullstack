@@ -20,7 +20,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static com.example.travellingapp.enums.ErrorCodeEnum.REFRESH_TOKEN_INVALID;
@@ -103,13 +104,13 @@ class RefreshTokenReuseTransactionIntegrationTest {
                                 USERNAME,
                                 "encoded-session-token",
                                 SESSION_ID,
-                                LocalDateTime.now()
+                                Instant.now()
                         ),
                         new SessionTokenEntity(
                                 USERNAME,
                                 "encoded-other-token",
                                 "session-2",
-                                LocalDateTime.now()
+                                Instant.now()
                         )
                 )
         );
@@ -252,8 +253,8 @@ class RefreshTokenReuseTransactionIntegrationTest {
     ) {
         return new RefreshTokenEntity(
                 revoked,
-                LocalDateTime.now(),
-                LocalDateTime.now().plusDays(1),
+                Instant.now(),
+                Instant.now().plus(1, ChronoUnit.DAYS),
                 USERNAME,
                 hash,
                 sessionId,

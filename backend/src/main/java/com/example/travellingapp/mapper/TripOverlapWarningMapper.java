@@ -4,7 +4,7 @@ import com.example.travellingapp.dto.response.MyTripOverlapWarningDTO;
 import com.example.travellingapp.entity.TripEntity;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Component
 public class TripOverlapWarningMapper {
@@ -24,11 +24,11 @@ public class TripOverlapWarningMapper {
         dto.setOverlappingTripEndDate(overlappingTrip.getEndDate());
 
         // Calculate the actual overlapping time range
-        LocalDateTime overlapStartDate = currentTrip.getStartDate().isAfter(overlappingTrip.getStartDate())
+        LocalDate overlapStartDate = currentTrip.getStartDate().isAfter(overlappingTrip.getStartDate())
                 ? currentTrip.getStartDate()
                 : overlappingTrip.getStartDate();
 
-        LocalDateTime overlapEndDate = currentTrip.getEndDate().isBefore(overlappingTrip.getEndDate())
+        LocalDate overlapEndDate = currentTrip.getEndDate().isBefore(overlappingTrip.getEndDate())
                 ? currentTrip.getEndDate()
                 : overlappingTrip.getEndDate();
 

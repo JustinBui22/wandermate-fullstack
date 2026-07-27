@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 
 
@@ -29,16 +29,16 @@ public class ConfigurationEntity {
     private String configMessage;
 
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     @Column(name = "config_type")
     private String configType;
 
 
-    public ConfigurationEntity(String configCode, String configValue, LocalDateTime createdDate) {
+    public ConfigurationEntity(String configCode, String configValue, Instant createdDate) {
         this.configCode = configCode;
         this.configValue = configValue;
         this.createdDate = createdDate;

@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import static com.example.travellingapp.enums.CommonEnum.DESTINATION;
 import static com.example.travellingapp.enums.CommonEnum.COMMON;
 import static com.example.travellingapp.enums.ErrorCodeEnum.*;
@@ -37,8 +37,8 @@ public class DestinationValidator {
             throw new BusinessException(DESTINATION_NAME_NOT_FOUND, DESTINATION.name());
         }
 
-        if (!destinationDTO.getStartDate().isBefore(destinationDTO.getEndDate())) {
-            log.error("Start date must be before end date to create a destination!");
+        if (destinationDTO.getStartDate().isAfter(destinationDTO.getEndDate())) {
+            log.error("Start date must not be after end date to create a destination!");
             throw new BusinessException(DESTINATION_TIME_INVALID, DESTINATION.name());
         }
 
@@ -67,8 +67,8 @@ public class DestinationValidator {
             throw new BusinessException(DESTINATION_NAME_NOT_FOUND, DESTINATION.name());
         }
 
-        if (!destinationDTO.getStartDate().isBefore(destinationDTO.getEndDate())) {
-            log.error("Start date must be before end date to update a destination!");
+        if (destinationDTO.getStartDate().isAfter(destinationDTO.getEndDate())) {
+            log.error("Start date must not be after end date to update a destination!");
             throw new BusinessException(DESTINATION_TIME_INVALID, DESTINATION.name());
         }
 
@@ -76,8 +76,8 @@ public class DestinationValidator {
     }
 
     public void validateDestinationInsideTrip(
-            LocalDateTime destinationStart,
-            LocalDateTime destinationEnd,
+            LocalDate destinationStart,
+            LocalDate destinationEnd,
             TripEntity trip
     ) {
         if (trip == null) {

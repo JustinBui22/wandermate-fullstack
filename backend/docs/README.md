@@ -12,6 +12,7 @@ This directory documents the backend implementation currently present in the rep
 | [Docker setup](DOCKER_SETUP.md) | Environment variables, ports and Compose commands |
 | [Docker fresh-start checklist](DOCKER_FRESH_START_CHECKLIST.md) | Safe reset and verification sequence |
 | [Frontend integration](FRONTEND_INTEGRATION.md) | API base URL, headers, response handling, dates, roles and uploads |
+| [Date and time model](DATE_TIME_MODEL.md) | Calendar dates, local activity times, UTC operational timestamps and migration rules |
 | [Operations](OPERATIONS.md) | Health, profiles, CI/CD, logs, backups and secrets |
 | [Postman guide](POSTMAN_GUIDE.md) | Environment setup and representative request flows |
 | [Production API docs](PRODUCTION_API_DOCS.md) | Local OpenAPI/Swagger and production exposure policy |

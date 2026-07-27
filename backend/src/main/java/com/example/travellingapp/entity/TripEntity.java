@@ -7,7 +7,8 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,13 +41,13 @@ public class TripEntity implements Serializable {
     private String destination;
 
     @Column(name = "created_date", nullable = false)
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 
     @Column(name = "start_date", nullable = false)
-    private LocalDateTime startDate;
+    private LocalDate startDate;
 
     @Column(name = "end_date", nullable = false)
-    private LocalDateTime endDate;
+    private LocalDate endDate;
 
     @Column(name = "cover_image_url", length = 500)
     private String coverImageUrl;
@@ -60,7 +61,7 @@ public class TripEntity implements Serializable {
     private User user;
 
     @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
+    private Instant modifiedDate;
 
     // One trip can have multiple destinations, but each destination belongs to one trip
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -70,7 +71,7 @@ public class TripEntity implements Serializable {
     @Column(name = "trip_status", nullable = false, length = 20)
     private TripEnum tripStatus = TripEnum.PLANNING;
 
-    public TripEntity(String tripName, String destination, LocalDateTime createdDate, LocalDateTime startDate, LocalDateTime endDate, User user) {
+    public TripEntity(String tripName, String destination, Instant createdDate, LocalDate startDate, LocalDate endDate, User user) {
         this.tripName = tripName;
         this.destination = destination;
         this.createdDate = createdDate;
@@ -79,7 +80,7 @@ public class TripEntity implements Serializable {
         this.user = user;
     }
 
-    public TripEntity(String tripName, String destination, LocalDateTime createdDate, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime modifiedDate, User user) {
+    public TripEntity(String tripName, String destination, Instant createdDate, LocalDate startDate, LocalDate endDate, Instant modifiedDate, User user) {
         this.tripName = tripName;
         this.destination = destination;
         this.createdDate = createdDate;
@@ -93,4 +94,3 @@ public class TripEntity implements Serializable {
 
     }
 }
-

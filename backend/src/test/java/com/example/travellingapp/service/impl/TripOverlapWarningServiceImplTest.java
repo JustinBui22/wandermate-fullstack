@@ -18,7 +18,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -242,8 +243,8 @@ class TripOverlapWarningServiceImplTest {
         TripEntity trip = new TripEntity();
         trip.setTripId(CURRENT_TRIP_ID);
         trip.setTripName("Adelaide Trip");
-        trip.setStartDate(LocalDateTime.of(2026, 7, 10, 9, 0));
-        trip.setEndDate(LocalDateTime.of(2026, 7, 15, 18, 0));
+        trip.setStartDate(LocalDate.of(2026, 7, 10));
+        trip.setEndDate(LocalDate.of(2026, 7, 15));
         return trip;
     }
 
@@ -251,8 +252,8 @@ class TripOverlapWarningServiceImplTest {
         TripEntity trip = new TripEntity();
         trip.setTripId(2L);
         trip.setTripName("Melbourne Trip");
-        trip.setStartDate(LocalDateTime.of(2026, 7, 12, 9, 0));
-        trip.setEndDate(LocalDateTime.of(2026, 7, 18, 18, 0));
+        trip.setStartDate(LocalDate.of(2026, 7, 12));
+        trip.setEndDate(LocalDate.of(2026, 7, 18));
         return trip;
     }
 
@@ -262,8 +263,8 @@ class TripOverlapWarningServiceImplTest {
         dto.setCurrentTripName("Adelaide Trip");
         dto.setOverlappingTripId(2L);
         dto.setOverlappingTripName("Melbourne Trip");
-        dto.setOverlapStartDate(LocalDateTime.of(2026, 7, 12, 9, 0));
-        dto.setOverlapEndDate(LocalDateTime.of(2026, 7, 15, 18, 0));
+        dto.setOverlapStartDate(LocalDate.of(2026, 7, 12));
+        dto.setOverlapEndDate(LocalDate.of(2026, 7, 15));
         dto.setMessage("This trip overlaps with Melbourne Trip.");
         return dto;
     }
@@ -274,7 +275,7 @@ class TripOverlapWarningServiceImplTest {
         entity.setErrorMessage(errorCodeEnum.getMessage());
         entity.setErrorEnum(errorCodeEnum.name());
         entity.setFlow(flow);
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
 
         when(errorCodeRepository.findByErrorEnumAndFlow(errorCodeEnum.name(), flow))
                 .thenReturn(Optional.of(entity));

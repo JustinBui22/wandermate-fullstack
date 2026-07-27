@@ -14,7 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import static com.example.travellingapp.enums.CommonEnum.OTP;
 import static com.example.travellingapp.enums.ErrorCodeEnum.OTP_CODE_NOT_CORRECT;
@@ -69,19 +70,19 @@ class OtpFailureAccountingTransactionIntegrationTest {
 
         assertThat(persisted.getRetryVerifyOtpCount()).isEqualTo(3);
         assertThat(persisted.isBlock()).isTrue();
-        assertThat(persisted.getOtpRestrictedTime()).isAfter(LocalDateTime.now());
+        assertThat(persisted.getOtpRestrictedTime()).isAfter(Instant.now());
     }
 
     private OtpCheckEntity otpRecord(int retryCount) {
         OtpCheckEntity entity = new OtpCheckEntity();
         entity.setUsername("otp-transaction-user");
         entity.setEmail("otp-transaction@example.com");
-        entity.setCreatedDate(LocalDateTime.now());
+        entity.setCreatedDate(Instant.now());
         entity.setRetrySendOtpCount(1);
         entity.setRetryVerifyOtpCount(retryCount);
         entity.setNewestOtp("123456");
         entity.setBlock(false);
-        entity.setOtpExpirationTime(LocalDateTime.now().plusMinutes(2));
+        entity.setOtpExpirationTime(Instant.now().plus(2, ChronoUnit.MINUTES));
         return entity;
     }
 
