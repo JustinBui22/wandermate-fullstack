@@ -108,8 +108,8 @@ public enum ErrorCodeEnum {
     OTP_PHONE_NOT_MATCH("E043", "OTP phone number does not match the provided phone number", OTP, HttpStatusCodeEnum.BAD_REQUEST),
     OTP_CODE_NOT_CORRECT("E044", "OTP code is not correct", OTP, HttpStatusCodeEnum.BAD_REQUEST),
     DOB_IN_FUTURE("E045", "Date of birth cannot be in the future", REGISTER, HttpStatusCodeEnum.BAD_REQUEST),
-    
-    
+
+
     ACTIVITY_TIME_INVALID("E046", "Activity start time must be before end time", ACTIVITY, HttpStatusCodeEnum.BAD_REQUEST),
 
     TRIP_DATE_IN_PAST("E047", "Trip start date cannot be in the past", TRIP, HttpStatusCodeEnum.BAD_REQUEST),
@@ -159,7 +159,12 @@ public enum ErrorCodeEnum {
     DELETE_IMAGE_FAIL("E085", "Failed to delete image from cloud storage", COMMON, HttpStatusCodeEnum.INTERNAL_SERVER_ERROR),
     OTP_COOLDOWN_NOT_EXPIRED("E086", "OTP cooldown period has not expired yet", OTP, HttpStatusCodeEnum.TOO_MANY_REQUESTS),
     REGISTER_OTP_ALREADY_SENT("E087", "An OTP has already been sent for registration. Please wait before requesting another one.", REGISTER, HttpStatusCodeEnum.TOO_MANY_REQUESTS),
-    ACCOUNT_ENUMERATION_RATE_LIMITED("E088", "Too many account verification requests. Please try again later.", COMMON, HttpStatusCodeEnum.TOO_MANY_REQUESTS)
+    ACCOUNT_ENUMERATION_RATE_LIMITED("E088", "Too many account verification requests. Please try again later.", COMMON, HttpStatusCodeEnum.TOO_MANY_REQUESTS),
+    REQUEST_METHOD_NOT_SUPPORTED("E089", "Request method not allowed", COMMON, HttpStatusCodeEnum.METHOD_NOT_ALLOWED),
+    MEDIA_TYPE_NOT_SUPPORTED("E090", "Media type not supported", COMMON, HttpStatusCodeEnum.UNSUPPORTED_MEDIA_TYPE),
+    PAYLOAD_TOO_LARGE("E091", "Uploaded file is too large", COMMON, HttpStatusCodeEnum.PAYLOAD_TOO_LARGE),
+    RESOURCE_NOT_FOUND("E092", "Resource not found", COMMON, HttpStatusCodeEnum.NOT_FOUND),
+    ACCESS_DENIED("E093", "Access denied", COMMON, HttpStatusCodeEnum.FORBIDDEN)
 
 
     ;

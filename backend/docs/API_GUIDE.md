@@ -25,6 +25,34 @@ Most application endpoints return the shared response body generated through `Co
 
 The health endpoint returns a plain map instead of the shared wrapper.
 
+## Error response consistency
+
+Application, validation, request parsing, Spring MVC, multipart, authentication and authorization failures use the same shared response envelope:
+
+```json
+{
+  "code": "E001",
+  "message": "Invalid input provided",
+  "flow": "COMMON",
+  "body": "Invalid request body, enum value, date or date-time format"
+}
+```
+
+Common framework-level mappings include:
+
+| Error category | HTTP status | Application error |
+|---|---:|---|
+| Missing/invalid parameter, header, JSON or multipart body | 400 | `INVALID_INPUT` |
+| Missing or invalid authentication | 401 | existing token error |
+| Authenticated but forbidden | 403 | `ACCESS_DENIED` |
+| Unknown API resource | 404 | `RESOURCE_NOT_FOUND` |
+| Unsupported HTTP method | 405 | `REQUEST_METHOD_NOT_SUPPORTED` |
+| Uploaded file/request exceeds the configured limit | 413 | `PAYLOAD_TOO_LARGE` |
+| Unsupported request content type | 415 | `MEDIA_TYPE_NOT_SUPPORTED` |
+| Unexpected server failure | 500 | `INTERNAL_SERVER_ERROR` |
+
+Validation continues to return the first useful validation message in `body`, preserving the current frontend parsing contract. Internal exception messages and stack traces are logged server-side and are not returned to the client.
+
 ## Authentication headers
 
 Protected request:

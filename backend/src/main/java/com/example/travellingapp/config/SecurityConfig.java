@@ -1,5 +1,7 @@
 package com.example.travellingapp.config;
 
+import com.example.travellingapp.security.JsonAccessDeniedHandler;
+import com.example.travellingapp.security.JsonAuthenticationEntryPoint;
 import com.example.travellingapp.security.PublicEndpointMatcher;
 import com.example.travellingapp.security.filter.TokenFilter;
 import lombok.extern.log4j.Log4j2;
@@ -29,13 +31,19 @@ public class SecurityConfig {
             HttpSecurity http,
             TokenFilter tokenFilter,
             PublicEndpointMatcher publicEndpointMatcher,
-            CorsConfigurationSource corsConfigurationSource
+            CorsConfigurationSource corsConfigurationSource,
+            JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint,
+            JsonAccessDeniedHandler jsonAccessDeniedHandler
     ) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(jsonAuthenticationEntryPoint)
+                        .accessDeniedHandler(jsonAccessDeniedHandler)
                 )
                 // Allow unauthenticated access to the health endpoint and any additional public URLs
                 .authorizeHttpRequests(auth -> {

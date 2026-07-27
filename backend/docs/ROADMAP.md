@@ -65,7 +65,7 @@ Remaining follow-up:
 ## Priority 6 — API and error behavior
 
 - Add method-specific OpenAPI documentation for custom headers and response wrappers.
-- Normalize validation/JSON/type-mismatch exceptions through `GlobalExceptionHandler`.
+- Completed: normalize validation, JSON, type-mismatch, MVC, multipart and security exceptions through the shared response envelope.
 - Add pagination for trip/member/request lists.
 - Introduce idempotency protection for sensitive POST/PATCH operations where useful.
 - Review whether profile/account lookup responses leak account existence.
