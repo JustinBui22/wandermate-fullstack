@@ -1,0 +1,61 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Australia/Adelaide
+    open-pull-requests-limit: 5
+    rebase-strategy: auto
+    commit-message:
+      prefix: chore(frontend-deps)
+    groups:
+      expo-sdk:
+        patterns:
+          - expo
+          - expo-*
+          - "@expo/*"
+      react-native-stack:
+        patterns:
+          - react
+          - react-dom
+          - react-native
+          - react-native-*
+
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "09:00"
+      timezone: Australia/Adelaide
+    open-pull-requests-limit: 5
+    rebase-strategy: auto
+    commit-message:
+      prefix: chore(backend-deps)
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: wednesday
+      time: "09:00"
+      timezone: Australia/Adelaide
+    open-pull-requests-limit: 5
+    rebase-strategy: auto
+    commit-message:
+      prefix: chore(actions)
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: thursday
+      time: "09:00"
+      timezone: Australia/Adelaide
+    open-pull-requests-limit: 3
+    rebase-strategy: auto
+    commit-message:
+      prefix: chore(docker)

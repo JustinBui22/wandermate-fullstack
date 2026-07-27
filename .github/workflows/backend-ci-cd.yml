@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - "backend/**"
+      - ".github/scripts/verify-render-deploy.sh"
       - ".github/workflows/backend-ci-cd.yml"
 
   push:
@@ -16,13 +17,17 @@ on:
       - main
     paths:
       - "backend/**"
+      - ".github/scripts/verify-render-deploy.sh"
       - ".github/workflows/backend-ci-cd.yml"
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  backend-tests:
-    name: Run backend tests
+  backend-verify:
+    name: Verify backend
     runs-on: ubuntu-latest
 
     defaults:
@@ -43,16 +48,178 @@ jobs:
       - name: Make Maven wrapper executable
         run: chmod +x mvnw
 
-      - name: Run backend tests
-        run: ./mvnw -B test
+      - name: Run backend verification
+        run: ./mvnw -B clean verify
+
+      - name: Upload backend verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-verification-reports
+          path: |
+            backend/target/surefire-reports
+            backend/target/site/jacoco
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload packaged backend
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-application
+          path: backend/target/*.jar
+          if-no-files-found: error
+          retention-days: 7
+
+  fresh-database-migration:
+    name: Verify fresh MariaDB migration
+    runs-on: ubuntu-latest
+    needs: backend-verify
+    timeout-minutes: 10
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: wandermate_ci
+          MARIADB_USER: wandermate_ci
+          MARIADB_PASSWORD: ci-database-password
+          MARIADB_ROOT_PASSWORD: ci-root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Download packaged backend
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-application
+          path: backend/target
+
+      - name: Start backend against an empty MariaDB database
+        env:
+          DB_URL: jdbc:mariadb://127.0.0.1:3306/wandermate_ci
+          DB_USERNAME: wandermate_ci
+          DB_PASSWORD: ci-database-password
+          JWT_SECRET: ci-jwt-secret-that-is-at-least-sixty-four-bytes-long-for-hs512-signing-key
+          REFRESH_TOKEN_HASH_SECRET: ci-refresh-token-hash-secret-at-least-thirty-two-bytes
+          OTP_HASH_SECRET: ci-otp-hash-secret-that-is-at-least-thirty-two-characters
+          SPRING_PROFILES_ACTIVE: prod
+          EMAIL_OAUTH_REFRESH_ENABLED: "false"
+        run: |
+          set -euo pipefail
+
+          mkdir -p backend/target/ci-logs
+          LOG_FILE="backend/target/ci-logs/fresh-database-smoke.log"
+          JAR_PATH="$(find backend/target -maxdepth 1 -type f -name '*.jar' | head -n 1)"
+
+          if [ -z "${JAR_PATH}" ]; then
+            echo "::error::Packaged backend JAR was not found."
+            exit 1
+          fi
+
+          java -jar "${JAR_PATH}" >"${LOG_FILE}" 2>&1 &
+          APP_PID=$!
+
+          cleanup() {
+            if kill -0 "${APP_PID}" 2>/dev/null; then
+              kill "${APP_PID}"
+              wait "${APP_PID}" || true
+            fi
+          }
+          trap cleanup EXIT
+
+          HEALTH_URL="http://127.0.0.1:8080/Wandermate/api/v1/health"
+          HEALTHY=false
+
+          for attempt in $(seq 1 60); do
+            if ! kill -0 "${APP_PID}" 2>/dev/null; then
+              echo "::error::Backend exited before the fresh-database health check passed."
+              cat "${LOG_FILE}"
+              exit 1
+            fi
+
+            if curl --fail --silent --show-error --max-time 5 "${HEALTH_URL}" \
+              | jq --exit-status '.status == "UP"' >/dev/null; then
+              HEALTHY=true
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [ "${HEALTHY}" != "true" ]; then
+            echo "::error::Backend did not become healthy after Flyway migration and Hibernate validation."
+            cat "${LOG_FILE}"
+            exit 1
+          fi
+
+          FAILED_MIGRATIONS="$(
+            docker exec \
+              -e MARIADB_PWD=ci-database-password \
+              "${{ job.services.mariadb.id }}" \
+              mariadb \
+              --user=wandermate_ci \
+              --batch \
+              --skip-column-names \
+              wandermate_ci \
+              --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE success = 0;"
+          )"
+
+          V6_MIGRATIONS="$(
+            docker exec \
+              -e MARIADB_PWD=ci-database-password \
+              "${{ job.services.mariadb.id }}" \
+              mariadb \
+              --user=wandermate_ci \
+              --batch \
+              --skip-column-names \
+              wandermate_ci \
+              --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version = '6' AND success = 1;"
+          )"
+
+          if [ "${FAILED_MIGRATIONS}" != "0" ]; then
+            echo "::error::Fresh database contains a failed Flyway migration."
+            exit 1
+          fi
+
+          if [ "${V6_MIGRATIONS}" != "1" ]; then
+            echo "::error::Flyway did not apply the current V6 migration to the fresh database."
+            exit 1
+          fi
+
+      - name: Upload fresh-database startup log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-database-startup-log
+          path: backend/target/ci-logs/fresh-database-smoke.log
+          if-no-files-found: warn
+          retention-days: 14
 
   deploy-render:
     name: Deploy backend to Render
     runs-on: ubuntu-latest
-    needs: backend-tests
+    needs: fresh-database-migration
+    timeout-minutes: 25
 
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
+    concurrency:
+      group: render-production-backend
+      cancel-in-progress: false
+
     steps:
-      - name: Trigger Render deploy hook
-        run: curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Render deployment and production health
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_HEALTH_URL: ${{ vars.RENDER_HEALTH_URL }}
+        run: bash .github/scripts/verify-render-deploy.sh

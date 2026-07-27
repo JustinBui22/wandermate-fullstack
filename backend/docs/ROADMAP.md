@@ -17,6 +17,8 @@ This roadmap starts from the implementation currently present in the repository.
 - Standardized the date model: trips/destinations use `LocalDate`, activities retain local wall-clock `LocalDateTime`, and audit/security/expiry fields use UTC `Instant`.
 - Added Flyway V5 for calendar-date columns and frontend date-only parsing that avoids timezone day shifts.
 - Sanitized production authentication, OTP, OAuth, share-code and Cloudinary logging; disabled request-detail, SQL bind-value and HTTP wire/header logging in the production profile; and added a source-level logging guardrail test.
+- Strengthened CI with Maven `clean verify`, JaCoCo reporting, a fresh MariaDB Flyway/Hibernate startup test, Expo configuration/export validation, tracked Render deploy status, and post-deployment health polling.
+- Added controlled production npm auditing, OWASP backend dependency scanning, full-history Gitleaks checks, CodeQL analysis, and weekly Dependabot update pull requests.
 
 ## Priority 1 — Security and concurrency hardening
 
@@ -77,7 +79,8 @@ Remaining follow-up:
 - Add component tests for role-aware actions and image replacement.
 - Expand Maestro beyond login-screen smoke to login, trip create and collaboration flows.
 - Add Testcontainers MariaDB tests for SQL/locking behavior that H2 cannot reproduce.
-- Add coverage reporting and dependency/security scanning.
+- Completed Phase 14 coverage reporting and CI deployment/migration verification.
+- Completed Phase 15 dependency and security scanning with controlled failure thresholds and reviewable update workflows.
 
 ## Priority 8 — Product improvements
 

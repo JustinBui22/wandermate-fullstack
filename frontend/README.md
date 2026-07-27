@@ -223,7 +223,20 @@ The smoke flow launches `com.minhquan.wandermate` and verifies the login usernam
 npm ci
 npm run typecheck
 npm test
+npm run test:components -- --coverage --coverageDirectory=coverage/components
+npx expo config --type public --json
+npx expo export --platform web --output-dir dist
 ```
+
+The workflow uploads the component coverage/resolved Expo configuration and the static web export as separate artifacts.
+
+Production dependency audit:
+
+```bash
+npm run audit:prod
+```
+
+The security workflow runs this as `npm audit --omit=dev --audit-level=high`, uploads the JSON report, and does not apply automatic or forced fixes. Dependabot groups Expo and React Native updates so framework-coupled packages can be reviewed together.
 
 ## Screenshots
 

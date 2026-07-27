@@ -2,6 +2,8 @@ name: Frontend CI
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+  EXPO_NO_TELEMETRY: "1"
 
 on:
   pull_request:
@@ -19,6 +21,9 @@ on:
       - ".github/workflows/frontend-ci.yml"
 
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   frontend-checks:
@@ -48,3 +53,31 @@ jobs:
 
       - name: Run frontend unit and component tests
         run: npm test
+
+      - name: Generate frontend component coverage
+        run: npm run test:components -- --coverage --coverageDirectory=coverage/components
+
+      - name: Validate resolved Expo configuration
+        run: npx expo config --type public --json > expo-config.json
+
+      - name: Validate Expo web export
+        run: npx expo export --platform web --output-dir dist
+
+      - name: Upload frontend verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-verification-reports
+          path: |
+            frontend/coverage
+            frontend/expo-config.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Expo web export
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-web-export
+          path: frontend/dist
+          if-no-files-found: error
+          retention-days: 7

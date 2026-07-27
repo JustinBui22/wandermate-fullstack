@@ -49,7 +49,8 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:components",
     "test:unit": "vitest run",
-    "test:components": "jest --runInBand"
+    "test:components": "jest --runInBand",
+    "audit:prod": "npm audit --omit=dev --audit-level=high"
   },
   "overrides": {
     "form-data": "^4.0.6"

@@ -16,7 +16,7 @@ This README describes the implementation contained in this repository. Planned h
 | Authorization | Backend-enforced `OWNER`, `EDITOR`, and `VIEWER` trip permissions |
 | Media | Authenticated Cloudinary upload for profile images and trip covers |
 | Mobile app | Expo Router screens, SecureStore token persistence, automatic access-token refresh, themes |
-| Automation | Backend and frontend GitHub Actions workflows; Render deploy hook after backend tests |
+| Automation | Build/deploy verification, npm/OWASP/Gitleaks/CodeQL security scans, Dependabot, and tracked Render health checks |
 | Tests in repository | 443 backend tests passing; 10 frontend unit/component test cases declared |
 
 ## Technology stack
@@ -54,7 +54,7 @@ wandermate-fullstack/
 ├── backend/                 Spring Boot API, Docker setup, seed data and backend docs
 ├── frontend/                Expo mobile/web client
 ├── docs/                    Portfolio/demo/screenshot documentation
-├── .github/workflows/       Backend CI/CD and frontend CI
+├── .github/workflows/       Build, deployment and security workflows
 └── README.md                Project overview and setup
 ```
 
@@ -245,7 +245,7 @@ npx expo start --tunnel -c
 
 ```bash
 cd backend
-./mvnw test
+./mvnw clean verify
 ```
 
 The included Surefire reports record:
@@ -275,9 +275,11 @@ An EAS workflow builds the `e2e-test` Android profile and runs the Maestro login
 
 ## CI/CD
 
-- `backend-ci-cd.yml` runs backend tests for backend-related pushes/PRs to `main`.
-- A successful backend push to `main` triggers the configured Render deploy hook.
-- `frontend-ci.yml` runs `npm ci`, TypeScript validation, and frontend tests.
+- `backend-ci-cd.yml` runs Maven `clean verify`, uploads Surefire/JaCoCo/JAR artifacts, and starts the packaged backend against an empty MariaDB database to verify Flyway and Hibernate schema validation.
+- A successful backend push to `main` triggers the exact commit on Render, tracks the returned deploy ID until it becomes `live`, and then verifies the production health endpoint.
+- `frontend-ci.yml` runs `npm ci`, TypeScript validation, Vitest/Jest, Jest component coverage, resolved Expo configuration validation, and a static Expo web export.
+- `security-scanning.yml` audits production npm dependencies, scans backend dependencies with OWASP Dependency-Check, and checks complete Git history with Gitleaks.
+- `codeql.yml` analyzes Java and JavaScript/TypeScript, while Dependabot opens weekly reviewable update pull requests for npm, Maven, Actions and Docker.
 - The production Spring profile disables SQL/debug logging and OpenAPI endpoints.
 - Production logging omits authentication secrets, OTP/account destinations, share codes, Cloudinary asset references, request details, SQL bind values and HTTP wire/header dumps.
 
@@ -319,7 +321,9 @@ Do not publish screenshots containing access tokens, refresh tokens, session tok
 - [Authentication flow](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/AUTH_FLOW.md)
 - [Docker setup](backend/docs/DOCKER_SETUP.md)
 - [Operations](backend/docs/OPERATIONS.md)
+- [CI/CD verification](backend/docs/CI_CD.md)
 - [Production logging](backend/docs/PRODUCTION_LOGGING.md)
+- [Dependency and security scanning](backend/docs/SECURITY_SCANNING.md)
 - [Roadmap](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/ROADMAP.md)
 
 ### Frontend
