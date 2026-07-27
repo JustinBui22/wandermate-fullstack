@@ -262,7 +262,7 @@ public class GlobalExceptionHandler {
     // Handle unexpected exceptions that are not explicitly handled by other exception handlers
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ResponseBody<Object>> handleUnexpectedException(Exception ex) {
-        log.error("Unexpected unhandled exception", ex);
+        log.error("Unexpected unhandled exception: {}", ex.getClass().getSimpleName());
         CompleteResponse<Object> result = getCompleteResponse(
                 errorCodeRepository,
                 INTERNAL_SERVER_ERROR,

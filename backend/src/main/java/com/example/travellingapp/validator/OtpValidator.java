@@ -36,7 +36,7 @@ public class OtpValidator {
         }
 
         if (!validateEmailForm(otpDTO.getEmail(), emailPatternConfig)) {
-            log.error("User email {} is invalid!", otpDTO.getEmail());
+            log.error("OTP email format is invalid!");
             throw new BusinessException(EMAIL_PATTERN_INVALID, OTP.name());
         }
     }

@@ -62,7 +62,7 @@ public class TripShareCodeValidator {
     public String normalizeCode(String code) {
         // Validate share code input
         if (code == null || code.isBlank()) {
-            log.error("Invalid share code input: {}", code);
+            log.error("Invalid share code input!");
             throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
         return code.trim().toUpperCase();
@@ -84,27 +84,27 @@ public class TripShareCodeValidator {
     public void validateShareCodeCanBeUsed(TripShareCodeEntity shareCode, Instant now) {
         // Used code cannot be reused
         if (shareCode.getCodeStatus() == TripEnum.USED) {
-            log.error("Share code has already been used. Code: {}, status: {}", shareCode.getCode(), shareCode.getCodeStatus());
+            log.error("Share code has already been used. Status: {}", shareCode.getCodeStatus());
             throw new BusinessException(TRIP_SHARE_CODE_USED, TRIP_MEMBER.name());
         }
         // Revoked code cannot be used
         if (shareCode.getCodeStatus() == TripEnum.REVOKED) {
-            log.error("Share code has been revoked. Code: {}, status: {}", shareCode.getCode(), shareCode.getCodeStatus());
+            log.error("Share code has been revoked. Status: {}", shareCode.getCodeStatus());
             throw new BusinessException(TRIP_SHARE_CODE_REVOKED, TRIP_MEMBER.name());
         }
         // Expired code cannot be used
         if (shareCode.getCodeStatus() == TripEnum.EXPIRED) {
-            log.error("Share code has expired. Code: {}, status: {}", shareCode.getCode(), shareCode.getCodeStatus());
+            log.error("Share code has expired. Status: {}", shareCode.getCodeStatus());
             throw new BusinessException(TRIP_SHARE_CODE_EXPIRED, TRIP_MEMBER.name());
         }
         // Any non-active status is invalid
         if (shareCode.getCodeStatus() != TripEnum.ACTIVE) {
-            log.error("Share code is not active. Code: {}, status: {}", shareCode.getCode(), shareCode.getCodeStatus());
+            log.error("Share code is not active. Status: {}", shareCode.getCodeStatus());
             throw new BusinessException(TRIP_SHARE_CODE_INACTIVE, TRIP_MEMBER.name());
         }
         // Active code cannot be used after expiry time
         if (shareCode.getExpiresAt().isBefore(now)) {
-            log.error("Share code has expired. Code: {}, expires at: {}, now: {}", shareCode.getCode(), shareCode.getExpiresAt(), now);
+            log.error("Share code has expired. Expires at: {}, now: {}", shareCode.getExpiresAt(), now);
             throw new BusinessException(TRIP_SHARE_CODE_EXPIRED, TRIP_MEMBER.name());
         }
     }

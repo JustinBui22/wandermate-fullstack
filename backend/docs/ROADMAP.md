@@ -16,6 +16,7 @@ This roadmap starts from the implementation currently present in the repository.
 - Confirmed generic login and password-reset account-mismatch behaviour and documented the remaining registration-availability trade-off.
 - Standardized the date model: trips/destinations use `LocalDate`, activities retain local wall-clock `LocalDateTime`, and audit/security/expiry fields use UTC `Instant`.
 - Added Flyway V5 for calendar-date columns and frontend date-only parsing that avoids timezone day shifts.
+- Sanitized production authentication, OTP, OAuth, share-code and Cloudinary logging; disabled request-detail, SQL bind-value and HTTP wire/header logging in the production profile; and added a source-level logging guardrail test.
 
 ## Priority 1 — Security and concurrency hardening
 

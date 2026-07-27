@@ -114,7 +114,7 @@ public class TripMemberServiceImpl implements TripMemberService {
             boolean alreadyMember = tripMemberRepository.existsByTrip_TripIdAndUser_UserId(tripId, targetUser.getUserId());
 
             if (alreadyMember) {
-                log.error("User {} is already a member of tripId: {}", targetUsername, tripId);
+                log.error("User is already a member of tripId: {}", tripId);
                 throw new BusinessException(TRIP_MEMBER_ALREADY_EXISTS, TRIP_MEMBER.name());
             }
 

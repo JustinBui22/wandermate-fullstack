@@ -92,7 +92,7 @@ public class TripOverlapWarningServiceImpl implements TripOverlapWarningService 
     public List<MyTripOverlapWarningDTO> buildWarningsForUser(TripEntity currentTrip, String username) {
         // Validate input before checking overlap
         if (currentTrip == null || currentTrip.getTripId() == null || username == null || username.isBlank()) {
-            log.error("Invalid input for building warnings: currentTrip={}, username={}", currentTrip, username);
+            log.error("Invalid input for building trip overlap warnings.");
             throw new BusinessException(INVALID_INPUT, COMMON.name());
         }
 

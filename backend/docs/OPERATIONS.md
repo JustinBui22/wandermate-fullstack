@@ -86,12 +86,17 @@ docker compose logs -f db
 Do not log or publish:
 
 - authorization headers;
-- raw access/refresh/session tokens;
-- OTP values;
-- email OAuth credentials;
-- database or Cloudinary secrets.
+- raw access/refresh/session tokens or session identifiers;
+- OTP values or hashes;
+- passwords or sensitive request DTOs;
+- email OAuth credentials or token responses;
+- trip share codes;
+- account email addresses or phone numbers;
+- database secrets, Cloudinary secrets, secure URLs or public IDs.
 
-The base profile currently uses DEBUG logging and `spring.jpa.show-sql=true`, so production must activate the prod profile.
+The production profile disables request-detail, Hibernate SQL/bind-value and Apache HTTP client wire/header logging. The base profile currently uses DEBUG logging and `spring.jpa.show-sql=true`, so production must activate the prod profile.
+
+See [Production logging](PRODUCTION_LOGGING.md) for the enforced policy and test guardrail.
 
 ## Database backup and restore
 

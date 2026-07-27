@@ -56,13 +56,13 @@ public class TripAccessServiceImpl implements TripAccessService {
     @Override
     public void assertCanView(Long tripId, String username) {
         if (tripId == null || username == null || username.isBlank()) {
-            log.error("Invalid input: tripId or username is null or blank. tripId: {}, username: {}", tripId, username);
+            log.error("Invalid input: tripId or username is null or blank. tripId: {}", tripId);
             throw new BusinessException(INVALID_INPUT, TRIP_MEMBER.name());
         }
         boolean hasAccess = tripMemberRepository
                 .existsByTrip_TripIdAndUser_UsernameAndUser_IsActiveTrue(tripId, username);
         if (!hasAccess) {
-            log.error("User {} attempted to view trip {} without permission", username, tripId);
+            log.error("User attempted to view trip {} without permission", tripId);
             throw new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
         }
     }
@@ -71,7 +71,7 @@ public class TripAccessServiceImpl implements TripAccessService {
     public void assertCanEdit(Long tripId, String username) {
         TripEnum role = getUserRole(tripId, username);
         if (role != TripEnum.OWNER && role != TripEnum.EDITOR) {
-            log.error("User {} attempted to edit trip {} without permission. User role: {}", username, tripId, role);
+            log.error("User attempted to edit trip {} without permission. User role: {}", tripId, role);
             throw new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
         }
     }
@@ -80,7 +80,7 @@ public class TripAccessServiceImpl implements TripAccessService {
     public void assertIsOwner(Long tripId, String username) {
         TripEnum role = getUserRole(tripId, username);
         if (role != TripEnum.OWNER) {
-            log.error("User {} attempted to perform owner-only action on trip {} without permission. User role: {}", username, tripId, role);
+            log.error("User attempted to perform owner-only action on trip {} without permission. User role: {}", tripId, role);
             throw new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
         }
     }

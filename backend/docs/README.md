@@ -16,6 +16,7 @@ This directory documents the backend implementation currently present in the rep
 | [Operations](OPERATIONS.md) | Health, profiles, CI/CD, logs, backups and secrets |
 | [Postman guide](POSTMAN_GUIDE.md) | Environment setup and representative request flows |
 | [Production API docs](PRODUCTION_API_DOCS.md) | Local OpenAPI/Swagger and production exposure policy |
+| [Production logging](PRODUCTION_LOGGING.md) | Sensitive-data logging policy, production controls and automated guardrail |
 | [Roadmap](ROADMAP.md) | Verified limitations and prioritized next work |
 
 ## Source of truth

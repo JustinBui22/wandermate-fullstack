@@ -76,10 +76,10 @@ public class TokenFilter extends OncePerRequestFilter {
                     handleFailTokenValidation(responseCode);
                 }
             } catch (BusinessException e) {
-                log.error("Business exception occurred: {}", e.getMessage(), e);
+                log.error("Authentication failed with error code: {}", e.getErrorCodeEnum().getCode());
                 handleBusinessException(response, e);
             } catch (Exception e) {
-                log.error("There has been an error in {}!", this.getClass(), e);
+                log.error("Unexpected token-filter error: {}", e.getClass().getSimpleName());
                 handleBusinessException(response, new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name()));
             }
         } else {
@@ -100,7 +100,7 @@ public class TokenFilter extends OncePerRequestFilter {
         // Validate session token globally (fallback mechanism)
         String sessionToken = request.getHeader("Session-Token");
         if (sessionToken == null || sessionToken.isBlank() || sessionId == null || sessionId.isBlank() || tokenServiceImpl.isSessionTokenInvalid(userName, sessionId, sessionToken)) {
-            log.error("Invalid session token for user: {}", userName);
+            log.error("Invalid session token.");
             throw new BusinessException(SESSION_TOKEN_INVALID, TOKEN.name());
         }
         // All checks passed => populate SecurityContext

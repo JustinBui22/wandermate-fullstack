@@ -90,7 +90,7 @@ public class TripCollaborationRequestValidator {
     ) {
         // Owner cannot invite themselves
         if (isSameUser(owner, invitedUser)) {
-            log.error("Owner {} cannot invite themselves to the trip!", owner.getUsername());
+            log.error("Trip owner cannot invite themselves!");
             throw new BusinessException(TRIP_CANNOT_INVITE_SELF, TRIP_MEMBER.name());
         }
     }
@@ -101,7 +101,7 @@ public class TripCollaborationRequestValidator {
     ) {
         // Owner cannot request to join their own trip
         if (isSameUser(owner, requester)) {
-            log.error("Owner {} cannot request to join their own trip!", owner.getUsername());
+            log.error("Trip owner cannot request to join their own trip!");
             throw new BusinessException(TRIP_OWNER_CANNOT_REQUEST_TO_JOIN_OWN_TRIP, TRIP_MEMBER.name());
         }
     }
@@ -120,7 +120,7 @@ public class TripCollaborationRequestValidator {
                 tripId,
                 user.getUserId()
         )) {
-            log.error("User {} is already a member of trip {}!", user.getUsername(), tripId);
+            log.error("User is already a member of trip {}!", tripId);
             throw new BusinessException(TRIP_MEMBER_ALREADY_EXISTS, TRIP_MEMBER.name());
         }
     }
@@ -159,8 +159,7 @@ public class TripCollaborationRequestValidator {
                 );
 
         if (firstToSecondPending || secondToFirstPending) {
-            log.error("There is already a pending collaboration request between users {} and {} for trip {}!",
-                    firstUser.getUsername(), secondUser.getUsername(), tripId);
+            log.error("There is already a pending collaboration request for trip {}!", tripId);
             throw new BusinessException(TRIP_COLLABORATION_REQUEST_ALREADY_EXISTS, TRIP_MEMBER.name());
         }
     }
@@ -177,7 +176,7 @@ public class TripCollaborationRequestValidator {
                         || username.isBlank()
                         || !invitation.getTargetUser().getUsername().equals(username)
         ) {
-            log.error("User {} is not authorized to accept/reject invitation {}!", username, invitation != null ? invitation.getRequestId() : null);
+            log.error("User is not authorized to accept/reject invitation {}!", invitation != null ? invitation.getRequestId() : null);
             throw new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
         }
     }
@@ -194,7 +193,7 @@ public class TripCollaborationRequestValidator {
                         || username.isBlank()
                         || !joinRequest.getTargetUser().getUsername().equals(username)
         ) {
-            log.error("User {} is not authorized to accept/reject join request {}!", username, joinRequest != null ? joinRequest.getRequestId() : null);
+            log.error("User is not authorized to accept/reject join request {}!", joinRequest != null ? joinRequest.getRequestId() : null);
             throw new BusinessException(TRIP_ACCESS_DENIED, TRIP_MEMBER.name());
         }
     }

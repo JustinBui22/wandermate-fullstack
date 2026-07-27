@@ -29,7 +29,7 @@ public class MailConfig {
         try {
             return createMailSender();
         } catch (Exception e) {
-            log.error("Error creating JavaMailSender: {}", e.getMessage(), e);
+            log.error("Error creating JavaMailSender: {}", e.getClass().getSimpleName());
             throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
         }
     }

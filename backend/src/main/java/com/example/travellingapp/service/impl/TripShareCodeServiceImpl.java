@@ -197,8 +197,8 @@ public class TripShareCodeServiceImpl
             throw exception;
         } catch (Exception exception) {
             log.error(
-                    "Error occurred while regenerating trip share code",
-                    exception
+                    "Error occurred while regenerating trip share code: {}",
+                    exception.getClass().getSimpleName()
             );
             throw new BusinessException(
                     INTERNAL_SERVER_ERROR,
@@ -233,8 +233,8 @@ public class TripShareCodeServiceImpl
             throw exception;
         } catch (Exception exception) {
             log.error(
-                    "Error occurred while previewing trip share code",
-                    exception
+                    "Error occurred while previewing trip share code: {}",
+                    exception.getClass().getSimpleName()
             );
             throw new BusinessException(
                     INTERNAL_SERVER_ERROR,
@@ -293,8 +293,8 @@ public class TripShareCodeServiceImpl
             throw exception;
         } catch (Exception exception) {
             log.error(
-                    "Error occurred while requesting to join trip by share code",
-                    exception
+                    "Error occurred while requesting to join trip by share code: {}",
+                    exception.getClass().getSimpleName()
             );
             throw new BusinessException(
                     INTERNAL_SERVER_ERROR,
@@ -368,8 +368,8 @@ public class TripShareCodeServiceImpl
             throw exception;
         } catch (Exception exception) {
             log.error(
-                    "Error occurred while getting active trip share code",
-                    exception
+                    "Error occurred while getting active trip share code: {}",
+                    exception.getClass().getSimpleName()
             );
             throw new BusinessException(
                     INTERNAL_SERVER_ERROR,
@@ -423,8 +423,7 @@ public class TripShareCodeServiceImpl
                                     );
 
                             log.error(
-                                    "Trip share code not found for code: {}",
-                                    normalizedCode
+                                    "Trip share code not found"
                             );
 
                             throw new BusinessException(

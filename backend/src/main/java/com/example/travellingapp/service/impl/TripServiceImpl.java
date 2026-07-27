@@ -127,7 +127,7 @@ public class TripServiceImpl implements TripService {
 
             // Block overlapping trip unless the user explicitly allows overlap
             if (hasOverlap && !allowOverlap) {
-                log.error("Created trip date range overlaps with another existing trip for user {}.", username);
+                log.error("Created trip date range overlaps with another existing trip.");
                 throw new BusinessException(TRIP_OVERLAP_WARNING, TRIP.name());
             }
 
@@ -188,7 +188,7 @@ public class TripServiceImpl implements TripService {
     @Override
     public CompleteResponse<Object> getTrips(TripEnum ownership, String status, TripEnum sort) {
         try {
-            log.info("Getting trips for user {}", authenticatedUserProvider.getUsername());
+            log.info("Getting trips for the authenticated user.");
 
             String username = authenticatedUserProvider.getUsername();
 
@@ -290,7 +290,7 @@ public class TripServiceImpl implements TripService {
                     tripOwnerUsername,
                     tripName,
                     tripId)) {
-                log.error("Trip name {} already exists for user {}!", tripName, tripOwnerUsername);
+                log.error("Trip name already exists for the trip owner!");
                 throw new BusinessException(TRIP_NAME_ALREADY_EXISTS, COMMON.name());
             }
 
@@ -306,7 +306,7 @@ public class TripServiceImpl implements TripService {
 
             // Block overlapping trip unless user explicitly allows overlap
             if (hasOverlap && !allowOverlap) {
-                log.error("Updated trip date range overlaps with another existing trip for trip owner {}.", tripOwnerUsername);
+                log.error("Updated trip date range overlaps with another existing trip for the trip owner.");
                 throw new BusinessException(TRIP_OVERLAP_WARNING, TRIP.name());
             }
 

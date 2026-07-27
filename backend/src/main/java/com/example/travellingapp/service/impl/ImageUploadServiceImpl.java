@@ -72,7 +72,7 @@ public class ImageUploadServiceImpl implements ImageUploadService {
                     + currentUser.getUserId();
 
             String publicId = buildPublicId(uploadFolder, currentUser.getUserId());
-            log.info("Uploading image for user: {}, publicId: {}, cloudinaryFolder: {}", username, publicId, cloudinaryFolder);
+            log.info("Uploading validated image to Cloudinary.");
             ImageUploadResponseDTO responseDTO = cloudinaryImageClient.uploadImage(
                     imageBytes,
                     publicId,
@@ -89,10 +89,10 @@ public class ImageUploadServiceImpl implements ImageUploadService {
         } catch (BusinessException e) {
             throw e;
         } catch (IOException e) {
-            log.error("Failed to upload image to Cloudinary.", e);
+            log.error("Failed to upload image to Cloudinary: {}", e.getClass().getSimpleName());
             throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
         } catch (Exception e) {
-            log.error("Unexpected image upload failure.", e);
+            log.error("Unexpected image upload failure: {}", e.getClass().getSimpleName());
             throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
         }
     }

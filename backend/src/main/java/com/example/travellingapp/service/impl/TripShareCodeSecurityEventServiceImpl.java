@@ -108,8 +108,7 @@ public class TripShareCodeSecurityEventServiceImpl
         attemptRepository.saveAndFlush(attempt);
 
         log.warn(
-                "Recorded an invalid share-code attempt for user {}",
-                userId
+                "Recorded an invalid share-code attempt"
         );
     }
 }

@@ -59,9 +59,7 @@ public class RefreshTokenReuseServiceImpl implements RefreshTokenReuseService {
             sessionTokenRepository.delete(session);
         }
         log.warn(
-                "Refresh-token reuse detected: revoked token family and session for user {} and sessionId {}",
-                username,
-                sessionId
+                "Refresh-token reuse detected: revoked token family and session"
         );
     }
 }

@@ -279,6 +279,7 @@ An EAS workflow builds the `e2e-test` Android profile and runs the Maestro login
 - A successful backend push to `main` triggers the configured Render deploy hook.
 - `frontend-ci.yml` runs `npm ci`, TypeScript validation, and frontend tests.
 - The production Spring profile disables SQL/debug logging and OpenAPI endpoints.
+- Production logging omits authentication secrets, OTP/account destinations, share codes, Cloudinary asset references, request details, SQL bind values and HTTP wire/header dumps.
 
 ## Current implementation notes
 
@@ -318,6 +319,7 @@ Do not publish screenshots containing access tokens, refresh tokens, session tok
 - [Authentication flow](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/AUTH_FLOW.md)
 - [Docker setup](backend/docs/DOCKER_SETUP.md)
 - [Operations](backend/docs/OPERATIONS.md)
+- [Production logging](backend/docs/PRODUCTION_LOGGING.md)
 - [Roadmap](../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/ROADMAP.md)
 
 ### Frontend

@@ -71,7 +71,7 @@ public class TokenServiceImpl implements TokenService {
                 throw new BusinessException(INPUT_FORMAT_INVALID, TOKEN.name());
             }
             User user = userRepository.findByUsernameAndActive(username).orElseGet(() -> {
-                log.error("There is user as {}", username);
+                log.error("User not found while generating access token.");
                 throw new BusinessException(USER_NOT_FOUND, COMMON.name());
             });
             String token = Jwts.builder()
@@ -97,7 +97,7 @@ public class TokenServiceImpl implements TokenService {
     }
 
     public CompleteResponse<Object> generateRefreshToken(String username, String sessionId) {
-        log.info("Start generating refresh token for user {}!", username);
+        log.info("Start generating refresh token!");
         try {
             String refreshToken = UUID.randomUUID().toString();
             int expirationTime = convertStringToInt(getConfigValue(REFRESH_TOKEN_EXPIRATION_TIME.name(), configurationRepository, "1"));
@@ -124,7 +124,7 @@ public class TokenServiceImpl implements TokenService {
     public void revokeActiveRefreshTokensBySessionId(String sessionId) {
         List<RefreshTokenEntity> tokenList = refreshTokenRepository.findAllBySessionIdAndIsRevokedFalse(sessionId);
         if (tokenList.isEmpty()) {
-            log.warn("No active refresh tokens with sessionId {} to revoke", sessionId);
+            log.warn("No active refresh tokens found for the session.");
             return;
         }
         for (RefreshTokenEntity token : tokenList) {
@@ -133,7 +133,7 @@ public class TokenServiceImpl implements TokenService {
             token.setRevokedDate(Instant.now());
         }
         refreshTokenRepository.saveAll(tokenList);
-        log.info("Active refresh tokens with sessionId {} revoked successfully", sessionId);
+        log.info("Active refresh tokens for the session revoked successfully.");
     }
 
     @Transactional
@@ -141,7 +141,7 @@ public class TokenServiceImpl implements TokenService {
     public void revokeAllActiveRefreshTokensForUser(String username) {
         List<RefreshTokenEntity> tokenList = refreshTokenRepository.findAllByUsernameAndIsRevokedFalse(username);
         if (tokenList.isEmpty()) {
-            log.warn("No active refresh tokens for user {} to revoke", username);
+            log.warn("No active refresh tokens found for the user.");
         } else {
             for (RefreshTokenEntity token : tokenList) {
                 token.setRevoked(true);
@@ -151,7 +151,7 @@ public class TokenServiceImpl implements TokenService {
             refreshTokenRepository.saveAll(tokenList);
         }
         sessionTokenRepository.deleteAllByUsername(username);
-        log.info("All active refresh tokens for user {} revoked successfully", username);
+        log.info("All active refresh tokens for the user revoked successfully.");
     }
 
     private void revokeActiveRefreshToken(RefreshTokenEntity token) {
@@ -159,7 +159,7 @@ public class TokenServiceImpl implements TokenService {
         token.setRevoked(true);
         token.setModifiedDate(Instant.now());
         refreshTokenRepository.save(token);
-        log.info("Refresh token revoked for user {} successfully!", username);
+        log.info("Refresh token revoked successfully!");
     }
 
     @SuppressWarnings("unchecked")
@@ -186,14 +186,14 @@ public class TokenServiceImpl implements TokenService {
             String sessionId = refreshTokenEntity.getSessionId();
             // Check if the refresh token is revoked and reused
             if (refreshTokenEntity.isRevoked()) {
-                log.error("Refresh token reuse detected for user {} and sessionId {}", userName, sessionId);
+                log.error("Refresh token reuse detected.");
                 // Revoke the compromised session and all its active refresh tokens before returning the reuse error
                 refreshTokenReuseService.revokeCompromisedSession(refreshTokenEntity);
                 throw new RefreshTokenReuseDetectedException();
             }
             // If refresh token expired
             if (refreshTokenEntity.getExpiredDate().isBefore(Instant.now())) {
-                log.error("The refresh token for user {} expired!", userName);
+                log.error("The refresh token expired!");
                 // Revoke refresh token
                 revokeActiveRefreshToken(refreshTokenEntity);
                 // Revoke session token
@@ -201,7 +201,7 @@ public class TokenServiceImpl implements TokenService {
                 return getCompleteResponse(errorCodeRepository, REFRESH_TOKEN_EXPIRED, TOKEN.name(), null);
             }
             if (isSessionTokenInvalid(userName, sessionId, sessionToken)) {
-                log.error("Invalid session token for user {}", userName);
+                log.error("Invalid session token.");
                 throw new BusinessException(SESSION_TOKEN_INVALID, TOKEN.name());
             }
             // Revoke refresh token
@@ -233,7 +233,7 @@ public class TokenServiceImpl implements TokenService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("There is an error in refreshing access token!", e);
+            log.error("There is an error in refreshing access token: {}", e.getClass().getSimpleName());
             return getCompleteResponse(errorCodeRepository, INTERNAL_SERVER_ERROR, TOKEN.name(), null);
         }
     }
@@ -246,25 +246,22 @@ public class TokenServiceImpl implements TokenService {
                     .getBody();
             String username = claims.getSubject();
             // Validate if the token's user exists
-            log.info("Start checking if user {} is registered!", username);
+            log.info("Start checking whether the token subject is registered!");
             Optional<User> userOptional = userRepository.findByUsernameAndActive(username);
             if (userOptional.isEmpty()) {
-                log.error("There is no user as {}", username);
+                log.error("The token subject is not an active user.");
                 return getCompleteResponse(errorCodeRepository, USER_NOT_FOUND, TOKEN.name(), null);
             }
-            log.info("The token is valid for user {}", username);
+            log.info("The access token is valid.");
             return getCompleteResponse(errorCodeRepository, TOKEN_VERIFY_SUCCESS, TOKEN.name(), claims);
         } catch (ExpiredJwtException e) {
-            String username = e.getClaims() != null
-                    ? e.getClaims().getSubject()
-                    : "Unknown";
-            log.error("Access token expires for user {}!", username);
+            log.error("Access token expired!");
             return getCompleteResponse(errorCodeRepository, TOKEN_EXPIRE, TOKEN.name(), null);
         } catch (JwtException | IllegalArgumentException e) {
-            log.error("There is an error in validating access token!", e);
+            log.error("There is an error in validating access token: {}", e.getClass().getSimpleName());
             return getCompleteResponse(errorCodeRepository, TOKEN_VERIFY_FAIL, TOKEN.name(), null);
         } catch (Exception e) {
-            log.error("There is an error in validating access token!", e);
+            log.error("There is an error in validating access token: {}", e.getClass().getSimpleName());
             return getCompleteResponse(errorCodeRepository, INTERNAL_SERVER_ERROR, TOKEN.name(), null);
         }
     }
@@ -273,9 +270,9 @@ public class TokenServiceImpl implements TokenService {
         try {
             SessionTokenEntity newToken = new SessionTokenEntity(userName, passwordEncoder.encode(token), sessionId, Instant.now());
             sessionTokenRepository.save(newToken);
-            log.info("Session token for user {} stored successfully!", userName);
+            log.info("Session token stored successfully!");
         } catch (Exception e) {
-            log.error("Session token stored failed!", e);
+            log.error("Session token stored failed: {}", e.getClass().getSimpleName());
             throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
         }
     }
@@ -286,7 +283,7 @@ public class TokenServiceImpl implements TokenService {
             storeSessionToken(userName, sessionToken, sessionId);
             return getCompleteResponse(errorCodeRepository, TOKEN_GENERATE_SUCCESS, TOKEN.name(), sessionToken);
         } catch (Exception e) {
-            log.error("Session token generated failed!", e);
+            log.error("Session token generated failed: {}", e.getClass().getSimpleName());
             throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
         }
     }
@@ -296,16 +293,16 @@ public class TokenServiceImpl implements TokenService {
                 sessionTokenRepository.findByUsernameAndSessionId(username, sessionId);
 
         if (sessionOptional.isEmpty()) {
-            log.info("No session found for user {} and sessionId {}", username, sessionId);
+            log.info("No matching session found.");
             return true;
         }
         SessionTokenEntity session = sessionOptional.get();
         // Check if the token session is correct
         if (passwordEncoder.matches(sessionToken, session.getSessionToken())) {
-            log.info("Session token is valid for user {} and sessionId {}", username, sessionId);
+            log.info("Session token is valid.");
             return false;
         }
-        log.info("Session token is invalid for user {} and sessionId {}", username, sessionId);
+        log.info("Session token is invalid.");
         return true;
     }
 
@@ -325,7 +322,7 @@ public class TokenServiceImpl implements TokenService {
                 return;
             }
             if (!overrideMaxSession) {
-                log.info("Max allowed active sessions reached for user {}", username);
+                log.info("Maximum allowed active sessions reached.");
                 throw new BusinessException(MAX_SESSIONS_REACHED, LOGIN.name());
             }
 
@@ -334,9 +331,7 @@ public class TokenServiceImpl implements TokenService {
                 //SessionTokenEntity oldestSession = activeSessionList.removeFirst();
                 SessionTokenEntity oldestSession = activeSessionList.remove(0);
                 log.info(
-                        "User {} chose to override max sessions. Revoking oldest sessionId {}.",
-                        username,
-                        oldestSession.getSessionId()
+                        "User chose to override max sessions. Revoking the oldest session."
                 );
                 revokeActiveRefreshTokensBySessionId(oldestSession.getSessionId());
                 sessionTokenRepository.delete(oldestSession);
@@ -347,7 +342,7 @@ public class TokenServiceImpl implements TokenService {
             log.error("Invalid max allowed sessions configuration value!", e);
             throw new BusinessException(INPUT_FORMAT_INVALID, COMMON.name());
         } catch (Exception e) {
-            log.error("Checking max active sessions failed for user {}!", username, e);
+            log.error("Checking max active sessions failed: {}", e.getClass().getSimpleName());
             throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
         }
     }
@@ -359,10 +354,10 @@ public class TokenServiceImpl implements TokenService {
                         () -> new BusinessException(SESSION_TOKEN_INVALID, TOKEN.name()));
 
         if (!passwordEncoder.matches(sessionToken, token.getSessionToken())) {
-            log.error("Session token does not match for user {} and sessionId {}", username, sessionId);
+            log.error("Session token does not match.");
             throw new BusinessException(SESSION_TOKEN_INVALID, TOKEN.name());
         }
         sessionTokenRepository.delete(token);
-        log.info("Session token revoked for user {} successfully!", username);
+        log.info("Session token revoked successfully!");
     }
 }

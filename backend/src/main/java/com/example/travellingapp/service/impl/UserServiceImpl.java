@@ -83,7 +83,7 @@ public class UserServiceImpl implements UserService {
             Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername());
             // Check if username is taken
             if (userOptional.isPresent()) {
-                log.info("Username {} is not available!", userOptional.get().getUsername());
+                log.info("Username is not available!");
                 throw new BusinessException(USERNAME_TAKEN, REGISTER.name());
             }
             // Check if email is inputted and has valid form and if taken
@@ -134,7 +134,7 @@ public class UserServiceImpl implements UserService {
             Optional<User> userOptional = userRepository.findByUsernameAndActive(registerRequest.getUsername());
             // Check if username is taken
             if (userOptional.isPresent()) {
-                log.info("Username {} is already taken!", userOptional.get().getUsername());
+                log.info("Username is already taken!");
                 throw new BusinessException(USERNAME_TAKEN, REGISTER.name());
             } else if (userRepository.findByEmailAndActive(registerRequest.getEmail(), true).isPresent()) {
                 log.info("Email is already taken!");
@@ -167,7 +167,7 @@ public class UserServiceImpl implements UserService {
         Optional<User> userOptional = findUser(username, configurationRepository, userRepository);
         if (userOptional.isEmpty()) {
             passwordEncoder.matches(forgotPasswordDTO.getNewPassword(), DUMMY_PASSWORD_HASH);
-            log.error("User {} not found to reset password!", username);
+            log.error("Account not found to reset password!");
             throw new BusinessException(OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
         }
         User user = userOptional.get();
@@ -182,18 +182,18 @@ public class UserServiceImpl implements UserService {
         try {
             verifyOtpErrorCode = otpServiceImpl.verifyOtp(verifyOtpDTO).getResponseBody().getCode();
         } catch (BusinessException e) {
-            log.error("Update new password failed for user {}!", username);
+            log.error("Update new password failed!");
             throw new BusinessException(OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
         }
 
         if (!verifyOtpErrorCode.equals(OTP_VERIFICATION_SUCCESS.getCode())) {
-            log.error("Update new password failed for user {}!", username);
+            log.error("Update new password failed!");
             throw new BusinessException(OTP_VERIFICATION_FAIL, FORGOT_PASSWORD.name());
         }
 
         // Check if the new password is the same as the old password
         if (passwordEncoder.matches(forgotPasswordDTO.getNewPassword(), user.getPassword())) {
-            log.error("New password cannot be the same as the old password for user {}!", username);
+            log.error("New password cannot be the same as the old password!");
             throw new BusinessException(NEW_PASSWORD_SAME_AS_OLD, FORGOT_PASSWORD.name());
         }
 
@@ -217,7 +217,7 @@ public class UserServiceImpl implements UserService {
         }
 
         boolean userExists = findUser(normalizedUserInput, configurationRepository, userRepository).isPresent();
-        log.info("Authenticated account lookup completed for user {}", requesterUsername);
+        log.info("Authenticated account lookup completed.");
         return getCompleteResponse(
                 errorCodeRepository,
                 SEARCH_INFO_SUCCESS,
@@ -236,7 +236,7 @@ public class UserServiceImpl implements UserService {
             Optional<User> userOptional = findUser(username, configurationRepository, userRepository);
             if (userOptional.isEmpty()) {
                 passwordEncoder.matches(loginRequest.getPassword(), DUMMY_PASSWORD_HASH);
-                log.error("User {} not found to login!", username);
+                log.error("Login failed because the account was not found.");
                 return getCompleteResponse(errorCodeRepository, PASSWORD_NOT_CORRECT, LOGIN.name(), null);
             }
             User user = userOptional.get();
@@ -244,11 +244,10 @@ public class UserServiceImpl implements UserService {
             // check if password matches and display corresponding error code.
             boolean isPasswordCorrect = passwordEncoder.matches(loginRequest.getPassword(), user.getPassword());
             errorCodeEnum = isPasswordCorrect ? LOGIN_SUCCESS : PASSWORD_NOT_CORRECT;
-            log.info(isPasswordCorrect ? "User {} logged in successfully!" : "Password incorrect!", username);
+            log.info(isPasswordCorrect ? "User logged in successfully!" : "Password incorrect!");
             if (isPasswordCorrect) {
                 // Check if the user has exceeded maxed number of active sessions
                 tokenService.checkMaxActiveSessions(username, loginRequest.isOverrideMaxSession());
-                log.info("Current user: {}", user.getUsername());
                 // Create an authentication object from the user
                 // Generate and return the session, access and refresh token
                 String sessionId = UUID.randomUUID().toString();
@@ -267,7 +266,7 @@ public class UserServiceImpl implements UserService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("There has been an error in logging in for user {}!", username, e);
+            log.error("There has been an error in logging in: {}", e.getClass().getSimpleName());
             throw new BusinessException(INTERNAL_SERVER_ERROR, COMMON.name());
         }
     }
@@ -287,12 +286,12 @@ public class UserServiceImpl implements UserService {
             tokenService.revokeActiveRefreshTokensBySessionId(sessionId);
             // Clear security context
             SecurityContextHolder.clearContext();
-            log.info("User {} logged out successfully!", username);
+            log.info("User logged out successfully!");
             return getCompleteResponse(errorCodeRepository, LOGOUT_SUCCESS, LOGOUT.name(), null);
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("There has been an error in logging out user {}!", username, e);
+            log.error("There has been an error in logging out: {}", e.getClass().getSimpleName());
             throw new BusinessException(INTERNAL_SERVER_ERROR, LOGOUT.name());
         }
     }

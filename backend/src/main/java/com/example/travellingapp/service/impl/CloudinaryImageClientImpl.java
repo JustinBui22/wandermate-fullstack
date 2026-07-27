@@ -51,9 +51,7 @@ public class CloudinaryImageClientImpl implements CloudinaryImageClient {
         }
 
         log.info(
-                "Image uploaded successfully. Secure URL: {}, Public ID: {}",
-                secureUrl,
-                returnedPublicId
+                "Image uploaded successfully."
         );
 
         String finalPublicId = returnedPublicId == null || returnedPublicId.isBlank()
@@ -80,9 +78,8 @@ public class CloudinaryImageClientImpl implements CloudinaryImageClient {
             );
         } catch (IOException e) {
             log.error(
-                    "Failed to delete Cloudinary image with public ID: {}",
-                    publicId,
-                    e
+                    "Failed to delete Cloudinary image: {}",
+                    e.getClass().getSimpleName()
             );
             throw new BusinessException(DELETE_IMAGE_FAIL, COMMON.name());
         }
@@ -102,7 +99,7 @@ public class CloudinaryImageClientImpl implements CloudinaryImageClient {
         try {
             deleteImage(oldPublicId);
         } catch (Exception e) {
-            log.error("Failed to delete old Cloudinary {} with public ID: {}", imagePurpose, oldPublicId, e
+            log.error("Failed to delete old Cloudinary {}: {}", imagePurpose, e.getClass().getSimpleName()
             );
         }
     }

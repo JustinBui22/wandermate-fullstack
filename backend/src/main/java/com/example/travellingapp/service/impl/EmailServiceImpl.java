@@ -42,10 +42,10 @@ public class EmailServiceImpl implements EmailService {
             helper.setFrom(senderEmail);
             mailSender.send(message);
         } catch (MessagingException e) {
-            log.error("Failed to send email!", e);
+            log.error("Failed to send email: {}", e.getClass().getSimpleName());
             throw new BusinessException(EMAIL_SENT_FAIL, EMAIL.name());
         } catch (Exception e) {
-            log.error("There has been an error in sending email!", e);
+            log.error("There has been an error in sending email: {}", e.getClass().getSimpleName());
             throw new BusinessException(INTERNAL_SERVER_ERROR, EMAIL.name());
         }
     }

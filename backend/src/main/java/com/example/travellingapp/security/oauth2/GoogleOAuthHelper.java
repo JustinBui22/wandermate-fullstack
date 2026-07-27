@@ -90,7 +90,7 @@ public class GoogleOAuthHelper implements SchedulingConfigurer {
                 log.error(" Error code: {} - Failed to refresh OAuth2 token!", response.getStatusCode());
             }
         } catch (Exception e) {
-            log.error("Exception in refreshing OAuth2 token!", e);
+            log.error("Exception in refreshing OAuth2 token: {}", e.getClass().getSimpleName());
         }
     }
 
