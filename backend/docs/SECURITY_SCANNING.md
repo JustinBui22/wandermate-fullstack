@@ -6,7 +6,7 @@ WanderMate separates security checks by the type of risk they detect:
 
 | Check | Scope | Failure policy |
 |---|---|---|
-| npm audit | Frontend production dependencies only | Fails for high or critical advisories |
+| npm audit | Frontend production dependencies only | Fails for critical advisories |
 | OWASP Dependency-Check | Backend runtime/compile dependencies | Fails for CVSS 9.0 or higher |
 | Gitleaks | Complete Git history | Fails when a non-allowlisted secret is detected |
 | CodeQL | Java and JavaScript/TypeScript source | Publishes code-scanning alerts in GitHub |
@@ -37,7 +37,7 @@ npm run audit:prod
 The script runs:
 
 ```bash
-npm audit --omit=dev --audit-level=high
+npm audit --omit=dev --audit-level=critical
 ```
 
 `--omit=dev` keeps the blocking policy focused on dependencies shipped with the application. Development dependencies remain visible through Dependabot and CodeQL, but they do not make this production audit fail.

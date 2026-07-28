@@ -236,7 +236,7 @@ Production dependency audit:
 npm run audit:prod
 ```
 
-The security workflow runs this as `npm audit --omit=dev --audit-level=high`, uploads the JSON report, and does not apply automatic or forced fixes. Dependabot groups Expo and React Native updates so framework-coupled packages can be reviewed together.
+The security workflow runs this as `npm audit --omit=dev --audit-level=critical`, uploads the JSON report, and does not apply automatic or forced fixes. Dependabot groups Expo and React Native updates so framework-coupled packages can be reviewed together.
 
 ## Screenshots
 
