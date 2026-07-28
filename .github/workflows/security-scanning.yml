@@ -38,7 +38,24 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Audit production dependencies
-        run: npm run audit:prod -- --json > npm-audit-production.json
+        shell: bash
+        run: |
+          set +e
+
+          npm run audit:prod -- --json > npm-audit-production.json
+          AUDIT_EXIT_CODE=$?
+
+          set -e
+
+          if jq --exit-status '.metadata.vulnerabilities' npm-audit-production.json >/dev/null 2>&1; then
+            echo "Production dependency vulnerability summary:"
+            jq '.metadata.vulnerabilities' npm-audit-production.json
+          else
+            echo "::error::npm audit did not return a vulnerability summary."
+            cat npm-audit-production.json
+          fi
+
+          exit "${AUDIT_EXIT_CODE}"
 
       - name: Upload npm audit report
         if: always()
@@ -52,7 +69,7 @@ jobs:
   backend-dependency-audit:
     name: Audit backend dependencies
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     defaults:
       run:
@@ -72,23 +89,39 @@ jobs:
       - name: Make Maven wrapper executable
         run: chmod +x mvnw
 
+      - name: Require NVD API key
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [ -z "${NVD_API_KEY:-}" ]; then
+            echo "::error::NVD_API_KEY is required for OWASP Dependency-Check in CI."
+            echo "Add it under Repository Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Calculate Dependency-Check cache key
+        id: dependency-check-cache-key
+        run: echo "week=$(date -u +%G-%V)" >> "${GITHUB_OUTPUT}"
+
+      - name: Restore Dependency-Check vulnerability database
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-${{ runner.os }}-${{ steps.dependency-check-cache-key.outputs.week }}
+          restore-keys: |
+            dependency-check-${{ runner.os }}-
+
       - name: Run OWASP Dependency-Check
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           set -euo pipefail
 
-          MAVEN_ARGUMENTS=(
-            -B
-            -Psecurity-scan
+          ./mvnw \
+            -B \
+            -Psecurity-scan \
+            -DnvdApiKey="${NVD_API_KEY}" \
             dependency-check:check
-          )
-
-          if [ -n "${NVD_API_KEY:-}" ]; then
-            MAVEN_ARGUMENTS+=("-DnvdApiKey=${NVD_API_KEY}")
-          fi
-
-          ./mvnw "${MAVEN_ARGUMENTS[@]}"
 
       - name: Upload OWASP Dependency-Check reports
         if: always()
