@@ -50,7 +50,7 @@
     "test": "npm run test:unit && npm run test:components",
     "test:unit": "vitest run",
     "test:components": "jest --runInBand",
-    "audit:prod": "npm audit --omit=dev --audit-level=high"
+    "audit:prod": "npm audit --omit=dev --audit-level=critical"
   },
   "overrides": {
     "form-data": "^4.0.6"
