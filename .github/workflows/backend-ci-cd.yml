@@ -165,7 +165,7 @@ jobs:
 
           FAILED_MIGRATIONS="$(
             docker exec \
-              -e MARIADB_PWD=ci-database-password \
+              -e MYSQL_PWD=ci-database-password \
               "${{ job.services.mariadb.id }}" \
               mariadb \
               --user=wandermate_ci \
@@ -177,7 +177,7 @@ jobs:
 
           V6_MIGRATIONS="$(
             docker exec \
-              -e MARIADB_PWD=ci-database-password \
+              -e MYSQL_PWD=ci-database-password \
               "${{ job.services.mariadb.id }}" \
               mariadb \
               --user=wandermate_ci \

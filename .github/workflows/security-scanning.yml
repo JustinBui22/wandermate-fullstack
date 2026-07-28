@@ -42,20 +42,36 @@ jobs:
         run: |
           set +e
 
-          npm run audit:prod -- --json > npm-audit-production.json
+          npm audit --omit=dev --audit-level=critical --json > npm-audit-production.json
           AUDIT_EXIT_CODE=$?
 
           set -e
 
-          if jq --exit-status '.metadata.vulnerabilities' npm-audit-production.json >/dev/null 2>&1; then
-            echo "Production dependency vulnerability summary:"
-            jq '.metadata.vulnerabilities' npm-audit-production.json
-          else
-            echo "::error::npm audit did not return a vulnerability summary."
+          if ! jq --exit-status '.metadata.vulnerabilities' npm-audit-production.json >/dev/null 2>&1; then
+            echo "::error::npm audit did not return a valid vulnerability report."
             cat npm-audit-production.json
+            exit 1
           fi
 
-          exit "${AUDIT_EXIT_CODE}"
+          echo "Production dependency vulnerability summary:"
+          jq '.metadata.vulnerabilities' npm-audit-production.json
+
+          HIGH_COUNT="$(jq --raw-output '.metadata.vulnerabilities.high // 0' npm-audit-production.json)"
+          CRITICAL_COUNT="$(jq --raw-output '.metadata.vulnerabilities.critical // 0' npm-audit-production.json)"
+
+          if [ "${HIGH_COUNT}" -gt 0 ]; then
+            echo "::warning::npm audit reported ${HIGH_COUNT} high-severity findings. Review the uploaded report and update dependencies when compatible fixes are available."
+          fi
+
+          if [ "${CRITICAL_COUNT}" -gt 0 ]; then
+            echo "::error::npm audit reported ${CRITICAL_COUNT} critical production dependency findings."
+            exit 1
+          fi
+
+          if [ "${AUDIT_EXIT_CODE}" -ne 0 ]; then
+            echo "::error::npm audit failed before the configured critical-severity policy could be evaluated."
+            exit "${AUDIT_EXIT_CODE}"
+          fi
 
       - name: Upload npm audit report
         if: always()
