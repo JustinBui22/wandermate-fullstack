@@ -1,141 +1,114 @@
 # Backend Operations
 
-## Health check
+## Runtime baseline
 
 ```text
-GET /Wandermate/api/v1/health
+Spring profile: prod on Render
+Schema management: Flyway
+Hibernate mode: validate
+Context path: /Wandermate
+Health path: /Wandermate/api/v1/health
 ```
 
-Examples:
+## Startup order
+
+1. Connect to MariaDB.
+2. Validate Flyway history/checksums.
+3. Apply pending migrations.
+4. Build JPA entity manager and validate schema.
+5. Start the HTTP server.
+6. Return `UP` from the health endpoint.
+
+A successful startup means pending migrations completed and Hibernate accepted the final schema. It does not mean Hibernate repaired anything.
+
+## Health checks
+
+Local direct:
 
 ```text
 http://localhost:8080/Wandermate/api/v1/health
+```
+
+Docker:
+
+```text
 http://localhost:8082/Wandermate/api/v1/health
+```
+
+Render:
+
+```text
 https://wandermate-fullstack.onrender.com/Wandermate/api/v1/health
 ```
 
-The production URL is the configured deployment target; availability still depends on Render service state and environment configuration.
+## Flyway checks
 
-## Runtime profiles
-
-Base configuration is development-oriented:
-
-```text
-Hibernate ddl-auto=update
-SQL output enabled
-Spring Security/project DEBUG logging
-Swagger enabled
+```sql
+SELECT installed_rank, version, description, success
+FROM flyway_schema_history
+ORDER BY installed_rank;
 ```
 
-Production profile:
+All entries should report success. Do not rerun V1–V6 manually against an already migrated database.
 
-```text
-SPRING_PROFILES_ACTIVE=prod
-```
+## Production logging
 
-`application-prod.properties` disables SQL output and OpenAPI endpoints and lowers logs to `INFO`.
+Production disables:
 
-## Required production environment
+- SQL and bind-value logs;
+- Spring request-detail logs;
+- HTTP client header/wire dumps;
+- debug security/project logs;
+- Swagger/OpenAPI endpoints.
 
-```text
-DB_URL
-DB_USERNAME
-DB_PASSWORD
-JWT_SECRET
-REFRESH_TOKEN_HASH_SECRET
-SPRING_PROFILES_ACTIVE=prod
-```
+Logs must not contain tokens, OTPs, passwords, authorization headers, account destinations, session IDs, share codes, Cloudinary references or complete sensitive DTOs.
 
-Feature environment:
+See [Production logging](PRODUCTION_LOGGING.md).
 
-```text
-CLOUDINARY_CLOUD_NAME
-CLOUDINARY_API_KEY
-CLOUDINARY_API_SECRET
-CLOUDINARY_BASE_FOLDER
-EMAIL_OAUTH_REFRESH_ENABLED
-EMAIL_CLIENT_ID
-EMAIL_CLIENT_SECRET
-EMAIL_REFRESH_TOKEN
-EMAIL_TOKEN_URL
-EMAIL_ADDRESS_CONFIG
-```
+## Local database reset
 
-Render environment variables must be configured in Render; a local `.env` file is not deployed automatically.
-
-## CI/CD
-
-`.github/workflows/backend-ci-cd.yml`:
-
-1. checks out backend-related pushes/PRs;
-2. installs Temurin Java 21;
-3. runs `./mvnw -B test`;
-4. on a successful push to `main`, calls `RENDER_DEPLOY_HOOK_URL`.
-
-The deploy-hook value is a GitHub Actions secret and must never appear in source or logs.
-
-## Logs
-
-Local Docker:
-
-```bash
-docker compose logs -f backend
-docker compose logs -f db
-```
-
-Do not log or publish:
-
-- authorization headers;
-- raw access/refresh/session tokens or session identifiers;
-- OTP values or hashes;
-- passwords or sensitive request DTOs;
-- email OAuth credentials or token responses;
-- trip share codes;
-- account email addresses or phone numbers;
-- database secrets, Cloudinary secrets, secure URLs or public IDs.
-
-The production profile disables request-detail, Hibernate SQL/bind-value and Apache HTTP client wire/header logging. The base profile currently uses DEBUG logging and `spring.jpa.show-sql=true`, so production must activate the prod profile.
-
-See [Production logging](PRODUCTION_LOGGING.md) for the enforced policy and test guardrail.
-
-## Database backup and restore
-
-Before destructive changes or volume deletion, use MariaDB backup tooling appropriate to the environment. For the local container, a representative pattern is:
-
-```bash
-docker exec traveling-app-db mariadb-dump \
-  -u root -p traveling_app > traveling_app_backup.sql
-```
-
-Do not commit backups. Validate credentials/database names against your `.env` before running commands.
-
-## Docker reset
+This deletes all local data:
 
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-This reruns `docker/init/init.sql` but permanently deletes the local named volume.
+Flyway rebuilds the schema. The legacy `docker/init/init.sql` is not executed.
 
-## Operational risks in the current version
+## Backup before migration
 
-- `ddl-auto=update` changes schema without versioned migration history.
-- Public paths depend on a database row; a missing/incorrect seed can change authentication behavior.
-- The production profile disables Swagger, so API docs are a local-development tool.
-- The email OAuth helper creates a custom scheduled executor and does not currently expose explicit shutdown management.
-- The upload API has no abandoned-image cleanup operation.
-- OTP values are currently stored in the OTP table rather than as purpose-bound hashes.
+Before a production deployment containing a new migration:
 
-Track remediation in [ROADMAP.md](ROADMAP.md).
+1. create and verify a database backup;
+2. review migration SQL and destructive operations;
+3. deploy through CI;
+4. confirm the tracked Render deployment becomes live;
+5. confirm the health endpoint;
+6. inspect `flyway_schema_history` if startup fails.
 
-## Release checklist
+See [Database backup and recovery](DATABASE_BACKUP_AND_RECOVERY.md).
 
-- Run backend tests.
-- Confirm Render secrets and prod profile.
-- Verify health endpoint after deployment.
-- Verify login, refresh, protected request, logout and password reset.
-- Verify owner/editor/viewer authorization with separate accounts.
-- Verify Cloudinary upload and replacement cleanup.
-- Review logs for secrets and excessive DEBUG/SQL output.
-- Back up data before schema-affecting deployment.
+## Common failure categories
+
+### Database connection failure
+
+Verify `DB_URL`, username, password, network reachability and provider availability.
+
+### Flyway checksum mismatch
+
+An applied migration was modified. Restore the committed original migration; introduce changes through a new version.
+
+### Schema validation failure
+
+The entity model and migrated schema disagree. Add or correct a Flyway migration.
+
+### OTP delivery
+
+For email OTP failures, verify the email OAuth/environment configuration.
+
+Phone OTP is retained only as a portfolio demonstration path. `SmsServiceImpl` currently simulates a successful send and no real message is delivered because a paid SMS provider is not configured. Do not diagnose the absence of a phone message as an infrastructure outage, and do not enable the path for production until a real provider and delivery-failure handling are implemented.
+
+### Render deployment accepted but unhealthy
+
+Use the tracked deployment status and health-polling workflow logs. Check environment variables, database connectivity, Flyway and Spring startup output.

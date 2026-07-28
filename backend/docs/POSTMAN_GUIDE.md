@@ -74,6 +74,8 @@ POST {{baseUrl}}/api/v1/otp/send
 }
 ```
 
+For a phone request, use `PHONE_NUM_OTP`, `phoneNumber` and `SMS_OTP_REGISTER`. That path is demo-only in the current repository: the backend simulates success but does not send a real SMS because no paid gateway is configured. Use email OTP for actual manual verification.
+
 ### 4. Register
 
 ```http

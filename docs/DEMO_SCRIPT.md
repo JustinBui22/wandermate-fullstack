@@ -1,90 +1,79 @@
 # WanderMate Demo Script
 
-This script is designed for a focused 6–8 minute mentor or recruiter demonstration.
+Target duration: five to seven minutes.
 
-## Pre-demo setup
+## 1. Introduction
 
-- Start the backend and database, or wake the Render service in advance.
-- Start Expo and open the mobile app before screen sharing.
-- Prepare owner, editor and viewer demo accounts with non-sensitive sample data.
-- Keep the repository, test output and fallback screenshots open in separate tabs.
-- Clear tokens, credentials, email addresses and personal information from visible tools.
+Explain that WanderMate is an Expo mobile client backed by Spring Boot and MariaDB. It combines trip planning, nested itinerary management and role-based collaboration with production-oriented authentication and CI/CD controls.
 
-## 1. Problem and solution — 30 seconds
+## 2. Architecture
 
-“WanderMate is a collaborative mobile travel planner. It helps a group organize trips,
-destinations and activities while preventing schedule conflicts and enforcing clear owner,
-editor and viewer permissions.”
+Show the repository layout and summarize:
 
-## 2. Architecture — 45 seconds
+```text
+Expo Router → Axios modules → Spring controllers → services/validators → JPA → MariaDB
+```
 
-Briefly explain the request flow:
+Mention Flyway migrations, Hibernate schema validation, Cloudinary image storage and Render deployment.
 
-1. React Native and Expo send typed requests to the REST API.
-2. Spring Boot validates input, authenticates the session and enforces authorization.
-3. MariaDB stores application data, while Cloudinary stores uploaded images.
-4. Docker supports repeatable local setup, and GitHub Actions validates the project.
+## 3. Authentication
 
-Use the [architecture documentation](../backend/docs/ARCHITECTURE.md) if a deeper explanation
-is requested.
+- Show registration with email OTP as the fully operational flow.
+- Explain that OTP plaintext is emailed but only a purpose-bound HMAC is persisted.
+- Log in and explain access, refresh and session tokens.
+- Mention locked refresh rotation and reuse detection.
+- Show or mention the phone OTP option only as a demo UI/API path. Explain clearly that the current backend simulates SMS success and sends no real message because a paid provider is not configured.
 
-## 3. Authentication — 60 seconds
+Fallback evidence: [registration](screenshots/02-register-otp.png) and [login](screenshots/01-login.png).
 
-- Show registration and email OTP verification.
-- Log in and explain short-lived access tokens, refresh-token rotation and server-managed sessions.
-- State that secrets are not stored in the repository and protected routes are enforced by Spring Security.
+## 4. Trip planning
 
-Fallback evidence: [registration and OTP](screenshots/02-register-otp.png),
-[login](screenshots/01-login.png) and [logout revocation](screenshots/30-logout-session-proof.png).
+- Open My Trips.
+- Open a trip with destinations and nested activities.
+- Create or edit an item.
+- Explain calendar-only trip/destination dates and local activity times.
+- Upload a trip cover.
 
-## 4. Core trip planning — 90 seconds
+Fallback evidence: [trip detail](screenshots/04-trip-detail-owner.png), [activity detail](screenshots/08-activity-detail.png) and [trip cover](screenshots/05-trip-cover-upload.png).
 
-- Open My Trips and select a trip.
-- Show destinations and nested activities.
-- Create or edit an activity and explain server-side validation and schedule-conflict detection.
-- Upload a trip cover to demonstrate the Cloudinary integration.
+## 5. Collaboration and authorization
 
-Fallback evidence: [trip detail](screenshots/04-trip-detail-owner.png),
-[activity detail](screenshots/08-activity-detail.png) and
-[trip cover upload](screenshots/05-trip-cover-upload.png).
+- Generate a share code or invite a member.
+- Show requests and role changes.
+- Switch to a viewer and demonstrate a restricted action.
+- Explain that backend services enforce permissions.
+- Mention database locking for share-code generation and redemption.
 
-## 5. Collaboration and authorization — 90 seconds
+Fallback evidence: [invite member](screenshots/10-invite-member.png), [role management](screenshots/13-members-role-management.png), [viewer state](screenshots/14-viewer-read-only.png) and [authorization proof](screenshots/28-owner-editor-viewer-proof.png).
 
-- As the owner, invite a member or generate a share code.
-- Show join requests and change a member's role.
-- Switch to a viewer account and attempt a restricted action.
-- Explain that permissions are enforced by the backend, not only hidden in the interface.
+## 6. Engineering quality
 
-Fallback evidence: [invite member](screenshots/10-invite-member.png),
-[role management](screenshots/13-members-role-management.png),
-[viewer read-only state](screenshots/14-viewer-read-only.png) and
-[authorization proof](screenshots/28-owner-editor-viewer-proof.png).
+- Show `./mvnw clean verify` and frontend checks.
+- Explain that CI starts an empty MariaDB service and proves Flyway can build the schema from V1–V6.
+- Mention CodeQL, Gitleaks, npm audit, OWASP Dependency-Check and Dependabot.
+- Open the [live health endpoint](https://wandermate-fullstack.onrender.com/Wandermate/api/v1/health).
 
-## 6. Engineering quality — 60 seconds
+Fallback evidence: [backend tests](screenshots/19-backend-tests.png), [frontend typecheck](screenshots/20-frontend-typecheck.png) and [Docker services](screenshots/23-docker-running.png).
 
-- Show the automated backend test result and frontend typecheck.
-- Mention Docker-based setup, the sanitized database seed and CI validation.
-- Open the [live health endpoint](https://wandermate-fullstack.onrender.com/The-Project/api/v1/health)
-  and note that the free service may take about a minute to wake.
+## 7. Close
 
-Fallback evidence: [backend tests](screenshots/19-backend-tests.png),
-[frontend typecheck](screenshots/20-frontend-typecheck.png) and
-[Render logs](screenshots/25-render-logs.png).
+Summarize the strongest decisions:
 
-## 7. Close — 30 seconds
+- backend-enforced permissions;
+- session-aware authentication and refresh reuse handling;
+- versioned database migrations;
+- concurrency-safe share codes;
+- deliberate date/time model;
+- consistent errors and production-safe logging;
+- automated build, deployment and security checks.
 
-Summarize the strongest engineering decisions: backend-enforced role permissions, session-aware
-authentication, schedule validation, automated tests and repeatable deployment. Then acknowledge
-one realistic improvement, such as replacing schema auto-update with versioned Flyway migrations,
-adding end-to-end tests, or improving offline mobile behavior.
+Acknowledge only optional future work, such as broader mobile E2E coverage, asynchronous email delivery or replacing the simulated phone-OTP path with a real paid SMS provider if product requirements justify it.
 
 ## Technical-question structure
 
-For follow-up questions:
-
 1. Clarify the scenario.
 2. State assumptions.
-3. Explain the request flow.
+3. Explain the request/data flow.
 4. Cover security and edge cases.
-5. Discuss testing and complexity.
-6. Acknowledge the trade-off or next improvement.
+5. Explain tests and operational verification.
+6. State the trade-off.

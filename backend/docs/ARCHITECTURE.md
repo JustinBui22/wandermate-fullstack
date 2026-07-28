@@ -4,119 +4,127 @@
 
 ```text
 HTTP request
-  ↓
-Spring Security / TokenFilter
-  ↓
-Controller interface mapping
-  ↓
-Controller implementation
-  ↓
-Service interface / implementation
-  ↓
-Validator + mapper + repository
-  ↓
-MariaDB / Cloudinary / email provider
+    ↓
+CORS / Spring Security / TokenFilter
+    ↓
+Controller interface and implementation
+    ↓
+Service interface and implementation
+    ↓
+Validator / mapper / security helper
+    ↓
+Spring Data repository
+    ↓
+MariaDB
 ```
 
-## Package responsibilities
+External integrations are isolated behind service/client classes for Cloudinary and email delivery.
 
-| Package | Responsibility |
-|---|---|
-| `config` | Security, mail, Cloudinary, OpenAPI and scheduling beans |
-| `controller` | HTTP contracts and mappings |
-| `controller.impl` | Converts service `CompleteResponse` values to `ResponseEntity` |
-| `dto.request` | Validated incoming payloads |
-| `dto.response` | API response models |
-| `entity` | JPA entities and relationships |
-| `repository` | Spring Data JPA access and custom queries |
-| `service` | Business-service contracts |
-| `service.impl` | Orchestration, authorization and transactions |
-| `validator` | Input and business-rule checks |
-| `mapper` | Entity/DTO conversion |
-| `security` | JWT/session filter, entry point, authenticated principal and secret providers |
-| `response_template` | Shared code/message/flow/body response construction |
-| `exception_handler` | Structured business-exception handling |
-| `util` | Configuration lookup, user lookup and conversion helpers |
+## Layers
 
-## Domain model
+### Controllers
+
+Controllers map HTTP methods, paths and validated DTOs. Controller implementations delegate to services and return the existing `ResponseBody<Object>` envelope.
+
+### Services
+
+Services own business rules and transaction boundaries, including:
+
+- authentication/session lifecycle;
+- refresh-token rotation and reuse handling;
+- trip/destination/activity range validation;
+- collaboration permissions;
+- share-code generation and redemption locking;
+- image-reference validation and cleanup.
+
+### Validators and mappers
+
+Validators reject invalid input and authorization/business-rule violations. Mappers separate persistence entities from API DTOs.
+
+### Repositories
+
+Spring Data JPA repositories provide ordinary queries and explicit pessimistic-lock queries for concurrency-sensitive flows.
+
+## Security architecture
+
+- `PublicEndpointMatcher` owns the method-specific public-route list.
+- `TokenFilter` and Spring Security use the same matcher.
+- Protected requests require access and session tokens.
+- `JsonAuthenticationEntryPoint` returns consistent 401 JSON.
+- `JsonAccessDeniedHandler` returns consistent 403 JSON.
+- `GlobalExceptionHandler` maps controller/framework exceptions into the shared response structure.
+- Production logs omit tokens, OTPs, account destinations, session identifiers, share codes and Cloudinary references.
+
+## Authentication persistence
 
 ```text
-User
- ├─ SessionToken
- ├─ RefreshToken
- ├─ OtpCheck
- └─ TripMember ── Trip
-                   ├─ Destination ── Activity
-                   ├─ CollaborationRequest
-                   └─ ShareCode
+access token     signed HS512 JWT, not stored as plaintext database state
+refresh token    HMAC-SHA256 hash stored in refresh_token
+session token    BCrypt hash stored in session_token
+OTP              purpose-bound HMAC hash stored in otp_check
 ```
 
-The clean Docker schema contains 18 tables:
+Refresh rotation locks the token-hash row. Share-code regeneration locks the trip row, and redemption locks the share-code row.
+
+## Data model
+
+Main tables include:
 
 ```text
-configuration, error_codes, email_contents, sms_contents,
-accommodations, cities, restaurants, users, trips,
-trip_destinations, destination_activities, trip_members,
-trip_collaboration_requests, trip_share_code_attempts,
-trip_share_codes, otp_check, refresh_token, session_token
+users
+trips
+trip_destinations
+trip_activities
+trip_members
+trip_collaboration_requests
+trip_share_codes
+trip_share_code_attempts
+refresh_token
+session_token
+otp_check
+configuration
+error_codes
+email_contents
+sms_contents
 ```
 
-
-## Controller/service split
-
-Each API group has an interface containing Spring mapping annotations and a concrete `@RestController` implementation. Services follow the same interface/implementation split. This keeps endpoint contracts visible while allowing unit tests to mock service contracts.
-
-## Response and exception design
-
-Services generally return `CompleteResponse<Object>`. `CompleteResponse` loads configured error/message metadata and creates the shared response body. Business rules throw `BusinessException(ErrorCodeEnum, flow)`, which `GlobalExceptionHandler` converts to the configured HTTP status and body.
-
-## Authentication architecture
-
-- `PublicEndpointMatcher` owns the HTTP-method-specific public-route policy.
-- `SecurityConfig` and `TokenFilter` both use the same matcher, preventing their public/protected decisions from drifting apart.
-- `TokenFilter` skips matching public requests, validates a Bearer JWT and session token for protected requests, and inserts `AuthenticatedUser` into the SecurityContext.
-- `SecurityConfig` applies the configured CORS origin policy and allows the frontend authentication headers.
-- `AuthenticatedUserProvider` gives services the current username/session ID.
-- `TripAccessService` centralizes view/edit/owner checks.
-- Access JWTs are signed with an environment-provided HS512 key.
-- Refresh tokens are random UUID strings; only an HMAC-SHA256 hash is stored.
-- Session tokens are random UUID strings; only a BCrypt hash is stored.
-
-## Transaction boundaries
-
-Normal write services use `@Transactional` where multiple records must remain consistent. Three security-event services use `REQUIRES_NEW` so counters/revocation can commit even if the caller then returns a failure:
-
-- failed OTP verification accounting;
-- refresh-token reuse revocation;
-- invalid share-code attempt accounting.
-
-The OTP failure and share-code attempt services use pessimistic entity locking while updating counters. The main token/share-code lookup paths do not consistently use pessimistic locks in this version; concurrency hardening remains roadmap work.
-
-## Authorization model
-
-`TripAccessService` implements:
-
-```text
-Can view: OWNER, EDITOR, VIEWER
-Can edit: OWNER, EDITOR
-Owner only: OWNER
-```
-
-Trip creation also creates the owner membership. Nested destination/activity services call the centralized access checks before querying or changing child records.
-
-## Persistence strategy
-
-The current application uses:
+## Database schema ownership
 
 ```properties
-spring.jpa.hibernate.ddl-auto=update
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+spring.jpa.hibernate.ddl-auto=validate
 ```
 
-The Docker seed creates the initial schema/reference rows on a fresh MariaDB volume. There are no versioned Flyway/Liquibase migrations in the current project.
+Flyway is the sole schema-change mechanism. Hibernate validates the schema after Flyway completes and does not add or alter columns.
 
-## External services
+Current migrations:
 
-- Cloudinary stores profile/trip images.
-- Gmail OAuth2 settings can be read from environment variables with database/default fallback.
-- `GoogleOAuthHelper` schedules access-token refresh using its own single-thread scheduled executor.
-- Render deployment is triggered through a GitHub Actions deploy-hook secret after backend tests pass.
+```text
+V1  initial schema/reference data
+V2  purpose-bound OTP hash storage
+V3  share-code active-row constraint
+V4  account-enumeration rate-limit error
+V5  trip/destination calendar DATE columns
+V6  standardized framework exception errors
+```
+
+The old `docker/init/init.sql` is not mounted by Docker Compose and is retained only as legacy reference material.
+
+## Time model
+
+- Trips and destinations: `LocalDate` / SQL `DATE`.
+- Activities: local wall-clock `LocalDateTime` / SQL `DATETIME`.
+- Audit, expiry and security timestamps: UTC `Instant` persisted through UTC JDBC handling.
+
+## Deployment architecture
+
+```text
+GitHub Actions
+    ↓ clean verify + security checks
+Fresh MariaDB service
+    ↓ Flyway + Hibernate validation
+Packaged Spring Boot JAR
+    ↓ tracked Render deployment
+Production health endpoint
+```

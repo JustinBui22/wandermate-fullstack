@@ -1,6 +1,6 @@
 # WanderMate Backend
 
-Spring Boot API for WanderMate's authentication, trip planning, collaboration, profile, and image-upload features.
+Spring Boot API for WanderMate authentication, trip planning, collaboration, profile management and image upload.
 
 ## Stack
 
@@ -9,19 +9,19 @@ Spring Boot API for WanderMate's authentication, trip planning, collaboration, p
 - Spring Web and Spring Security
 - Spring Data JPA / Hibernate
 - MariaDB runtime database
-- H2 test database in MariaDB compatibility mode
+- H2 in MariaDB compatibility mode for selected tests
+- Flyway database migrations
 - JJWT 0.11.5
 - Cloudinary Java SDK
 - Spring Mail with Gmail OAuth2 support
 - Springdoc OpenAPI
-- Maven Wrapper, Docker, Docker Compose
-- JUnit 5, Mockito, Spring Boot integration tests
+- Maven Wrapper, Docker and Docker Compose
+- JUnit 5, Mockito, Spring Boot integration tests and JaCoCo
 
-## Project structure
+## Structure
 
 ```text
 backend/
-├── docker/init/init.sql
 ├── docs/
 ├── src/main/java/com/example/travellingapp/
 │   ├── config/
@@ -33,10 +33,10 @@ backend/
 │   ├── repository/
 │   ├── security/
 │   ├── service/ and service/impl/
-│   ├── util/
 │   └── validator/
-├── src/main/resources/
+├── src/main/resources/db/migration/    Flyway V1–V6
 ├── src/test/
+├── docker/init/init.sql                Legacy reference only; not mounted by Compose
 ├── .env.example
 ├── docker-compose.yml
 ├── Dockerfile
@@ -47,18 +47,24 @@ backend/
 
 ```text
 Context path: /Wandermate
-Local direct base URL: http://localhost:8080/Wandermate
-Docker host base URL: http://localhost:8082/Wandermate
-Configured Render base URL: https://wandermate-fullstack.onrender.com/Wandermate
+Direct local: http://localhost:8080/Wandermate
+Docker host: http://localhost:8082/Wandermate
+Render: https://wandermate-fullstack.onrender.com/Wandermate
 ```
 
-Local Swagger UI:
+Health:
+
+```text
+/Wandermate/api/v1/health
+```
+
+Local Swagger:
 
 ```text
 http://localhost:8080/Wandermate/swagger-ui/index.html
 ```
 
-Swagger is disabled when the `prod` profile is active.
+Swagger is disabled with the `prod` profile.
 
 ## Required environment variables
 
@@ -68,57 +74,39 @@ DB_USERNAME
 DB_PASSWORD
 JWT_SECRET
 REFRESH_TOKEN_HASH_SECRET
+OTP_HASH_SECRET
 ```
 
-Requirements enforced by `TokenSecretProvider`:
+Secret requirements:
 
-- `JWT_SECRET`: at least 64 UTF-8 bytes for HS512 signing.
-- `REFRESH_TOKEN_HASH_SECRET`: at least 32 UTF-8 bytes for HMAC-SHA256 refresh-token hashing.
+- `JWT_SECRET`: at least 64 UTF-8 bytes.
+- `REFRESH_TOKEN_HASH_SECRET`: at least 32 UTF-8 bytes.
+- `OTP_HASH_SECRET`: at least 32 UTF-8 bytes and distinct from the token secrets.
 
-Optional feature variables:
+Optional variables configure Cloudinary, email OAuth, CORS, rate limits, timezone, Flyway baselining and the server port. See `.env.example`.
 
-```text
-CLOUDINARY_CLOUD_NAME
-CLOUDINARY_API_KEY
-CLOUDINARY_API_SECRET
-CLOUDINARY_BASE_FOLDER
-CORS_ALLOWED_ORIGINS
-EMAIL_OAUTH_REFRESH_ENABLED
-EMAIL_CLIENT_ID
-EMAIL_CLIENT_SECRET
-EMAIL_REFRESH_TOKEN
-EMAIL_TOKEN_URL
-EMAIL_ADDRESS_CONFIG
-PORT
-SPRING_PROFILES_ACTIVE
-```
-
-### How `.env` is used
-
-`backend/.env` is automatically read by Docker Compose. Spring Boot does not automatically load that file when the app is launched directly from IntelliJ or Maven.
-
-For direct IntelliJ execution, place the values in **Run → Edit Configurations → Environment variables**, or configure an env-file loader. Render stores/injects the same names from its service environment settings.
+Spring Boot does not load `backend/.env` by itself. Docker Compose loads it automatically; IntelliJ and direct Maven runs require environment variables to be injected separately.
 
 ## Run with Docker Compose
 
 ```bash
 cp .env.example .env
-# Replace placeholder values in .env
+# Replace placeholders
 docker compose up --build
 ```
 
-Services:
+Default mappings:
 
-- MariaDB container: host port `3307` → container port `3306` by default.
-- Backend container: host port `8082` → container port `8080` by default.
+- MariaDB: host `3307` → container `3306`
+- Backend: host `8082` → container `8080`
 
-Stop containers:
+Stop services:
 
 ```bash
 docker compose down
 ```
 
-Reset the database volume and rerun the seed:
+Delete all local database data and rebuild from Flyway:
 
 ```bash
 docker compose down -v
@@ -127,13 +115,7 @@ docker compose up --build
 
 ## Run directly
 
-Start MariaDB first, then export/set the environment variables. For the Docker database accessed from the host:
-
-```text
-DB_URL=jdbc:mariadb://localhost:3307/traveling_app
-```
-
-Run:
+Start MariaDB, set the required environment variables and run:
 
 ```bash
 ./mvnw spring-boot:run
@@ -145,76 +127,95 @@ Windows:
 .\mvnw.cmd spring-boot:run
 ```
 
-## Authentication headers
+When using the Docker database from the host:
 
-Protected endpoints:
+```text
+DB_URL=jdbc:mariadb://localhost:3307/traveling_app
+```
+
+## Authentication
+
+Protected requests:
 
 ```http
 Authorization: Bearer <access-token>
 Session-Token: <session-token>
 ```
 
-Refresh endpoint:
+Refresh requests:
 
 ```http
 Refresh-Token: <refresh-token>
 Session-Token: <session-token>
 ```
 
-## Core modules
+Registration and password reset support email OTP and a phone-OTP demo path. Email OTP is delivered through the configured mail provider. `SmsServiceImpl` currently returns a simulated success without calling an SMS gateway because a paid provider is not configured; it must be replaced before phone OTP is treated as production-ready.
+
+## Modules
 
 | Module | Current behavior |
 |---|---|
-| Users | Register, pre-validate details, login, forgot password, logout, profile/settings, user lookup |
-| OTP | Email/phone send, cooldown, send/verify limits, expiration, block/restriction, consume on success |
-| Tokens | HS512 access JWT, hashed refresh tokens, hashed session tokens, rotation/revocation/reuse detection |
-| Trips | CRUD, accessible-trip listing, status, overlap checks, search/suggestions |
-| Destinations | CRUD under a trip with range/overlap validation |
-| Activities | CRUD under a destination with range/overlap validation |
-| Collaboration | Invitations, direct/share-code join requests, members, role changes, overlap warnings, summary |
-| Uploads | Authenticated Cloudinary multipart upload for profile images and trip covers |
+| Users | Register, detail verification, login, password reset, logout, profile/settings, protected generic user lookup |
+| OTP | Email delivery, demo-only simulated SMS path, cooldown, send/verify limits, purpose-bound HMAC storage, expiry and consume-on-success |
+| Tokens | HS512 access JWT, hashed refresh/session tokens, rotation, revocation, locking and reuse detection |
+| Trips | CRUD, accessible listing, status and overlap checks |
+| Destinations | CRUD with calendar-date range validation |
+| Activities | CRUD with local date-time and overlap validation |
+| Collaboration | Invitations, requests, members, roles, share codes, warnings and summary |
+| Uploads | Authenticated Cloudinary uploads for profiles and trip covers |
 
 ## Permission model
 
 | Action | OWNER | EDITOR | VIEWER |
 |---|---:|---:|---:|
-| View trip plan | Yes | Yes | Yes |
+| View accessible plan | Yes | Yes | Yes |
 | Edit trip/destination/activity content | Yes | Yes | No |
 | Delete trip | Yes | No | No |
 | Invite/manage requests/share codes | Yes | No | No |
 | Change roles/remove members | Yes | No | No |
 
-The service layer is authoritative; frontend visibility rules are only a usability layer.
+The service layer is authoritative. Frontend visibility is a usability layer only.
 
-## Database behavior
+## Database lifecycle
 
-- `spring.jpa.hibernate.ddl-auto=update` is active in the base configuration.
-- `backend/docker/init/init.sql` creates and seeds the initial schema only when MariaDB initializes a fresh volume.
-- The seed contains reference/config/error data but no runtime user/trip/token records.
-- There is currently no Flyway or Liquibase dependency/migration directory.
+```properties
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.properties.hibernate.jdbc.time_zone=UTC
+```
+
+- Flyway owns all schema changes.
+- `flyway_schema_history` records applied versions.
+- Hibernate validates and never repairs the schema.
+- Existing migration files must not be edited after deployment.
+- New changes require a new migration version.
+- `docker/init/init.sql` is legacy V1-era reference material and is not used by the active Compose file.
 
 ## Testing
 
 ```bash
-./mvnw test
+./mvnw clean verify
 ```
 
-The included Surefire reports cover 38 test classes and record:
+Current included Surefire evidence:
 
 ```text
-443 tests, 0 failures, 0 errors, 0 skipped
+487 tests, 0 failures, 0 errors, 0 skipped
 ```
 
-Coverage areas include controllers, services, validators, public-endpoint matching, security filtering, token hashing, and transaction behavior for OTP failures, password reset, refresh-token reuse, share-code attempts, and token revocation.
+Coverage includes controllers, services, validators, security filters, exception handling, token/OTP hashing, transactions, refresh-token concurrency and share-code concurrency.
 
 ## Production profile
 
 `application-prod.properties`:
 
-- disables SQL output;
-- reduces project/security logging to `INFO`;
-- disables Swagger UI and OpenAPI JSON;
-- reads Cloudinary and token secrets from environment variables.
+- disables SQL output and bind logging;
+- keeps application/security logging at `INFO`;
+- disables request-detail and HTTP wire/header logging;
+- disables Swagger/OpenAPI;
+- keeps Flyway enabled;
+- keeps Hibernate in `validate` mode.
 
 Activate with:
 
@@ -224,15 +225,17 @@ SPRING_PROFILES_ACTIVE=prod
 
 ## Documentation
 
-- [Documentation index](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/README.md)
-- [API guide](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/API_GUIDE.md)
-- [Architecture](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/ARCHITECTURE.md)
-- [Authentication flow](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/AUTH_FLOW.md)
-- [Cloudinary image storage](docs/CLOUDINARY_IMAGE_STORAGE.md)
-- [Database seed](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/DATABASE_SEED.md)
+- [Documentation index](docs/README.md)
+- [API guide](docs/API_GUIDE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Authentication flow](docs/AUTH_FLOW.md)
+- [Date and time model](docs/DATE_TIME_MODEL.md)
 - [Docker setup](docs/DOCKER_SETUP.md)
 - [Frontend integration](docs/FRONTEND_INTEGRATION.md)
 - [Operations](docs/OPERATIONS.md)
 - [Postman guide](docs/POSTMAN_GUIDE.md)
 - [Production API documentation](docs/PRODUCTION_API_DOCS.md)
-- [Roadmap](../../Downloads/wandermate-updated-docs(1)/wandermate-updated-docs/backend/docs/ROADMAP.md)
+- [Database backup and recovery](docs/DATABASE_BACKUP_AND_RECOVERY.md)
+- [CI/CD](docs/CI_CD.md)
+- [Security scanning](docs/SECURITY_SCANNING.md)
+- [Roadmap and maintenance](docs/ROADMAP.md)

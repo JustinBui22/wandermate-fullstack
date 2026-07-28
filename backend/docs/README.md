@@ -1,45 +1,37 @@
 # WanderMate Backend Documentation
 
-This directory documents the backend implementation currently present in the repository.
+This directory documents the current backend implementation. The code and Flyway migrations remain the source of truth when documentation and implementation differ.
 
 | Document | Purpose |
 |---|---|
-| [API guide](API_GUIDE.md) | Endpoint inventory, headers, query parameters and request examples |
-| [Architecture](ARCHITECTURE.md) | Packages, layers, data flow and transaction boundaries |
-| [Authentication flow](AUTH_FLOW.md) | Registration, OTP, login, access/refresh/session tokens and logout |
-| [Cloudinary image storage](CLOUDINARY_IMAGE_STORAGE.md) | Upload validation, folder/public-ID rules and replacement cleanup |
-| [Database seed](DATABASE_SEED.md) | Docker schema/reference data and fresh-volume behavior |
-| [Docker setup](DOCKER_SETUP.md) | Environment variables, ports and Compose commands |
-| [Docker fresh-start checklist](DOCKER_FRESH_START_CHECKLIST.md) | Safe reset and verification sequence |
-| [Frontend integration](FRONTEND_INTEGRATION.md) | API base URL, headers, response handling, dates, roles and uploads |
-| [Date and time model](DATE_TIME_MODEL.md) | Calendar dates, local activity times, UTC operational timestamps and migration rules |
-| [Operations](OPERATIONS.md) | Health, profiles, CI/CD, logs, backups and secrets |
-| [CI/CD verification](CI_CD.md) | Build verification, fresh MariaDB migration testing, artifacts and tracked Render deployment |
-| [Postman guide](POSTMAN_GUIDE.md) | Environment setup and representative request flows |
-| [Production API docs](PRODUCTION_API_DOCS.md) | Local OpenAPI/Swagger and production exposure policy |
-| [Production logging](PRODUCTION_LOGGING.md) | Sensitive-data logging policy, production controls and automated guardrail |
-| [Dependency and security scanning](SECURITY_SCANNING.md) | npm/OWASP/Gitleaks/CodeQL/Dependabot policy, thresholds and remediation |
-| [Roadmap](ROADMAP.md) | Verified limitations and prioritized next work |
+| [API guide](API_GUIDE.md) | Endpoints, headers, request shapes and response behavior |
+| [Architecture](ARCHITECTURE.md) | Layers, security boundaries, persistence and external services |
+| [Authentication flow](AUTH_FLOW.md) | Email OTP, demo phone OTP, login, sessions, refresh rotation and logout |
+| [Date and time model](DATE_TIME_MODEL.md) | Calendar dates, local activity time and UTC operational timestamps |
+| [Docker setup](DOCKER_SETUP.md) | Local MariaDB/backend containers and Flyway startup |
+| [Docker fresh-start checklist](DOCKER_FRESH_START_CHECKLIST.md) | Rebuild an empty local database safely |
+| [Operations](OPERATIONS.md) | Runtime checks, schema validation, logs and common recovery actions |
+| [Database backup and recovery](DATABASE_BACKUP_AND_RECOVERY.md) | Backup/restore procedure and Flyway checks |
+| [Database reference data](DATABASE_SEED.md) | V1 reference rows and the status of legacy `init.sql` |
+| [Frontend integration](FRONTEND_INTEGRATION.md) | Mobile headers, token lifecycle, dates and API handling |
+| [Postman guide](POSTMAN_GUIDE.md) | Manual API verification |
+| [Production API docs](PRODUCTION_API_DOCS.md) | Production Swagger/OpenAPI policy |
+| [Cloudinary image storage](CLOUDINARY_IMAGE_STORAGE.md) | Upload validation, paths and cleanup |
+| [CI/CD](CI_CD.md) | Build, MariaDB migration and Render health verification |
+| [Production logging](PRODUCTION_LOGGING.md) | Sensitive-data logging rules |
+| [Security scanning](SECURITY_SCANNING.md) | npm, OWASP Dependency-Check, Gitleaks, CodeQL and Dependabot |
+| [Roadmap and maintenance](ROADMAP.md) | Completed hardening work and optional future maintenance |
 
-## Source of truth
+## Current baseline
 
-When documentation and code differ, use these files to verify current behavior:
-
-- `controller/*.java` for routes and HTTP methods.
-- `dto/request/**` for request fields.
-- `service/impl/**` for permissions and business rules.
-- `application.properties` and `application-prod.properties` for runtime configuration.
-- `docker/init/init.sql` for the clean Docker schema/reference data.
-- `src/test` and `target/surefire-reports` for the current test inventory/result evidence.
-
-## Current version facts
-
-- Context path: `/Wandermate`.
-- Direct local port: `8080`.
-- Docker host port: `8082` by default.
-- JPA schema mode: `ddl-auto=update`.
-- Database migrations: not configured.
-- Production Swagger: disabled.
-- Backend test evidence: 443 passing tests, 0 failures, 0 errors and 0 skipped in the included Surefire reports.
-- Public-route policy: code-owned, HTTP-method-specific and shared by `SecurityConfig` and `TokenFilter`.
-- CORS: configured through `app.security.cors.allowed-origins` / `CORS_ALLOWED_ORIGINS`.
+- Java 21 / Spring Boot 3.5.4.
+- MariaDB runtime database.
+- Flyway V1–V6 owns schema changes.
+- Hibernate uses `ddl-auto=validate`.
+- Trip/destination ranges use `LocalDate`.
+- Activity schedules use local `LocalDateTime` values.
+- Audit/security/expiry values use UTC `Instant`.
+- Email OTP is operational for registration and password recovery.
+- Phone OTP remains as a demo-only simulated path; no real SMS gateway is configured.
+- Phone number remains valid account/profile data.
+- Current included Surefire evidence: 487 tests, 0 failures, 0 errors and 0 skipped.

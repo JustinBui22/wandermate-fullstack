@@ -8,7 +8,7 @@ The frontend reads:
 EXPO_PUBLIC_API_BASE_URL
 ```
 
-`src/constants/env.ts` falls back to the configured Render URL.
+`src/constants/env.ts` falls back to the Render base URL.
 
 | Frontend runtime | Backend base URL example |
 |---|---|
@@ -17,9 +17,37 @@ EXPO_PUBLIC_API_BASE_URL
 | Physical device + local backend | `http://<computer-lan-ip>:8080/Wandermate` or `:8082` |
 | Production | `https://wandermate-fullstack.onrender.com/Wandermate` |
 
+## Authentication requests
+
+Registration and password recovery support email OTP and phone OTP. Email is the operational delivery path:
+
+```json
+{
+  "userName": "sampleuser",
+  "otpVerificationMethod": "EMAIL_OTP",
+  "email": "sample@example.com",
+  "emailEnum": "EMAIL_OTP_REGISTER",
+  "purpose": "REGISTRATION"
+}
+```
+
+Password recovery uses `purpose: "PASSWORD_RESET"`. The phone option sends this request shape:
+
+```json
+{
+  "userName": "sampleuser",
+  "otpVerificationMethod": "PHONE_NUM_OTP",
+  "phoneNumber": "+61400000000",
+  "smsEnum": "SMS_OTP_REGISTER",
+  "purpose": "REGISTRATION"
+}
+```
+
+The phone flow is demo-only: the backend SMS service simulates success but does not send a real message because no paid SMS provider is configured. Use email OTP when demonstrating a complete working flow.
+
 ## Token storage
 
-`tokenStore.ts` stores these values in Expo SecureStore:
+`tokenStore.ts` stores:
 
 ```text
 accessToken
@@ -28,16 +56,14 @@ sessionToken
 username
 ```
 
-## Axios headers
-
-`axiosClient.ts` automatically adds:
+Protected requests attach:
 
 ```http
 Authorization: Bearer <accessToken>
 Session-Token: <sessionToken>
 ```
 
-`refreshApi.ts` adds:
+Refresh attaches:
 
 ```http
 Refresh-Token: <refreshToken>
@@ -46,38 +72,26 @@ Session-Token: <sessionToken>
 
 ## Refresh/error behavior
 
-- Access-token expiry (`E016` or matching expiry text) triggers refresh once.
+- Access-token expiry triggers one refresh attempt.
 - Concurrent expired requests share one refresh promise.
 - The original request is retried with the new access token.
-- Failed refresh clears the local session.
-- `401`, explicit invalid-session `E023`, or token-verification `E015` clears local authentication.
-- A normal permission-only `403` remains a resource authorization error and does not log the user out.
-
-## Response body
-
-API modules normally return `response.data.body` from the backend's shared wrapper. Screens should use `apiWarningUtils` for consistent error code/message extraction.
+- Failed refresh or explicit invalid-session/token errors clear local authentication.
+- Ordinary permission-only `403` responses do not log the user out.
+- API modules return the shared backend response body's `body` value.
+- Screens use `apiWarningUtils` for code/message extraction.
 
 ## Date/time payloads
 
-The backend uses two scheduling formats:
+- Trip `startDate` / `endDate`: `yyyy-MM-dd`.
+- Destination `startDate` / `endDate`: `yyyy-MM-dd`.
+- Activity `startDateTime` / `endDateTime`: local `yyyy-MM-dd'T'HH:mm:ss`.
+- Audit/expiry timestamps: UTC values with `Z`.
 
-- trip `startDate` / `endDate`: ISO calendar dates (`yyyy-MM-dd`);
-- destination `startDate` / `endDate`: ISO calendar dates (`yyyy-MM-dd`);
-- activity `startDateTime` / `endDateTime`: ISO local date-times without an offset (`yyyy-MM-dd'T'HH:mm:ss`).
+Date-only values must be parsed from numeric components rather than `new Date("yyyy-MM-dd")`, which JavaScript treats as UTC and may display on another calendar day.
 
-Calendar-only dates must be parsed and formatted from their numeric year/month/day components so JavaScript does not reinterpret them as UTC and shift the displayed day. Activity values are destination-local wall-clock values and must not be automatically timezone-shifted.
-
-Example:
-
-```text
-2027-04-05T08:00:00
-```
-
-Frontend date utilities should not send display-formatted values.
+Activity values are destination-local wall-clock values and must not be automatically viewer-timezone shifted.
 
 ## Roles
-
-Backend roles:
 
 ```text
 OWNER
@@ -85,13 +99,11 @@ EDITOR
 VIEWER
 ```
 
-Frontend helpers map them to:
+- All three can view accessible content.
+- Owner/editor can edit plan content.
+- Owner alone manages trip deletion, invitations, requests, share codes and member roles.
 
-- view access for all three;
-- editing for owner/editor;
-- trip/member administration for owner only.
-
-Screens may fetch the trip's `currentUserRole` and/or member list. The backend remains authoritative.
+The backend is authoritative even when the frontend hides unavailable actions.
 
 ## Image upload
 
@@ -105,33 +117,23 @@ file=<selected image>
 imageType=profile-images | trip-covers
 ```
 
-Persist both returned values in the subsequent request:
+Persist both returned Cloudinary values in the subsequent profile/trip update.
 
-```json
-{
-  "coverImageUrl": "...",
-  "coverImagePublicId": "..."
-}
-```
-
-The current backend does not provide an endpoint for deleting an uploaded image that the user abandons before saving.
-
-## Collaboration deep link
-
-The clean seed uses:
+## Share-code deep link
 
 ```text
-wandermate://join-trip?code=
+wandermate://join-trip?code=<code>
 ```
 
-The Expo app scheme is `wandermate`, and `app/join-trip.tsx` handles the join path.
+`app/join-trip.tsx` handles the route. Preview uses `POST /api/v1/trips/share-codes/preview` because attempts update security state.
 
-## Development checks
+## Verification
 
 ```bash
 cd frontend
+npm ci
 npm run typecheck
 npm test
+npx expo config --type public --json
+npx expo export --platform web --output-dir dist
 ```
-
-After changing frontend `.env`, restart Metro/Expo with cache clearing.

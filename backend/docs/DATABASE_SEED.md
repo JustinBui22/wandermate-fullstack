@@ -1,89 +1,67 @@
-# Database Seed
+# Database Migrations and Reference Data
 
-## File
+## Source of truth
 
-```text
-backend/docker/init/init.sql
-```
-
-MariaDB executes this file only when the named Docker volume is initialized for the first time.
-
-## What it contains
-
-- Table definitions and foreign keys.
-- Configuration values used by validation, OTP, tokens, sessions, suggestions and invite links.
-- Error-code/message rows used by the shared API response system.
-- Email and SMS content templates.
-- Empty runtime tables for users, trips, collaboration, OTPs and tokens.
-
-It intentionally does not contain real users, real tokens, OTPs, production credentials or copied production data.
-
-## Tables
+The active database is created and upgraded by Flyway migrations under:
 
 ```text
-configuration
-error_codes
-email_contents
-sms_contents
-accommodations
-cities
-restaurants
-users
-trips
-trip_destinations
-destination_activities
-trip_members
-trip_collaboration_requests
-trip_share_code_attempts
-trip_share_codes
-otp_check
-refresh_token
-session_token
+backend/src/main/resources/db/migration
 ```
 
-## Important clean-seed configuration
+V1 creates the initial schema and reference rows. Later migrations evolve that schema.
 
-| Code | Default |
-|---|---|
-| `ACCESS_TOKEN_EXPIRATION_TIME` | `300000` ms |
-| `REFRESH_TOKEN_EXPIRATION_TIME` | `1` month |
-| `MAX_ALLOWED_SESSIONS` | `3` |
-| `OTP_EXPIRATION_TIME` | `300000` ms |
-| `OTP_RETRY_COOLDOWN` | `60000` ms |
-| `OTP_RESTRICTED_TIME` | `900000` ms |
-| `MAX_RETRY_SEND_OTP` | `3` |
-| `MAX_RETRY_VERIFY_OTP` | `3` |
-| `MIN_SUGGEST_CHARACTER` | `2` |
-| `INVITE_LINK_PREFIX` | `wandermate://join-trip?code=` |
-| `EMAIL_OAUTH_REFRESH_ENABLED` | `false` |
+Reference data includes:
 
-The legacy `NON_AUTHENTICATED_REQUEST` row may remain in an existing seed for compatibility/history, but it is no longer used to determine public access. Public routes are owned by the code-level `PublicEndpointMatcher`.
+- configuration values;
+- application error definitions;
+- email templates;
+- legacy SMS template rows;
+- other static lookup content required by services.
 
-## Fresh-volume behavior
+Runtime users, trips, tokens, OTPs and collaboration data are not public seed data.
 
-Editing `init.sql` does not update an existing MariaDB volume. To rerun it locally:
+## Docker startup
+
+The current `docker-compose.yml` mounts only the MariaDB data volume. It does not mount `docker/init` into `/docker-entrypoint-initdb.d`.
+
+On an empty volume:
+
+1. MariaDB starts with an empty application database.
+2. Spring Boot connects.
+3. Flyway applies V1 through the latest migration.
+4. Hibernate validates the resulting schema.
+5. The application becomes healthy.
+
+## Legacy `docker/init/init.sql`
+
+`backend/docker/init/init.sql` is old V1-era reference material. It is not the current migration mechanism and must not be run against an existing database.
+
+Do not edit it to introduce schema changes. Do not mount it alongside Flyway because that would create competing schema owners.
+
+## Clean local rebuild
+
+This permanently deletes local database data:
 
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-This deletes all local database data in the named volume.
+Flyway rebuilds the schema from versioned migrations.
 
-## JPA behavior after initialization
+## Existing database
 
-The base Spring configuration currently uses:
+Flyway checks `flyway_schema_history` and applies only missing migrations. Hibernate uses:
 
 ```properties
-spring.jpa.hibernate.ddl-auto=update
+spring.jpa.hibernate.ddl-auto=validate
 ```
 
-Hibernate can therefore adjust the schema at application startup. This is convenient for local development but is not a substitute for versioned migrations. Flyway/Liquibase is not configured in the current `pom.xml`.
+It reports mismatches and does not fix them.
 
-## Safe maintenance
+## Rules
 
-- Change reference data intentionally and review error-code uniqueness.
-- Keep runtime/user rows out of the public seed.
-- Do not add secrets to configuration rows.
-- Test a clean start with `docker compose down -v` before relying on seed changes.
-- Create a database backup before resetting any non-disposable environment.
+- Never edit an applied migration.
+- Add a new version for every schema/reference-data change.
+- Back up production before deploying a migration.
+- Do not manually insert Flyway history rows except as part of a deliberate baseline/recovery procedure.

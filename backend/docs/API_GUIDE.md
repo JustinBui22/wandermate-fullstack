@@ -97,7 +97,7 @@ A path is not made public for every HTTP method. For example, `POST /api/v1/user
 | Method | Path | Auth | Purpose |
 |---|---|---:|---|
 | POST | `/api/v1/users/register/verify` | No | Validate username/email/phone/password/date fields |
-| POST | `/api/v1/otp/send` | No | Send registration or password-reset OTP |
+| POST | `/api/v1/otp/send` | No | Send email OTP or invoke the demo-only simulated phone-OTP path |
 | POST | `/api/v1/otp/verify` | No | Verify OTP directly |
 | POST | `/api/v1/users/register` | No | Verify OTP and create account |
 | POST | `/api/v1/users/login` | No | Login by username/email/phone |
@@ -116,7 +116,7 @@ A path is not made public for every HTTP method. For example, `POST /api/v1/user
 
 The default authenticated lookup limit is 20 requests per 60 seconds and can be configured through `ACCOUNT_LOOKUP_MAX_REQUESTS` and `ACCOUNT_LOOKUP_WINDOW_SECONDS`. Public registration-verification and OTP-send requests share a default limit of 10 requests per 60 seconds per remote address, configured through `PUBLIC_ACCOUNT_MAX_REQUESTS` and `PUBLIC_ACCOUNT_WINDOW_SECONDS`. The limiter is in-memory and per application instance, which is sufficient for the current single-instance deployment but should be replaced with a shared Redis/database-backed limiter before horizontal scaling.
 
-Registration verification intentionally still returns field-specific username/email/phone availability errors so the registration form can guide the user. This is an accepted UX/security trade-off. Login uses the same invalid-credentials response for missing users and incorrect passwords, including a dummy BCrypt comparison for the missing-user path. Password-reset OTP requests return the same success response and send nothing when the account or supplied destination does not match. Exact latency equality is not guaranteed because a valid request still performs synchronous email/SMS delivery; eliminating that residual timing signal would require queued asynchronous delivery.
+Registration verification intentionally still returns field-specific username/email/phone availability errors so the registration form can guide the user. This is an accepted UX/security trade-off. Login uses the same invalid-credentials response for missing users and incorrect passwords, including a dummy BCrypt comparison for the missing-user path. Password-reset OTP requests return the same success response and send nothing when the account or supplied email does not match. Exact latency equality is not guaranteed because a valid request still performs synchronous email delivery; eliminating that residual timing signal would require queued asynchronous delivery.
 
 ### Login request
 
@@ -152,7 +152,21 @@ Email example:
 }
 ```
 
-`purpose` defaults to `REGISTRATION`; password recovery uses `PASSWORD_RESET`.
+`purpose` defaults to `REGISTRATION`; password recovery uses `PASSWORD_RESET`. Email OTP is the operational end-to-end path. The API also accepts `PHONE_NUM_OTP`, but the current `SmsServiceImpl` only simulates a successful send and does not call a real SMS gateway because a paid provider is not configured.
+
+Demo-only phone request shape:
+
+```json
+{
+  "userName": "sampleuser",
+  "phoneNumber": "+61400000000",
+  "otpVerificationMethod": "PHONE_NUM_OTP",
+  "smsEnum": "SMS_OTP_REGISTER",
+  "purpose": "REGISTRATION"
+}
+```
+
+Do not use the phone path as evidence of real delivery until `SmsServiceImpl` is integrated with an SMS provider.
 
 ### Register request
 
