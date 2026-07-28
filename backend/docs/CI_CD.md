@@ -68,7 +68,7 @@ The coverage artifact currently covers the Jest component-test suite. Vitest sti
 
 `security-scanning.yml` runs three independent jobs:
 
-- `npm audit --omit=dev --audit-level=high` for production frontend dependencies;
+- `npm audit --omit=dev --audit-level=critical` for production frontend dependencies;
 - OWASP Dependency-Check for backend dependencies, failing at CVSS 9.0 or higher;
 - a checksum-verified Gitleaks scan across the complete Git history.
 
