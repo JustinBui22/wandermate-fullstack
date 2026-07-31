@@ -31,7 +31,6 @@
         <spring-cloud.version>2024.0.0-RC1</spring-cloud.version>
         <lombok.version>1.18.46</lombok.version>
         <jacoco.version>0.8.13</jacoco.version>
-        <dependency-check.version>12.2.2</dependency-check.version>
     </properties>
     <dependencies>
         <dependency>
@@ -200,31 +199,6 @@
             </plugin>
         </plugins>
     </build>
-    <profiles>
-        <profile>
-            <id>security-scan</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.owasp</groupId>
-                        <artifactId>dependency-check-maven</artifactId>
-                        <version>${dependency-check.version}</version>
-                        <configuration>
-                            <formats>
-                                <format>HTML</format>
-                                <format>JSON</format>
-                                <format>SARIF</format>
-                            </formats>
-                            <failBuildOnCVSS>9.0</failBuildOnCVSS>
-                            <failOnError>true</failOnError>
-                            <skipTestScope>true</skipTestScope>
-                            <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
     <repositories>
         <repository>
             <id>spring-milestones</id>

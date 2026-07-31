@@ -18,7 +18,7 @@ The planned backend security, database, CI/CD, logging, and dependency-scanning 
 | Authorization | Backend-enforced `OWNER`, `EDITOR`, and `VIEWER` permissions |
 | Media | Authenticated Cloudinary upload for profile images and trip covers |
 | Database | MariaDB, Flyway V1–V6, Hibernate schema validation |
-| Automation | Backend/frontend CI, fresh MariaDB migration verification, tracked Render deployment, CodeQL, Gitleaks, npm/OWASP scans, Dependabot |
+| Automation | Backend/frontend CI, fresh MariaDB migration verification, tracked Render deployment, CodeQL, Gitleaks, npm audit, Dependabot |
 | Tests | 487 backend tests and 13 frontend unit/component test cases in the current repository evidence |
 
 > Phone OTP remains available in the UI/API for demonstration, but `SmsServiceImpl` only simulates a successful send and does not contact a real SMS gateway. A paid provider is intentionally not configured for this portfolio project; use email OTP for a real end-to-end demonstration.
@@ -297,9 +297,9 @@ The repository currently declares 13 frontend test cases across Axios authentica
 - The MariaDB job proves Flyway V1–V6 can build a fresh schema and Hibernate can validate it.
 - Main-branch backend deployment tracks the exact Render deployment and polls the health endpoint.
 - Frontend CI runs clean installation, type checking, tests, component coverage, Expo config resolution and static web export.
-- Security CI runs `npm audit --omit=dev --audit-level=high`, OWASP Dependency-Check and Gitleaks.
+- Security CI warns on high npm production findings, fails on critical findings, and scans Git history with Gitleaks.
 - CodeQL analyzes Java and JavaScript/TypeScript.
-- Dependabot opens reviewable npm, Maven, GitHub Actions and Docker update PRs.
+- Dependabot monitors npm and Maven dependencies and opens reviewable npm, Maven, GitHub Actions and Docker update PRs.
 
 ## Documentation
 
@@ -312,21 +312,21 @@ The repository currently declares 13 frontend test cases across Axios authentica
 ### Backend
 
 - [Backend README](backend/README.md)
-- [Backend documentation index](backend/docs/README.md)
+- [Backend documentation index](../Downloads/wandermate-updated-docs(2)/backend/docs/README.md)
 - [API guide](backend/docs/API_GUIDE.md)
 - [Architecture](backend/docs/ARCHITECTURE.md)
 - [Authentication flow](backend/docs/AUTH_FLOW.md)
 - [Date and time model](backend/docs/DATE_TIME_MODEL.md)
 - [Docker setup](backend/docs/DOCKER_SETUP.md)
 - [Operations](backend/docs/OPERATIONS.md)
-- [CI/CD](backend/docs/CI_CD.md)
+- [CI/CD](../Downloads/wandermate-updated-docs(2)/backend/docs/CI_CD.md)
 - [Production logging](backend/docs/PRODUCTION_LOGGING.md)
-- [Security scanning](backend/docs/SECURITY_SCANNING.md)
-- [Roadmap and maintenance](backend/docs/ROADMAP.md)
+- [Security scanning](../Downloads/wandermate-updated-docs(2)/backend/docs/SECURITY_SCANNING.md)
+- [Roadmap and maintenance](../Downloads/wandermate-updated-docs(2)/backend/docs/ROADMAP.md)
 
 ### Frontend
 
-- [Frontend README](frontend/README.md)
+- [Frontend README](../Downloads/wandermate-updated-docs(2)/frontend/README.md)
 
 ## Sharing the repository
 

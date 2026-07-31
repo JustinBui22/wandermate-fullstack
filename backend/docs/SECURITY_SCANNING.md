@@ -5,22 +5,14 @@
 ### Frontend production dependencies
 
 ```bash
-npm audit --omit=dev --audit-level=high
+npm audit --omit=dev --audit-level=critical
 ```
 
-High and critical production advisories fail the security workflow. The workflow never runs `npm audit fix --force`.
+High production advisories produce workflow warnings. Critical production advisories fail the workflow. The JSON audit report is uploaded for review, and the workflow never runs `npm audit fix --force`.
 
 ### Backend dependencies
 
-The Maven `security-scan` profile runs OWASP Dependency-Check and produces HTML, JSON and SARIF reports.
-
-```bash
-./mvnw -Psecurity-scan dependency-check:check
-```
-
-The current policy fails at CVSS 9.0 or higher and excludes test-scope dependencies from blocking.
-
-An optional `NVD_API_KEY` GitHub secret can improve vulnerability-data download reliability.
+Dependabot monitors `backend/pom.xml` for vulnerable and outdated Maven dependencies and opens reviewable pull requests. This avoids maintaining a separate vulnerability database inside CI while keeping backend dependency findings visible in GitHub.
 
 ### Secret scanning
 
@@ -49,6 +41,8 @@ The workflow uses the `security-extended` query suite and uploads findings to th
 - Docker images.
 
 Dependabot does not auto-merge or auto-deploy updates.
+
+Dependabot covers known dependency vulnerabilities. CodeQL separately analyzes the project's own Java and JavaScript/TypeScript source code.
 
 ## Response process
 

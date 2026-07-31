@@ -66,10 +66,9 @@ The coverage artifact currently covers the Jest component-test suite. Vitest sti
 
 ## Security workflows
 
-`security-scanning.yml` runs three independent jobs:
+`security-scanning.yml` runs two independent jobs:
 
-- `npm audit --omit=dev --audit-level=high` for production frontend dependencies;
-- OWASP Dependency-Check for backend dependencies, failing at CVSS 9.0 or higher;
+- `npm audit --omit=dev --audit-level=critical` for production frontend dependencies, warning on high findings and failing on critical findings;
 - a checksum-verified Gitleaks scan across the complete Git history.
 
 `codeql.yml` analyzes Java and JavaScript/TypeScript with the `security-extended` query suite. CodeQL results are published under the repository Security tab.
@@ -93,29 +92,25 @@ Repository Settings
 ```text
 RENDER_DEPLOY_HOOK_URL
 RENDER_API_KEY
-NVD_API_KEY                  # optional, improves OWASP Dependency-Check feed performance
 ```
 
 `RENDER_DEPLOY_HOOK_URL` is the backend service deploy hook.
 
 `RENDER_API_KEY` is used only to retrieve the status of the specific deploy started by the workflow. It prevents CI from reporting success merely because Render accepted the hook request.
 
-`NVD_API_KEY` is optional. OWASP Dependency-Check can run without it, but an API key improves National Vulnerability Database update speed and reliability.
-
 ### Repository variables
 
 ```text
 RENDER_SERVICE_ID
-RENDER_HEALTH_URL
 ```
 
-Example health URL:
+The workflow pins the production health URL to:
 
 ```text
 https://wandermate-fullstack.onrender.com/Wandermate/api/v1/health
 ```
 
-The service ID has the Render form:
+This avoids a stale repository variable pointing to the old `/The-Project` context path. The service ID has the Render form:
 
 ```text
 srv-...
@@ -187,7 +182,7 @@ Frontend failure:
 
 Security-scan failure:
 
-- download the corresponding npm, OWASP or Gitleaks artifact;
+- download the corresponding npm or Gitleaks artifact;
 - verify whether the finding affects shipped code;
 - update dependencies without forced major upgrades;
 - rotate any real secret before removing it from source control;

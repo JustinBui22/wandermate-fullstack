@@ -14,7 +14,7 @@
 - Sanitized production logging.
 - Added backend `clean verify`, JaCoCo, fresh MariaDB Flyway/Hibernate verification and tracked Render health checks.
 - Added Expo config/export validation.
-- Added npm audit, OWASP Dependency-Check, Gitleaks, CodeQL and Dependabot.
+- Added npm audit, Gitleaks, CodeQL and Dependabot dependency monitoring.
 - Verified the included backend test evidence at 487 tests with no failures/errors.
 - Documented phone OTP as a demo-only simulated path; email OTP remains the operational delivery flow.
 
@@ -40,4 +40,5 @@ These are not required for portfolio completion:
 - asynchronous queued email delivery;
 - replace the simulated phone-OTP path with a paid SMS provider and real delivery/failure handling if it becomes a product requirement;
 - broader frontend component coverage;
+- scheduled cleanup of abandoned or unreferenced Cloudinary assets;
 - offline-first mobile behavior.

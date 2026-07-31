@@ -126,7 +126,7 @@ Authorization: Bearer {{accessToken}}
 Session-Token: {{sessionToken}}
 ```
 
-Use ISO date-time values, not date-only strings.
+Use date-only `yyyy-MM-dd` values for trip start and end dates.
 
 ### 9. Destination and activity
 

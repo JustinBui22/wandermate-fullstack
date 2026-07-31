@@ -19,7 +19,7 @@ This directory documents the current backend implementation. The code and Flyway
 | [Cloudinary image storage](CLOUDINARY_IMAGE_STORAGE.md) | Upload validation, paths and cleanup |
 | [CI/CD](CI_CD.md) | Build, MariaDB migration and Render health verification |
 | [Production logging](PRODUCTION_LOGGING.md) | Sensitive-data logging rules |
-| [Security scanning](SECURITY_SCANNING.md) | npm, OWASP Dependency-Check, Gitleaks, CodeQL and Dependabot |
+| [Security scanning](SECURITY_SCANNING.md) | npm audit, Gitleaks, CodeQL and Dependabot |
 | [Roadmap and maintenance](ROADMAP.md) | Completed hardening work and optional future maintenance |
 
 ## Current baseline

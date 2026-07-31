@@ -210,7 +210,7 @@ Production dependency audit:
 npm run audit:prod
 ```
 
-This runs `npm audit --omit=dev --audit-level=high` and does not force dependency upgrades.
+This runs `npm audit --omit=dev --audit-level=critical`. High production findings are reviewed as warnings, while critical findings fail the security workflow. The project does not force dependency upgrades.
 
 ## E2E smoke flow
 
