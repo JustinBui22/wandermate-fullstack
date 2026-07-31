@@ -65,7 +65,7 @@ jobs:
 
       - name: Upload frontend verification reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-verification-reports
           path: |
@@ -75,7 +75,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Expo web export
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-web-export
           path: frontend/dist

@@ -53,7 +53,7 @@ jobs:
 
       - name: Upload backend verification reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-verification-reports
           path: |
@@ -63,7 +63,7 @@ jobs:
           retention-days: 14
 
       - name: Upload packaged backend
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-application
           path: backend/target/*.jar
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload fresh-database startup log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fresh-database-startup-log
           path: backend/target/ci-logs/fresh-database-smoke.log
