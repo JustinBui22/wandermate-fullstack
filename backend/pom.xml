@@ -79,7 +79,7 @@
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.11.5</version> <!-- Use the latest version -->
+            <version>0.13.0</version> <!-- Use the latest version -->
         </dependency>
         <dependency>
             <groupId>com.cloudinary</groupId>
