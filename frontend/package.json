@@ -6,7 +6,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@hookform/resolvers": "^5.4.0",
     "@react-native-community/datetimepicker": "9.1.0",
-    "axios": "^1.18.1",
+    "axios": "^1.19.0",
     "expo": "~56.0.17",
     "expo-clipboard": "~56.0.4",
     "expo-constants": "~56.0.17",
