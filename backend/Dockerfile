@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:24-jdk AS build
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY src src
 RUN --mount=type=cache,target=/root/.m2 \
     ./mvnw -B -U -Dmaven.wagon.http.retryHandler.count=5 clean package -DskipTests
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:24-jre
 
 WORKDIR /app
 
